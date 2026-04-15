@@ -88,11 +88,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    const brokerId = String(p.broker_id);
+    const { data: broker } = await supabase
+      .from("brokers")
+      .select("whatsapp_number")
+      .eq("id", brokerId)
+      .maybeSingle();
+
+    const wa = broker?.whatsapp_number
+      ? `https://wa.me/${String(broker.whatsapp_number).replace(/\D/g, "")}`
+      : null;
+
     return json({
       ok: true,
       state: "active",
       property_id: p.id,
       public_id: p.public_id,
+      broker_whatsapp: broker?.whatsapp_number ?? null,
+      whatsapp_link: wa,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

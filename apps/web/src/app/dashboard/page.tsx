@@ -55,6 +55,12 @@ export default async function DashboardPage() {
           >
             Planos (billing)
           </Link>
+          <Link
+            href="/partner"
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900 dark:border-zinc-600 dark:text-zinc-100"
+          >
+            Portal parceiro
+          </Link>
         </nav>
 
         <form className="mt-8" action={signOut}>

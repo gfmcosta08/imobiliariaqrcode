@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { MediaSection } from "./media-section";
 import { StatusForm } from "./status-form";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -19,6 +19,31 @@ export default async function PropertyDetailPage(props: PageProps) {
 
   if (error || !property) {
     notFound();
+  }
+
+  const { data: planRow } = await supabase
+    .from("plans")
+    .select("max_images_per_property")
+    .eq("code", property.origin_plan_code)
+    .maybeSingle();
+
+  const maxImages = planRow?.max_images_per_property ?? 10;
+
+  const { data: mediaRows } = await supabase
+    .from("property_media")
+    .select("id, storage_path, mime_type, status")
+    .eq("property_id", id)
+    .neq("status", "deleted")
+    .order("created_at", { ascending: true });
+
+  const signedUrls: Record<string, string> = {};
+  for (const m of mediaRows ?? []) {
+    const { data: signed, error: signError } = await supabase.storage
+      .from("property-media")
+      .createSignedUrl(m.storage_path, 3600);
+    if (!signError && signed?.signedUrl) {
+      signedUrls[m.id] = signed.signedUrl;
+    }
   }
 
   const { data: qr } = await supabase
@@ -83,6 +108,13 @@ export default async function PropertyDetailPage(props: PageProps) {
         <StatusForm propertyId={property.id} currentStatus={property.listing_status} />
       </div>
 
+      <MediaSection
+        propertyId={property.id}
+        media={mediaRows ?? []}
+        signedUrls={signedUrls}
+        maxImages={maxImages}
+      />
+
       {resolveUrl ? (
         <div className="mt-10">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (teste)</h2>
@@ -92,12 +124,12 @@ export default async function PropertyDetailPage(props: PageProps) {
           </p>
           <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row">
             <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(resolveUrl)}`}
                 alt="QR Code do imóvel"
                 width={200}
                 height={200}
-                unoptimized
               />
             </div>
             <div className="max-w-full break-all text-xs text-zinc-500">

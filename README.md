@@ -6,9 +6,9 @@ SaaS imobiliário (SDD): Next.js, Supabase (Auth, Postgres, RLS, Storage, Edge F
 
 ## O que está pronto
 
-- **Banco (migrations):** tabelas do SDD (`accounts`, `profiles`, `brokers`, `subscriptions`, `properties`, mídia, QR, parceiros, leads, conversas, webhooks, auditoria), índices, `plans` (FREE/PRO), trigger `handle_new_user`, geração de `public_id` e `qr_token`, `register_print_event`, `expire_free_properties`, `recommend_similar_properties`, `create_lead_from_visit_interest`, **RLS** por `account_id`, políticas de **Storage** no bucket `property-media`.
-- **Web (`apps/web`):** cadastro com nome/WhatsApp (metadata), login, painel, **CRUD de imóveis** (rascunho + status), **QR de teste** (imagem via api.qrserver.com apontando para a Edge `qr-resolve`), página pública **`/q/[token]`** para testar resolução, página **Planos** (texto + próximos passos de billing).
-- **Edge Functions:** `qr-resolve` e `partner-print-register` funcionais; demais rotas **stub** conforme SDD.
+- **Banco (migrations):** tabelas do SDD (`accounts`, `profiles`, `brokers`, `subscriptions`, `properties`, mídia, QR, parceiros, leads, conversas, webhooks, auditoria), índices, `plans` (FREE/PRO), trigger `handle_new_user`, geração de `public_id` e `qr_token`, `register_print_event`, `expire_free_properties`, `recommend_similar_properties`, `create_lead_from_visit_interest`, **RLS** por `account_id`, políticas de **Storage** no bucket `property-media`, **limite de imagens por plano** (trigger em `property_media`), RPC **`partner_lookup_property`** para parceiros.
+- **Web (`apps/web`):** cadastro com nome/WhatsApp (metadata), login, painel, **CRUD de imóveis** (rascunho + status), **upload de imagens** (Storage + `property_media` + URLs assinadas), **QR de teste**, página **`/q/[token]`**, **`/partner`** (busca por `public_id` + registro de impressão via Edge), **Planos**, **`GET /api/health`**.
+- **Edge Functions:** `qr-resolve` (inclui link WhatsApp do corretor quando ativo), `partner-print-register`, **`whatsapp-webhook-inbound`** (persiste payload em `webhook_events` com deduplicação); demais rotas **stub** conforme SDD.
 
 ## Pré-requisitos
 
