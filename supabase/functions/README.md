@@ -2,7 +2,7 @@
 
 | Função                        | Estado                                                                 |
 | ----------------------------- | ---------------------------------------------------------------------- |
-| `qr-resolve`                  | Implementada — resolve token, valida FREE/PRO, link WhatsApp corretor |
+| `qr-resolve`                  | Implementada — resolve token, valida FREE/PRO, link WhatsApp corretor  |
 | `partner-print-register`      | Implementada — JWT de parceiro + RPC `register_print_event`            |
 | `whatsapp-webhook-inbound`    | MVP — persiste payload em `webhook_events` (dedupe); falta Uazapi+fila |
 | `whatsapp-dispatch`           | Stub — fila outbound + throttling                                      |
