@@ -20,7 +20,10 @@ function purposeLabel(purpose: string | null): string {
   if (purpose === "rent") {
     return "Aluguel";
   }
-  return purpose ?? "—";
+  if (purpose === "season") {
+    return "Temporada";
+  }
+  return purpose ?? "â€”";
 }
 
 type Props = {
@@ -79,10 +82,10 @@ export function PublicQrActive({ token, body }: Props) {
       if (!res.ok || !data.ok) {
         setSubmitError(
           data.error === "invalid_phone"
-            ? "Informe um telefone válido com DDD."
+            ? "Informe um telefone vÃ¡lido com DDD."
             : data.error === "qr_unavailable"
-              ? "Este anúncio não está mais disponível."
-              : (data.error ?? "Não foi possível registrar."),
+              ? "Este anÃºncio nÃ£o estÃ¡ mais disponÃ­vel."
+              : (data.error ?? "NÃ£o foi possÃ­vel registrar."),
         );
         return;
       }
@@ -99,7 +102,7 @@ export function PublicQrActive({ token, body }: Props) {
       <div className="mx-auto flex max-w-lg flex-col px-4 py-10">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           {purposeLabel(listing.purpose)}
-          {priceStr ? ` · ${priceStr}` : ""}
+          {priceStr ? ` Â· ${priceStr}` : ""}
         </p>
         <h1 className="mt-2 text-2xl font-semibold leading-tight text-zinc-900 dark:text-zinc-50">
           {headline}
@@ -125,14 +128,14 @@ export function PublicQrActive({ token, body }: Props) {
                 </a>
               ) : (
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  O corretor ainda não configurou WhatsApp neste anúncio.
+                  O corretor ainda nÃ£o configurou WhatsApp neste anÃºncio.
                 </p>
               )}
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                Informe seu WhatsApp para registrar o interesse neste imóvel. Depois você pode falar
+                Informe seu WhatsApp para registrar o interesse neste imÃ³vel. Depois vocÃª pode falar
                 direto com o corretor.
               </p>
               <div>
@@ -144,7 +147,7 @@ export function PublicQrActive({ token, body }: Props) {
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
-                  placeholder="DDD + número (ex.: 11999998888)"
+                  placeholder="DDD + nÃºmero (ex.: 11999998888)"
                   value={phone}
                   onChange={(ev) => setPhone(ev.target.value)}
                   className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
@@ -161,7 +164,7 @@ export function PublicQrActive({ token, body }: Props) {
                 disabled={submitting}
                 className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
               >
-                {submitting ? "Registrando…" : "Registrar interesse"}
+                {submitting ? "Registrandoâ€¦" : "Registrar interesse"}
               </button>
               {whatsappLink ? (
                 <p className="text-center text-xs text-zinc-500">
@@ -182,7 +185,7 @@ export function PublicQrActive({ token, body }: Props) {
         {similar !== null && similar.length > 0 ? (
           <div className="mt-8">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              Outros imóveis do corretor
+              Outros imÃ³veis do corretor
             </h2>
             <ul className="mt-3 space-y-3">
               {similar.map((s) => {
@@ -193,8 +196,8 @@ export function PublicQrActive({ token, body }: Props) {
                     <p className="font-medium text-zinc-900 dark:text-zinc-50">{label}</p>
                     <p className="text-xs text-zinc-600 dark:text-zinc-400">
                       {[s.city, s.state].filter(Boolean).join(" / ")}
-                      {pStr ? ` · ${pStr}` : ""}
-                      {s.purpose ? ` · ${purposeLabel(s.purpose)}` : ""}
+                      {pStr ? ` Â· ${pStr}` : ""}
+                      {s.purpose ? ` Â· ${purposeLabel(s.purpose)}` : ""}
                     </p>
                   </>
                 );

@@ -64,3 +64,69 @@ export async function updatePropertyStatus(propertyId: string, listing_status: s
   revalidatePath(`/properties/${propertyId}`);
   return { ok: true as const };
 }
+
+function parseCurrencyBRL(input: string | null | undefined): number | null {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/\s/g, "").replace(/[R$]/g, "").replace(/\./g, "").replace(",", ".");
+  const value = Number.parseFloat(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseDateBR(input: string | null | undefined): string | null {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return iso;
+}
+
+export async function markPropertyAsSold(params: {
+  propertyId: string;
+  confirmText: string;
+  soldDate: string;
+  soldCommission: string;
+  soldNotes?: string;
+}) {
+  const confirm = String(params.confirmText ?? "").trim().toUpperCase();
+  if (confirm !== "VENDIDO") {
+    return { error: "Digite VENDIDO para confirmar." };
+  }
+
+  const sold_at = parseDateBR(params.soldDate);
+  if (!sold_at) {
+    return { error: "Data da venda inválida. Use dd/mm/aaaa." };
+  }
+
+  const sold_commission_amount = parseCurrencyBRL(params.soldCommission);
+  if (sold_commission_amount == null || sold_commission_amount < 0) {
+    return { error: "Comissão inválida." };
+  }
+
+  const sold_notes = String(params.soldNotes ?? "").trim() || null;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("properties")
+    .update({
+      listing_status: "removed",
+      sold_at,
+      sold_commission_amount,
+      sold_confirmed_at: new Date().toISOString(),
+      sold_notes,
+    })
+    .eq("id", params.propertyId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/properties");
+  revalidatePath(`/properties/${params.propertyId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+  return { ok: true as const };
+}

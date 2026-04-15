@@ -1,9 +1,9 @@
-export type PropertyFormPayload = {
+﻿export type PropertyFormPayload = {
   title: string | null;
   internal_code: string | null;
   property_type: string | null;
   property_subtype: string | null;
-  purpose: "sale" | "rent" | null;
+  purpose: "sale" | "rent" | "season" | null;
   listing_status: string;
   city: string | null;
   state: string | null;
@@ -38,15 +38,10 @@ export type PropertyFormPayload = {
   floors_count: number | null;
   unit_floor: number | null;
   is_furnished: boolean | null;
+  furnishing_status: "unfurnished" | "semi_furnished" | "furnished" | null;
   floor_type: string | null;
   sun_position: string | null;
   property_age_years: number | null;
-  owner_name: string | null;
-  owner_phone: string | null;
-  owner_email: string | null;
-  listing_broker_name: string | null;
-  listing_broker_phone: string | null;
-  listing_broker_email: string | null;
   features: string[] | null;
   infrastructure: string[] | null;
   security_items: string[] | null;
@@ -126,7 +121,10 @@ function parseTextList(value: FormDataEntryValue | null): string[] | null {
 
 export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
   const purposeRaw = String(formData.get("purpose") ?? "").trim();
-  const purpose = purposeRaw === "sale" || purposeRaw === "rent" ? purposeRaw : null;
+  const purpose =
+    purposeRaw === "sale" || purposeRaw === "rent" || purposeRaw === "season"
+      ? purposeRaw
+      : null;
 
   const listingStatusRaw = String(formData.get("listing_status") ?? "").trim();
   const listing_status =
@@ -137,6 +135,12 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
     listingStatusRaw === "blocked"
       ? listingStatusRaw
       : "draft";
+
+  const furnishingRaw = String(formData.get("furnishing_status") ?? "").trim();
+  const furnishing_status =
+    furnishingRaw === "unfurnished" || furnishingRaw === "semi_furnished" || furnishingRaw === "furnished"
+      ? furnishingRaw
+      : null;
 
   const salePrice = parseDecimalInput(formData.get("sale_price"));
   const rentPrice = parseDecimalInput(formData.get("rent_price"));
@@ -166,7 +170,7 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
     broker_notes: nullableText(formData.get("broker_notes")),
     sale_price: salePrice,
     rent_price: rentPrice,
-    price: purpose === "rent" ? rentPrice : salePrice,
+    price: purpose === "sale" ? salePrice : rentPrice,
     condo_fee: parseDecimalInput(formData.get("condo_fee")),
     iptu_amount: parseDecimalInput(formData.get("iptu_amount")),
     other_fees: parseDecimalInput(formData.get("other_fees")),
@@ -183,16 +187,11 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
     living_rooms: parseIntegerInput(formData.get("living_rooms")),
     floors_count: parseIntegerInput(formData.get("floors_count")),
     unit_floor: parseIntegerInput(formData.get("unit_floor")),
-    is_furnished: parseTriState(formData.get("is_furnished")),
+    is_furnished: furnishing_status === null ? null : furnishing_status !== "unfurnished",
+    furnishing_status,
     floor_type: nullableText(formData.get("floor_type")),
     sun_position: nullableText(formData.get("sun_position")),
     property_age_years: parseIntegerInput(formData.get("property_age_years")),
-    owner_name: nullableText(formData.get("owner_name")),
-    owner_phone: nullableText(formData.get("owner_phone")),
-    owner_email: nullableText(formData.get("owner_email")),
-    listing_broker_name: nullableText(formData.get("listing_broker_name")),
-    listing_broker_phone: nullableText(formData.get("listing_broker_phone")),
-    listing_broker_email: nullableText(formData.get("listing_broker_email")),
     features: parseTextList(formData.get("features")),
     infrastructure: parseTextList(formData.get("infrastructure")),
     security_items: parseTextList(formData.get("security_items")),

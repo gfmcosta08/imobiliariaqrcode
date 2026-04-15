@@ -32,4 +32,16 @@ describe("buildPropertyPayload", () => {
     expect(payload.price).toBeCloseTo(1234567.89);
     expect(payload.area_m2).toBeCloseTo(250.5);
   });
+
+  it("suporta finalidade temporada e mobiliado semi", () => {
+    const fd = new FormData();
+    fd.set("purpose", "season");
+    fd.set("furnishing_status", "semi_furnished");
+    fd.set("rent_price", "3.500,00");
+    const payload = buildPropertyPayload(fd);
+    expect(payload.purpose).toBe("season");
+    expect(payload.furnishing_status).toBe("semi_furnished");
+    expect(payload.is_furnished).toBe(true);
+    expect(payload.price).toBeCloseTo(3500);
+  });
 });
