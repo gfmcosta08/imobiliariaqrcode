@@ -288,6 +288,33 @@ deno_version = 1
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+[functions.qr-resolve]
+verify_jwt = false
+
+[functions.partner-print-register]
+verify_jwt = true
+
+[functions.whatsapp-webhook-inbound]
+verify_jwt = false
+
+[functions.whatsapp-dispatch]
+verify_jwt = false
+
+[functions.billing-stripe-webhook]
+verify_jwt = false
+
+[functions.billing-mercadopago-webhook]
+verify_jwt = false
+
+[functions.media-process]
+verify_jwt = false
+
+[functions.lead-notify-broker]
+verify_jwt = false
+
+[functions.conversation-handle]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -9,6 +9,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,16 @@ export default function LoginPage() {
     const { error: authError } =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName.trim() || undefined,
+                whatsapp_number: whatsapp.trim() || undefined,
+              },
+            },
+          });
     setLoading(false);
     if (authError) {
       setError(authError.message);
@@ -38,9 +49,38 @@ export default function LoginPage() {
           {mode === "login" ? "Entrar" : "Criar conta"}
         </h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Supabase Auth (ambiente local). Domínio de corretor no Sprint 1.
+          Cadastro cria conta FREE com perfil e corretor (trigger no Postgres).
         </p>
         <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
+          {mode === "signup" ? (
+            <>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                  Nome completo *
+                </span>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  required={mode === "signup"}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">WhatsApp *</span>
+                <input
+                  type="tel"
+                  autoComplete="tel"
+                  required={mode === "signup"}
+                  placeholder="+55..."
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                />
+              </label>
+            </>
+          ) : null}
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-zinc-800 dark:text-zinc-200">E-mail</span>
             <input

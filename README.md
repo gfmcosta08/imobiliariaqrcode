@@ -1,16 +1,19 @@
 # Imobiliária QR Code
 
-SaaS imobiliário (SDD): Next.js, Supabase (Auth, Postgres, RLS, Storage, Edge Functions, filas, Cron), WhatsApp (Uazapi), billing (Stripe + Mercado Pago).
+SaaS imobiliário (SDD): Next.js, Supabase (Auth, Postgres, RLS, Storage, Edge Functions), WhatsApp (Uazapi — pendente), billing (Stripe + Mercado Pago — stubs).
 
-Este repositório segue o monorepo descrito no SDD: `apps/web`, `packages/*`, `supabase/`.
+**Raiz do projeto:** `D:\opencode\imobiliariaopencode`
 
-**Pasta de trabalho nesta máquina:** `D:\opencode\imobiliariaopencode` (raiz oficial no Cursor e nos terminais).
+## O que está pronto
+
+- **Banco (migrations):** tabelas do SDD (`accounts`, `profiles`, `brokers`, `subscriptions`, `properties`, mídia, QR, parceiros, leads, conversas, webhooks, auditoria), índices, `plans` (FREE/PRO), trigger `handle_new_user`, geração de `public_id` e `qr_token`, `register_print_event`, `expire_free_properties`, `recommend_similar_properties`, `create_lead_from_visit_interest`, **RLS** por `account_id`, políticas de **Storage** no bucket `property-media`.
+- **Web (`apps/web`):** cadastro com nome/WhatsApp (metadata), login, painel, **CRUD de imóveis** (rascunho + status), **QR de teste** (imagem via api.qrserver.com apontando para a Edge `qr-resolve`), página pública **`/q/[token]`** para testar resolução, página **Planos** (texto + próximos passos de billing).
+- **Edge Functions:** `qr-resolve` e `partner-print-register` funcionais; demais rotas **stub** conforme SDD.
 
 ## Pré-requisitos
 
-- [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/) 10 (`corepack enable` opcional)
-- Supabase CLI: `npx supabase@latest` (ou instalação global)
+- Node.js 20+, pnpm 10
+- Docker Desktop (para `supabase start` / `db reset`)
 
 ## Configuração
 
@@ -19,26 +22,20 @@ pnpm install
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (projeto Supabase local ou remoto).
 
 ### Supabase local
-
-Na raiz do repositório:
 
 ```bash
 pnpm exec supabase start
 pnpm exec supabase status
 ```
 
-Copie **API URL** e **anon key** para `apps/web/.env.local`.
-
-Aplicar migrations:
+Copie URL e **anon key** para `apps/web/.env.local`. Aplique o schema:
 
 ```bash
 pnpm exec supabase db reset
 ```
-
-Isso aplica `supabase/migrations` e executa `supabase/seed.sql`.
 
 ### Web
 
@@ -46,7 +43,20 @@ Isso aplica `supabase/migrations` e executa `supabase/seed.sql`.
 pnpm dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000). Use **Cadastrar** na tela de login para criar usuário no Auth local; o painel `/dashboard` exige sessão.
+Fluxo sugerido: **Cadastrar** em `/login` → **Painel** → **Imóveis** → criar imóvel → abrir detalhe e conferir **QR** (link para `.../functions/v1/qr-resolve?token=...`). Página pública: `/q/<qr_token>` (o mesmo token salvo em `property_qrcodes`).
+
+### Edge Functions locais
+
+```bash
+pnpm exec supabase functions serve
+```
+
+Configure `SUPABASE_SERVICE_ROLE_KEY` e demais secrets no ambiente das functions (não commitar).
+
+## Jobs e filas
+
+- **Expiração FREE:** função SQL `expire_free_properties()` — agendar com **pg_cron** ou **Supabase Cron** apontando para uma Edge ou RPC (não incluso como job agendado neste repositório; rode manualmente em dev se precisar).
+- **pgmq / filas:** previstas no SDD; não habilitadas neste pacote para evitar dependência extra no primeiro `db reset`. Integrar depois com a fila oficial do projeto.
 
 ## Scripts (raiz)
 
@@ -54,18 +64,14 @@ Abra [http://localhost:3000](http://localhost:3000). Use **Cadastrar** na tela d
 | ---------------- | -------------------------- |
 | `pnpm dev`       | Next.js em desenvolvimento |
 | `pnpm build`     | Build de produção          |
-| `pnpm lint`      | ESLint em todos os pacotes |
-| `pnpm typecheck` | `tsc` no app web           |
+| `pnpm lint`      | ESLint                     |
+| `pnpm typecheck` | TypeScript (`apps/web`)    |
 | `pnpm format`    | Prettier                   |
-
-## Edge Functions e secrets
-
-Configure secrets no projeto Supabase (Dashboard ou CLI). Liste as funções planejadas em `supabase/functions/README.md`. Não commite `.env` com `service_role`.
 
 ## CI
 
-GitHub Actions executa lint, typecheck e verificação Prettier em pushes e PRs para `main`/`master`.
+GitHub Actions: lint, typecheck e `prettier --check`.
 
 ## Licença
 
-Privado — [gfmcosta08/imobiliariaqrcode](https://github.com/gfmcosta08/imobiliariaqrcode).
+Privado — repositório do titular.

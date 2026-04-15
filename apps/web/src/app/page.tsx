@@ -5,14 +5,14 @@ export default function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-zinc-950">
       <main className="max-w-lg text-center">
         <p className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Sprint 0 — fundação
+          Imobiliária QR Code
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Imobiliária QR Code
+          QR + WhatsApp + Supabase
         </h1>
         <p className="mt-4 text-balance text-zinc-600 dark:text-zinc-400">
-          Monorepo Next.js + Supabase: autenticação local pronta; domínio (contas, imóveis, RLS) no
-          Sprint 1 conforme SDD.
+          Monorepo com schema, RLS, Edge Functions (qr-resolve, parceiro, stubs de billing/WhatsApp)
+          e painel de imóveis.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
