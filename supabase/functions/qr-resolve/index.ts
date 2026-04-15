@@ -100,8 +100,11 @@ Deno.serve(async (req) => {
       .eq("id", brokerId)
       .maybeSingle();
 
+    const leadStartText = encodeURIComponent(
+      `IMOVEL ${row.qr_token} - Tenho interesse no imóvel ${String(p.public_id ?? "")}.`,
+    );
     const wa = broker?.whatsapp_number
-      ? `https://wa.me/${String(broker.whatsapp_number).replace(/\D/g, "")}`
+      ? `https://wa.me/${String(broker.whatsapp_number).replace(/\D/g, "")}?text=${leadStartText}`
       : null;
 
     return json({

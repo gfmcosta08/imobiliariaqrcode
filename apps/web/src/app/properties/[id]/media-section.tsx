@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { deletePropertyMedia, uploadPropertyMedia } from "../media-actions";
+import { ImageBatchPicker } from "../image-batch-picker";
 
 type MediaRow = {
   id: string;
@@ -19,6 +20,7 @@ export function MediaSection(props: {
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const count = props.media.filter((m) => m.status !== "deleted").length;
   const canAdd = count < props.maxImages;
@@ -26,6 +28,7 @@ export function MediaSection(props: {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     formData.set("propertyId", props.propertyId);
@@ -34,6 +37,14 @@ export function MediaSection(props: {
     if (res && "error" in res && res.error) {
       setError(res.error);
       return;
+    }
+    if (res && "uploaded" in res) {
+      const failedCount = Array.isArray(res.failed) ? res.failed.length : 0;
+      if (failedCount > 0) {
+        setNotice(`Upload concluido com ressalvas: ${res.uploaded} enviada(s), ${failedCount} falha(s).`);
+      } else {
+        setNotice(`Upload concluido: ${res.uploaded} imagem(ns).`);
+      }
     }
     e.currentTarget.reset();
     router.refresh();
@@ -61,6 +72,11 @@ export function MediaSection(props: {
       {error ? (
         <p className="mt-2 text-sm text-red-600" role="alert">
           {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="mt-2 text-sm text-emerald-700" role="status">
+          {notice}
         </p>
       ) : null}
 
@@ -95,16 +111,15 @@ export function MediaSection(props: {
 
       {canAdd ? (
         <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Adicionar imagem</span>
-            <input
-              type="file"
-              name="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              required
-              className="text-sm"
+          <div className="w-full">
+            <ImageBatchPicker
+              inputName="files"
+              label="Adicionar imagens"
+              helperText="Selecione varias imagens de uma vez. As miniaturas aparecem antes de enviar."
+              disabled={loading}
+              maxFiles={Math.max(1, props.maxImages - count)}
             />
-          </label>
+          </div>
           <button
             type="submit"
             disabled={loading}

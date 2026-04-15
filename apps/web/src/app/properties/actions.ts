@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { buildPropertyPayload } from "@/lib/property-form";
 import { createClient } from "@/lib/supabase/server";
+import { uploadMediaFilesForProperty } from "./media-actions";
 
 export type CreatePropertyState = { error?: string } | null;
 
@@ -14,6 +15,9 @@ export async function createProperty(
 ): Promise<CreatePropertyState> {
   const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
+  const files = formData
+    .getAll("media_files")
+    .filter((v): v is File => v instanceof File && v.size > 0);
 
   const { data, error } = await supabase
     .from("properties")
@@ -27,6 +31,13 @@ export async function createProperty(
 
   revalidatePath("/properties");
   if (data?.id) {
+    if (files.length) {
+      const upload = await uploadMediaFilesForProperty(data.id, files);
+      if (upload.failed.length) {
+        const msg = `Enviadas: ${upload.uploaded}. Falhas: ${upload.failed.length}.`;
+        redirect(`/properties/${data.id}?mediaError=${encodeURIComponent(msg)}`);
+      }
+    }
     redirect(`/properties/${data.id}`);
   }
   return null;

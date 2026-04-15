@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -9,11 +10,17 @@ import { MediaSection } from "./media-section";
 import { PropertySimilarSection } from "./property-similar-section";
 import { StatusForm } from "./status-form";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ mediaError?: string }>;
+};
 
 export default async function PropertyDetailPage(props: PageProps) {
   const { id } = await props.params;
+  const query = props.searchParams ? await props.searchParams : undefined;
+  const mediaError = query?.mediaError ? decodeURIComponent(query.mediaError) : null;
   const supabase = await createClient();
+
   const { data: property, error } = await supabase
     .from("properties")
     .select(
@@ -31,7 +38,6 @@ export default async function PropertyDetailPage(props: PageProps) {
     .select("max_images_per_property")
     .eq("code", property.origin_plan_code)
     .maybeSingle();
-
   const maxImages = planRow?.max_images_per_property ?? 10;
 
   const { data: mediaRows } = await supabase
@@ -57,10 +63,14 @@ export default async function PropertyDetailPage(props: PageProps) {
     .eq("property_id", id)
     .maybeSingle();
 
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ?? "";
-  const resolveUrl = qr?.qr_token
-    ? `${baseUrl}/functions/v1/qr-resolve?token=${encodeURIComponent(qr.qr_token)}`
-    : null;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const appBase =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    (host ? `${proto}://${host}` : "");
+  const publicQrUrl = qr?.qr_token ? `${appBase}/q/${encodeURIComponent(qr.qr_token)}` : null;
 
   const description = property.full_description ?? property.description ?? "Sem descrição.";
 
@@ -75,8 +85,14 @@ export default async function PropertyDetailPage(props: PageProps) {
       <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
         {property.title ?? property.public_id}
       </h1>
+      {mediaError ? (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          Upload parcial de imagens no cadastro: {mediaError}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {(property.city ?? "Cidade não informada")} / {(property.state ?? "UF")} · {property.property_type ?? "Tipo não informado"}
+        {(property.city ?? "Cidade não informada")} / {(property.state ?? "UF")} ·{" "}
+        {property.property_type ?? "Tipo não informado"}
       </p>
 
       <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
@@ -122,24 +138,25 @@ export default async function PropertyDetailPage(props: PageProps) {
         maxImages={maxImages}
       />
 
-      {resolveUrl ? (
+      {publicQrUrl ? (
         <div className="mt-10">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (teste)</h2>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Aponte a câmera para o código ou abra o link de resolução. Configure <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> para o projeto Supabase.
+            Escaneie para abrir a página pública do anúncio.
           </p>
           <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row">
             <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(resolveUrl)}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicQrUrl)}`}
                 alt="QR Code do imóvel"
                 width={200}
                 height={200}
               />
             </div>
             <div className="max-w-full break-all text-xs text-zinc-500">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span> {resolveUrl}
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span>{" "}
+              {publicQrUrl}
             </div>
           </div>
         </div>

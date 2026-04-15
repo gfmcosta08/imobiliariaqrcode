@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 
 import type { CreatePropertyState } from "./actions";
+import { ImageBatchPicker } from "./image-batch-picker";
 
 type PropertyFormInitial = {
   id?: string;
@@ -378,6 +379,19 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Observações</h2>
         <FieldLabel label="Observações do Corretor (campo livre)"><textarea name="broker_notes" rows={5} defaultValue={initial.broker_notes ?? ""} className={inputClass} /></FieldLabel>
       </section>
+
+      {props.mode === "create" ? (
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Imagens do Imóvel</h2>
+          <div className="mt-3">
+            <ImageBatchPicker
+              inputName="media_files"
+              label="Selecionar imagens"
+              helperText="As miniaturas aparecem antes de salvar. Ao clicar em Salvar imóvel, enviamos todas em lote."
+            />
+          </div>
+        </section>
+      ) : null}
 
       <div className="flex items-center gap-4">
         <SubmitButton mode={props.mode} />
