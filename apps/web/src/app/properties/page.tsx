@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PropertiesPage() {
@@ -34,11 +35,7 @@ export default async function PropertiesPage() {
       <ul className="mt-8 space-y-3">
         {(props ?? []).length === 0 ? (
           <li className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-            Nenhum imóvel ainda.{" "}
-            <Link href="/properties/new" className="font-medium underline">
-              Cadastrar o primeiro
-            </Link>
-            .
+            Nenhum imóvel ainda. <Link href="/properties/new" className="font-medium underline">Cadastrar o primeiro</Link>.
           </li>
         ) : (
           props?.map((p) => (
@@ -53,7 +50,7 @@ export default async function PropertiesPage() {
                     <span className="text-xs font-normal text-zinc-500">({p.public_id})</span>
                   </p>
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {p.city} / {p.state} · {p.listing_status} · plano origem: {p.origin_plan_code}
+                    {p.city ?? "Cidade não informada"} / {p.state ?? "UF"} · {p.listing_status} · plano origem: {p.origin_plan_code}
                   </p>
                 </div>
                 <span className="mt-2 text-sm text-zinc-500 sm:mt-0">Abrir →</span>

@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
+
+import { updatePropertyDetails } from "../actions";
+import { PropertyEditorForm } from "../property-editor-form";
 import { MediaSection } from "./media-section";
 import { PropertySimilarSection } from "./property-similar-section";
 import { StatusForm } from "./status-form";
@@ -13,7 +17,7 @@ export default async function PropertyDetailPage(props: PageProps) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id, public_id, title, description, city, state, listing_status, origin_plan_code, purpose, property_type, property_subtype, expires_at, printed_at",
+      "id, public_id, created_at, updated_at, title, internal_code, property_type, property_subtype, purpose, listing_status, city, state, neighborhood, postal_code, full_address, street_number, address_complement, latitude, longitude, description, full_description, highlights, broker_notes, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, total_area_m2, built_area_m2, land_area_m2, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, unit_floor, is_furnished, floor_type, sun_position, property_age_years, owner_name, owner_phone, owner_email, listing_broker_name, listing_broker_phone, listing_broker_email, features, infrastructure, security_items, key_available, is_occupied, documentation, technical_details, construction_type, finish_standard, registry_number, documentation_status, has_deed, has_registration, nearby_points, distance_to_center_km, city_region, origin_plan_code, expires_at, printed_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -58,8 +62,10 @@ export default async function PropertyDetailPage(props: PageProps) {
     ? `${baseUrl}/functions/v1/qr-resolve?token=${encodeURIComponent(qr.qr_token)}`
     : null;
 
+  const description = property.full_description ?? property.description ?? "Sem descrição.";
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <p className="text-sm text-zinc-500">
         <Link href="/properties" className="underline">
           Imóveis
@@ -70,12 +76,11 @@ export default async function PropertyDetailPage(props: PageProps) {
         {property.title ?? property.public_id}
       </h1>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {property.city} / {property.state} · {property.property_type} · {property.purpose}
+        {(property.city ?? "Cidade não informada")} / {(property.state ?? "UF")} · {property.property_type ?? "Tipo não informado"}
       </p>
+
       <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">
-          {property.description}
-        </p>
+        <p className="whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">{description}</p>
         <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-zinc-500">Status</dt>
@@ -88,20 +93,21 @@ export default async function PropertyDetailPage(props: PageProps) {
           {property.printed_at ? (
             <div>
               <dt className="text-zinc-500">Primeira impressão</dt>
-              <dd className="font-medium">
-                {new Date(property.printed_at).toLocaleString("pt-BR")}
-              </dd>
+              <dd className="font-medium">{new Date(property.printed_at).toLocaleString("pt-BR")}</dd>
             </div>
           ) : null}
           {property.expires_at ? (
             <div>
               <dt className="text-zinc-500">Expira em (FREE)</dt>
-              <dd className="font-medium">
-                {new Date(property.expires_at).toLocaleString("pt-BR")}
-              </dd>
+              <dd className="font-medium">{new Date(property.expires_at).toLocaleString("pt-BR")}</dd>
             </div>
           ) : null}
         </dl>
+      </div>
+
+      <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Edição completa do imóvel</h2>
+        <PropertyEditorForm mode="edit" initial={property} action={updatePropertyDetails} />
       </div>
 
       <div className="mt-8">
@@ -120,8 +126,7 @@ export default async function PropertyDetailPage(props: PageProps) {
         <div className="mt-10">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (teste)</h2>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Aponte a câmera para o código ou abra o link de resolução. Configure{" "}
-            <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> para o projeto Supabase.
+            Aponte a câmera para o código ou abra o link de resolução. Configure <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> para o projeto Supabase.
           </p>
           <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row">
             <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700">
@@ -134,14 +139,13 @@ export default async function PropertyDetailPage(props: PageProps) {
               />
             </div>
             <div className="max-w-full break-all text-xs text-zinc-500">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span>{" "}
-              {resolveUrl}
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span> {resolveUrl}
             </div>
           </div>
         </div>
       ) : (
         <p className="mt-8 text-sm text-amber-700 dark:text-amber-300">
-          Token de QR não encontrado — verifique migrations e trigger.
+          Token de QR não encontrado. Verifique migrations e trigger.
         </p>
       )}
 
