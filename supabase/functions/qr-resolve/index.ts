@@ -3,6 +3,15 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 type ResolveBody = { qr_token?: string };
 
+function prefersJson(req: Request, url: URL): boolean {
+  const format = url.searchParams.get("format");
+  if (format && format.toLowerCase() === "json") {
+    return true;
+  }
+  const accept = (req.headers.get("accept") ?? "").toLowerCase();
+  return accept.includes("application/json");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -19,6 +28,22 @@ Deno.serve(async (req) => {
 
     if (!qr_token) {
       return json({ ok: false, reason: "missing_token" }, 400);
+    }
+
+    const appBase =
+      Deno.env.get("PUBLIC_APP_URL")?.replace(/\/$/, "") ||
+      Deno.env.get("NEXT_PUBLIC_APP_URL")?.replace(/\/$/, "") ||
+      Deno.env.get("NEXT_PUBLIC_SITE_URL")?.replace(/\/$/, "") ||
+      "";
+
+    if (req.method === "GET" && !prefersJson(req, url) && appBase) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          Location: `${appBase}/q/${encodeURIComponent(qr_token)}`,
+        },
+      });
     }
 
     const supabase = createClient(

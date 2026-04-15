@@ -114,8 +114,8 @@ export function MediaSection(props: {
           <div className="w-full">
             <ImageBatchPicker
               inputName="files"
-              label="Adicionar imagens"
-              helperText="Selecione varias imagens de uma vez. As miniaturas aparecem antes de enviar."
+              label="Selecione varias imagens de uma vez"
+              helperText="Clique em Escolher arquivos, selecione as imagens e depois clique em Enviar."
               disabled={loading}
               maxFiles={Math.max(1, props.maxImages - count)}
             />
