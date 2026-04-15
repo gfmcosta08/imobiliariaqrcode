@@ -39,7 +39,12 @@ Deno.serve(async (req) => {
           listing_status,
           expires_at,
           origin_plan_code,
-          broker_id
+          broker_id,
+          title,
+          city,
+          state,
+          purpose,
+          price
         )
       `,
       )
@@ -104,8 +109,16 @@ Deno.serve(async (req) => {
       state: "active",
       property_id: p.id,
       public_id: p.public_id,
+      broker_id: brokerId,
       broker_whatsapp: broker?.whatsapp_number ?? null,
       whatsapp_link: wa,
+      listing: {
+        title: p.title ?? null,
+        city: p.city ?? null,
+        state: p.state ?? null,
+        purpose: p.purpose ?? null,
+        price: p.price != null ? Number(p.price) : null,
+      },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

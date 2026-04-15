@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
+/** INTEGRAÇÃO PENDENTE (por último): Uazapi — parsear eventos e alimentar conversas/leads. */
 /** Recebe webhook Uazapi (formato genérico), persiste em webhook_events para idempotência e processamento futuro. */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

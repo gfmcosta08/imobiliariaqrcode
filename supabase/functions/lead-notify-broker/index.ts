@@ -1,5 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
+/** INTEGRAÇÃO PENDENTE: opcional — notificação extra; o trigger SQL já enfileira em `whatsapp_messages`. */
 /** Stub: notificar corretor (WhatsApp/e-mail) ao criar lead. */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

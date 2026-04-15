@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { MediaSection } from "./media-section";
+import { PropertySimilarSection } from "./property-similar-section";
 import { StatusForm } from "./status-form";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -143,6 +144,8 @@ export default async function PropertyDetailPage(props: PageProps) {
           Token de QR não encontrado — verifique migrations e trigger.
         </p>
       )}
+
+      <PropertySimilarSection propertyId={property.id} />
 
       <p className="mt-10 text-sm">
         <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">

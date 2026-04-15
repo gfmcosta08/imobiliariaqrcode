@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@imobiliariaqrcode/shared-types": "workspace:*",
@@ -26,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.8",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.5"
   }
 }

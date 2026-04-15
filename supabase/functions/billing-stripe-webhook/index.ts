@@ -2,7 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 /**
- * Webhook Stripe — MVP: valida presença da assinatura e grava evento bruto.
+ * INTEGRAÇÃO PENDENTE (por último no roadmap): assinatura Stripe, atualização de `subscriptions`.
+ *
+ * Webhook Stripe — MVP: grava evento bruto em `webhook_events`.
  * Próximo passo: verificar assinatura com STRIPE_WEBHOOK_SECRET e atualizar `subscriptions`.
  */
 Deno.serve(async (req) => {

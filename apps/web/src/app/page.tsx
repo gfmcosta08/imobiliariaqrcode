@@ -8,11 +8,11 @@ export default function Home() {
           Imobiliária QR Code
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          QR + WhatsApp + Supabase
+          QR, leads e Supabase
         </h1>
         <p className="mt-4 text-balance text-zinc-600 dark:text-zinc-400">
-          Monorepo com schema, RLS, Edge Functions (qr-resolve, parceiro, stubs de billing/WhatsApp)
-          e painel de imóveis.
+          Painel para corretores, página pública do QR com recomendações e registro de interesse.
+          Integrações de WhatsApp API e cobrança ficam para a fase final.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link

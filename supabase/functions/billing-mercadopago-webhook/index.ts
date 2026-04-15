@@ -1,7 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
-/** Webhook Mercado Pago — MVP: persiste payload em webhook_events. */
+/**
+ * INTEGRAÇÃO PENDENTE (por último): reconciliar pagamentos e atualizar `subscriptions`.
+ * Webhook Mercado Pago — MVP: persiste payload em webhook_events.
+ */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

@@ -1,5 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
+/** INTEGRAÇÃO PENDENTE (por último): Uazapi — estados de conversa. */
 /** Stub: máquina de estados da conversa WhatsApp. */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

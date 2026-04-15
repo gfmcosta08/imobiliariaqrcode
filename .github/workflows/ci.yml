@@ -29,5 +29,8 @@ jobs:
       - name: Typecheck
         run: pnpm --filter web run typecheck
 
+      - name: Unit tests
+        run: pnpm test
+
       - name: Prettier check
         run: pnpm format:check
