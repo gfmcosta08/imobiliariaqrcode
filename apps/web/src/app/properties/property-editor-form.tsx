@@ -106,7 +106,7 @@ function SubmitButton(props: { mode: "create" | "edit" }) {
       disabled={pending}
       className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
     >
-      {pending ? "Salvando..." : props.mode === "create" ? "Salvar rascunho" : "Salvar alterações"}
+      {pending ? "Salvando..." : props.mode === "create" ? "Salvar imóvel" : "Salvar alterações"}
     </button>
   );
 }
