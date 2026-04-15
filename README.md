@@ -4,7 +4,7 @@ SaaS imobiliário (SDD): Next.js, Supabase (Auth, Postgres, RLS, Storage, Edge F
 
 Este repositório segue o monorepo descrito no SDD: `apps/web`, `packages/*`, `supabase/`.
 
-**Pasta de trabalho nesta máquina:** `D:\Open Code\Real Estate QR Code` (use esta raiz no Cursor e nos terminais; não há cópia autorizada em `C:\Users\PM\Projects\imobiliariaqrcode`).
+**Pasta de trabalho nesta máquina:** `D:\opencode\imobiliariaopencode` (raiz oficial no Cursor e nos terminais).
 
 ## Pré-requisitos
 
