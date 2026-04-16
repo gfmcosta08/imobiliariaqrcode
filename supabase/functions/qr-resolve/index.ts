@@ -5,9 +5,7 @@ type ResolveBody = { qr_token?: string };
 
 function prefersJson(req: Request, url: URL): boolean {
   const format = url.searchParams.get("format");
-  if (format && format.toLowerCase() === "json") {
-    return true;
-  }
+  if (format && format.toLowerCase() === "json") return true;
   const accept = (req.headers.get("accept") ?? "").toLowerCase();
   return accept.includes("application/json");
 }
@@ -90,6 +88,7 @@ Deno.serve(async (req) => {
     if (!row || !p) {
       return json({ ok: true, state: "not_found" });
     }
+
     const listingStatus = String(p.listing_status);
     const originPlan = String(p.origin_plan_code);
     const expiresAt = p.expires_at ? new Date(String(p.expires_at)) : null;
@@ -98,7 +97,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         state: "unavailable",
-        message: "Este anúncio não está mais disponível.",
+        message: "Este anuncio nao esta mais disponivel.",
       });
     }
 
@@ -106,7 +105,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         state: "expired",
-        message: "Este anúncio não está mais disponível.",
+        message: "Este anuncio nao esta mais disponivel.",
       });
     }
 
@@ -114,7 +113,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         state: "expired",
-        message: "Este anúncio não está mais disponível.",
+        message: "Este anuncio nao esta mais disponivel.",
       });
     }
 
@@ -125,11 +124,17 @@ Deno.serve(async (req) => {
       .eq("id", brokerId)
       .maybeSingle();
 
+    const botPhone =
+      Deno.env.get("UAZAPI_BOT_PHONE") ??
+      Deno.env.get("WHATSAPP_BOT_PHONE") ??
+      null;
+    const targetPhone = botPhone ?? broker?.whatsapp_number ?? null;
+
     const leadStartText = encodeURIComponent(
-      `IMOVEL ${row.qr_token} - Tenho interesse no imóvel ${String(p.public_id ?? "")}.`,
+      `IMOVEL ${row.qr_token} - Tenho interesse no imovel ${String(p.public_id ?? "")}.`,
     );
-    const wa = broker?.whatsapp_number
-      ? `https://wa.me/${String(broker.whatsapp_number).replace(/\D/g, "")}?text=${leadStartText}`
+    const wa = targetPhone
+      ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
       : null;
 
     return json({
