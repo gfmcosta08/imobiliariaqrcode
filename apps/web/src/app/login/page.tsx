@@ -19,27 +19,32 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error: authError } =
-      mode === "login"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName.trim() || undefined,
-                whatsapp_number: whatsapp.trim() || undefined,
+    try {
+      const supabase = createClient();
+      const { error: authError } =
+        mode === "login"
+          ? await supabase.auth.signInWithPassword({ email, password })
+          : await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  full_name: fullName.trim() || undefined,
+                  whatsapp_number: whatsapp.trim() || undefined,
+                },
               },
-            },
-          });
-    setLoading(false);
-    if (authError) {
-      setError(authError.message);
-      return;
+            });
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro inesperado. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
