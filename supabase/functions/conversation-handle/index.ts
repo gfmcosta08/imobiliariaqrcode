@@ -17,8 +17,13 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
+  // Padrão 1: imovel [token]
   const m = t.match(/(?:imovel|im[oó]vel)\s+([a-z0-9_-]{16,80})/i);
   if (m?.[1]) return m[1];
+  // Padrão 2: (Ref: [token]) ou Ref: [token]
+  const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
+  if (mRef?.[1]) return mRef[1];
+  // Padrão 3: apenas o token (hash de 32 a 80 chars)
   const uuidLike = t.match(/[a-z0-9]{32,80}/i);
   return uuidLike?.[0] ?? null;
 }
@@ -30,10 +35,10 @@ function summarizeProperty(row: Record<string, unknown>): string {
   const purpose = String(row.purpose ?? "");
   const price = row.price == null ? "" : Number(row.price).toLocaleString("pt-BR");
   return [
-    `Imóvel: ${title}`,
-    city || state ? `Local: ${[city, state].filter(Boolean).join(" / ")}` : null,
-    purpose ? `Finalidade: ${purpose}` : null,
-    price ? `Preço: R$ ${price}` : null,
+    `🏠 *${title}*`,
+    city || state ? `📍 Local: ${[city, state].filter(Boolean).join(" / ")}` : null,
+    purpose ? `📋 Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
+    price ? `💰 Valor: R$ ${price}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -107,7 +112,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `${summarizeProperty(property)}\n\n1- Quer agendar uma visita? (responda: sim ou nao)`,
+      text: `Opa! Tudo bem? Vi que você se interessou pelo imóvel no QR Code. Seguem as informações dele:\n\n${summarizeProperty(property)}\n\nE aí, bora agendar uma visita? Responda com *SIM* ou *NÃO* pra gente conversar!`,
       public_id: property.public_id,
     },
   });
@@ -237,7 +242,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "visit_registered",
-            text: "Perfeito. Seu interesse de visita foi registrado. O corretor vai entrar em contato.",
+            text: "Fechado! Já anotei aqui seu interesse. O corretor vai te dar um alô em breve pra combinarmos tudo! 😉",
             lead_id: leadId ?? null,
           },
         });
@@ -252,7 +257,7 @@ Deno.serve(async (req) => {
             payload: {
               kind: "broker_notification",
               to_broker: true,
-              text: `Novo cliente aguardando contato para visita.\nImóvel: ${property.public_id}\nTelefone: ${leadPhone}`,
+              text: `🚨 *Novo Lead!* 🚨\n\nUm cliente quer visitar o imóvel *${property.public_id}*.\n\n📱 Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
             },
           });
         }
@@ -265,7 +270,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Deseja ver mais imóveis como esse? (responda: sim ou nao)",
+            text: "Enquanto isso, quer dar uma olhadinha em outros imóveis parecidos com esse? (Responda SIM ou NÃO)",
           },
         });
 
@@ -286,7 +291,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Tudo bem. Deseja ver mais imóveis como esse? (responda: sim ou nao)",
+            text: "Sem problemas! Quer que eu te mostre outros imóveis que talvez você curta? (Responda SIM ou NÃO)",
           },
         });
         await supabase
@@ -314,7 +319,7 @@ Deno.serve(async (req) => {
             message_type: "text",
             payload: {
               kind: "similar_empty",
-              text: "No momento nao encontramos outros imóveis similares.",
+              text: "Poxa, no momento não encontrei outros imóveis parecidos com esse aqui na região. Mas fica de olho que sempre tem novidade!",
             },
           });
           await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
