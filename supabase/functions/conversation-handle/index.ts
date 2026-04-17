@@ -28,20 +28,33 @@ function parseQrToken(text: string): string | null {
   return uuidLike?.[0] ?? null;
 }
 
-function summarizeProperty(row: Record<string, unknown>): string {
+function summarizeProperty(row: Record<string, any>): string {
   const title = String(row.title ?? row.public_id ?? "Imóvel");
   const city = String(row.city ?? "");
   const state = String(row.state ?? "");
   const purpose = String(row.purpose ?? "");
-  const price = row.price == null ? "" : Number(row.price).toLocaleString("pt-BR");
-  return [
+  const price = row.price == null ? null : Number(row.price).toLocaleString("pt-BR");
+  const area = row.area_m2 || row.total_area_m2;
+  const bedrooms = row.bedrooms;
+  const suites = row.suites;
+  const bathrooms = row.bathrooms;
+  const parking = row.parking_spaces;
+  const description = row.description || row.full_description;
+
+  const lines = [
     `🏠 *${title}*`,
     city || state ? `📍 Local: ${[city, state].filter(Boolean).join(" / ")}` : null,
     purpose ? `📋 Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
     price ? `💰 Valor: R$ ${price}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    area ? `📐 Área: ${area}m²` : null,
+    bedrooms ? `🛏️ Quartos: ${bedrooms}` : null,
+    suites ? `🚿 Suítes: ${suites}` : null,
+    bathrooms ? `🚽 Banheiros: ${bathrooms}` : null,
+    parking ? `🚗 Vagas: ${parking}` : null,
+    description ? `\n📝 *Descrição:*\n${description}` : null,
+  ];
+
+  return lines.filter(Boolean).join("\n");
 }
 
 async function queueOutbound(
@@ -75,7 +88,12 @@ async function loadPropertyByQr(
   const { data, error } = await supabase
     .from("property_qrcodes")
     .select(
-      "qr_token, is_active, properties(id, public_id, broker_id, account_id, title, city, state, purpose, price, origin_plan_code, listing_status)",
+      `qr_token, is_active, 
+       properties(
+         id, public_id, broker_id, account_id, title, city, state, purpose, price, 
+         origin_plan_code, listing_status, description, full_description, 
+         area_m2, total_area_m2, bedrooms, suites, bathrooms, parking_spaces
+       )`,
     )
     .eq("qr_token", qrToken)
     .eq("is_active", true)
@@ -85,12 +103,12 @@ async function loadPropertyByQr(
   if (!p || p.listing_status === "removed" || p.listing_status === "blocked" || p.listing_status === "expired") {
     return null;
   }
-  return p as Record<string, unknown>;
+  return p as Record<string, any>;
 }
 
 async function sendPropertyPack(
   supabase: ReturnType<typeof createClient>,
-  property: Record<string, unknown>,
+  property: Record<string, any>,
   leadPhone: string,
 ) {
   const propertyId = String(property.id);
@@ -104,6 +122,7 @@ async function sendPropertyPack(
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
+  // 1. Enviar Resumo Completo
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -112,18 +131,19 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `Opa! Tudo bem? Vi que você se interessou pelo imóvel no QR Code. Seguem as informações dele:\n\n${summarizeProperty(property)}\n\nE aí, bora agendar uma visita? Responda com *SIM* ou *NÃO* pra gente conversar!`,
+      text: `Aqui estão as informações do imóvel que você solicitou:\n\n${summarizeProperty(property)}`,
       public_id: property.public_id,
     },
   });
 
+  // 2. Enviar Imagens
   const { data: mediaRows } = await supabase
     .from("property_media")
     .select("storage_path")
     .eq("property_id", propertyId)
     .neq("status", "deleted")
-    .order("created_at", { ascending: true })
-    .limit(8);
+    .order("sort_order", { ascending: true })
+    .limit(10);
 
   for (const m of mediaRows ?? []) {
     const { data: signed } = await supabase.storage
@@ -140,7 +160,28 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Fotos do imóvel ${String(property.public_id ?? "")}`,
+        caption: `Foto do imóvel ${String(property.public_id ?? "")}`,
+      },
+    });
+  }
+
+  // 3. Enviar Mensagens Finais Solicitadas
+  const finalMessages = [
+    "Deseja agendar uma visita? (Responda SIM ou NÃO)",
+    "Quer ver mais imóveis como esse? (Responda SIM ou NÃO)",
+    "Anuncie conosco! Acesse nosso site para cadastrar seu imóvel."
+  ];
+
+  for (const msg of finalMessages) {
+    await queueOutbound(supabase, {
+      account_id: accountId,
+      property_id: propertyId,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "final_option",
+        text: msg,
       },
     });
   }
