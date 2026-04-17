@@ -188,14 +188,29 @@ async function sendPropertyPack(
 }
 
 Deno.serve(async (req) => {
+  console.log(`[conversation-handle] Received request: ${req.method}`);
+  
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const body = (await req.json()) as InboundInput;
+    const rawBody = await req.text();
+    console.log(`[conversation-handle] Raw payload: ${rawBody}`);
+    
+    let body: InboundInput;
+    try {
+      body = JSON.parse(rawBody) as InboundInput;
+    } catch (e) {
+      console.error("[conversation-handle] Failed to parse JSON:", e);
+      return json({ ok: false, error: "invalid_json" }, 400);
+    }
+
     const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
     const text = String(body.text ?? "").trim();
+    
+    console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}"`);
+
     if (!leadPhone || !text) {
       return json({ ok: false, error: "missing_input" }, 400);
     }
