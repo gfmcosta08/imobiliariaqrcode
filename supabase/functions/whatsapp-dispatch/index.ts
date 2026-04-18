@@ -9,6 +9,7 @@ type QueueRow = {
   payload: Record<string, unknown>;
   lead_phone: string | null;
   broker_phone: string | null;
+  created_at: string;
 };
 
 function normalizePhone(v: string): string {
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
 
   const { data: rows, error } = await supabase
     .from("whatsapp_messages")
-    .select("id, message_type, payload, lead_phone, broker_phone")
+    .select("id, message_type, payload, lead_phone, broker_phone, created_at")
     .eq("direction", "outbound")
     .eq("status", "queued")
     .order("created_at", { ascending: true })
@@ -124,7 +125,26 @@ Deno.serve(async (req) => {
   const sent: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
 
-  for (const row of (rows ?? []) as QueueRow[]) {
+  const orderedRows = ((rows ?? []) as QueueRow[]).sort((a, b) => {
+    const createdCmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    if (createdCmp !== 0) return createdCmp;
+
+    const flowGroupA = typeof a.payload?.flow_group === "string" ? a.payload.flow_group : "";
+    const flowGroupB = typeof b.payload?.flow_group === "string" ? b.payload.flow_group : "";
+    if (flowGroupA !== flowGroupB) return flowGroupA.localeCompare(flowGroupB);
+
+    const flowStepA =
+      typeof a.payload?.flow_step === "number"
+        ? a.payload.flow_step
+        : Number.parseInt(String(a.payload?.flow_step ?? "0"), 10) || 0;
+    const flowStepB =
+      typeof b.payload?.flow_step === "number"
+        ? b.payload.flow_step
+        : Number.parseInt(String(b.payload?.flow_step ?? "0"), 10) || 0;
+    return flowStepA - flowStepB;
+  });
+
+  for (const row of orderedRows) {
     // pular mensagens de sistema sem conteúdo enviável
     if (row.message_type === "system" || row.message_type === "menu") {
       await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
