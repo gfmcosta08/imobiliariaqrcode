@@ -16,6 +16,21 @@ type LeadSnapshot = {
   interaction_count: number;
 };
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function getStringByKeys(obj: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
 function matchChoice1(text: string): boolean {
   const t = text.toLowerCase().trim();
   if (/^(1|s|sim|yes|y|quero)$/.test(t)) return true;
@@ -91,28 +106,52 @@ function normalizePersonName(value: string): string {
     .join(" ");
 }
 
+function isGenericName(value: string | null | undefined): boolean {
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!v) return true;
+
+  return (
+    v === "cliente" ||
+    v === "unknown" ||
+    v === "desconhecido" ||
+    v === "sem nome" ||
+    v === "nome nao informado" ||
+    v === "nome não informado" ||
+    v === "whatsapp user"
+  );
+}
+
 function extractProfileName(payload: Record<string, unknown> | undefined): string | null {
   if (!payload) return null;
 
-  const directKeys = ["pushName", "notifyName", "senderName", "profileName", "name"];
-  for (const key of directKeys) {
-    const value = payload[key];
-    if (typeof value === "string" && value.trim().length >= 2) {
-      return normalizePersonName(value);
-    }
-  }
+  const keys = ["pushName", "notifyName", "senderName", "profileName", "name"];
+  const direct = getStringByKeys(payload, keys);
+  if (direct && !isGenericName(direct)) return normalizePersonName(direct);
 
-  const message = payload.message;
-  if (message && typeof message === "object") {
-    const m = message as Record<string, unknown>;
-    for (const key of directKeys) {
-      const value = m[key];
-      if (typeof value === "string" && value.trim().length >= 2) {
-        return normalizePersonName(value);
-      }
-    }
-  }
+  const message = asRecord(payload.message);
+  const messageName = message ? getStringByKeys(message, keys) : null;
+  if (messageName && !isGenericName(messageName)) return normalizePersonName(messageName);
 
+  const chat = asRecord(payload.chat);
+  const chatName = chat ? getStringByKeys(chat, keys) : null;
+  if (chatName && !isGenericName(chatName)) return normalizePersonName(chatName);
+
+  const raw = asRecord(payload.raw);
+  if (raw) return extractProfileName(raw);
+
+  return null;
+}
+
+function pickGreetingName(lead: LeadSnapshot | null, profileName: string | null): string | null {
+  if (lead && !isGenericName(lead.primeiro_nome)) return lead.primeiro_nome;
+  if (lead && !isGenericName(lead.nome_completo)) {
+    return normalizePersonName(lead.nome_completo).split(" ")[0] ?? null;
+  }
+  if (profileName && !isGenericName(profileName)) {
+    return normalizePersonName(profileName).split(" ")[0] ?? null;
+  }
   return null;
 }
 
@@ -286,6 +325,7 @@ async function sendPropertyPack(
   property: Record<string, unknown>,
   leadPhone: string,
   lead: LeadSnapshot | null,
+  profileName: string | null,
 ) {
   const propertyId = String(property.id);
   const accountId = String(property.account_id);
@@ -298,12 +338,11 @@ async function sendPropertyPack(
     .maybeSingle();
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
-  const firstName = lead?.primeiro_nome || "Cliente";
-
-  const shouldAskName = Boolean(lead && lead.interaction_count <= 1 && !lead.nome_validado);
+  const firstName = pickGreetingName(lead, profileName);
+  const shouldAskName = Boolean(lead && lead.interaction_count <= 1 && !lead.nome_validado && !firstName);
   const introText = shouldAskName
-    ? `Ola! Para te atender melhor, me confirma seu nome completo? Se preferir, posso usar ${firstName}.`
-    : `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`;
+    ? "Ola! Para te atender melhor, me confirma seu nome completo?"
+    : `Ola, ${firstName ?? "tudo bem"}! Que bom ter voce aqui. Separei os detalhes do imovel:`;
 
   await queueOutbound(supabase, {
     account_id: accountId,
@@ -338,11 +377,18 @@ async function sendPropertyPack(
     .order("sort_order", { ascending: true });
 
   for (const media of mediaRows ?? []) {
-    const { data: signed } = await supabase.storage
+    const { data: signed, error: signedError } = await supabase.storage
       .from("property-media")
       .createSignedUrl(String(media.storage_path), 60 * 60);
 
-    if (!signed?.signedUrl) continue;
+    if (signedError || !signed?.signedUrl) {
+      console.error("property image signed url failed", {
+        propertyId,
+        storagePath: String(media.storage_path),
+        error: signedError?.message ?? "missing_signed_url",
+      });
+      continue;
+    }
 
     await queueOutbound(supabase, {
       account_id: accountId,
@@ -372,7 +418,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "menu_prompt",
-      text: `${firstName}, me diga como posso te ajudar agora:`,
+      text: `${firstName ?? "Me diga"} como posso te ajudar agora:`,
     },
   });
 
@@ -487,7 +533,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      await sendPropertyPack(supabase, property, leadPhone, lead);
+      await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
       return json({ ok: true, state: "started", property_id: propertyId });
     }
 
@@ -525,7 +571,7 @@ Deno.serve(async (req) => {
       forceNameUpdate: Boolean(correctedName),
     });
 
-    const firstName = lead?.primeiro_nome || "Cliente";
+    const firstName = pickGreetingName(lead, profileName) ?? "tudo bem";
 
     if (correctedName) {
       await queueOutbound(supabase, {
