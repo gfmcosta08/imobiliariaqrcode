@@ -355,8 +355,22 @@ async function handleSimilarRequest(
         text: "No momento nao encontrei outros imoveis parecidos com esse na regiao. Mas sempre entram novidades.",
       },
     });
-    await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
-    return json({ ok: true, state: "closed_no_similar" });
+    await queueOutbound(supabase, {
+      account_id: property.account_id,
+      property_id: property.id,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "help_main_choice",
+        text: "Se quiser, escolha: 1 para agendar visita, 2 para tentar ver mais imoveis ou 3 para anunciar.",
+      },
+    });
+    await supabase
+      .from("conversation_sessions")
+      .update({ state: "awaiting_main_choice", last_menu: "visit_question" })
+      .eq("id", session.id);
+    return json({ ok: true, state: "awaiting_main_choice_no_similar" });
   }
 
   const { data: props } = await supabase
@@ -641,7 +655,39 @@ Deno.serve(async (req) => {
       return json({ ok: true, state: "awaiting_main_choice" });
     }
 
+    if (session.state === "closed" || session.state === "recommendations_sent") {
+      const choice = resolveMainChoice(text);
+      if (choice === "1") {
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "awaiting_main_choice", last_menu: "visit_question" })
+          .eq("id", session.id);
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "2") {
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "awaiting_main_choice", last_menu: "visit_question" })
+          .eq("id", session.id);
+        return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "3") {
+        return handleAdvertiseRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+    }
+
     if (session.state === "awaiting_recommendation_choice") {
+      const choice = resolveMainChoice(text);
+      if (choice === "1") {
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "2") {
+        return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "3") {
+        return handleAdvertiseRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+
       if (YES.test(text)) {
         return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
       }

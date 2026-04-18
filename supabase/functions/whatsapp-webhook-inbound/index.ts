@@ -60,6 +60,12 @@ function extractText(payload: Record<string, unknown>): string {
   const msg = payload.message;
   if (msg && typeof msg === "object") {
     const nested = msg as Record<string, unknown>;
+    const fromContent = nested.content;
+    if (fromContent && typeof fromContent === "object") {
+      const c = fromContent as Record<string, unknown>;
+      const nestedContentText = getStr(c, ["text", "body", "caption", "conversation"]);
+      if (nestedContentText) return nestedContentText;
+    }
     return getStr(nested, ["text", "body", "message", "caption", "conversation"]) ?? "";
   }
   return "";
@@ -101,23 +107,227 @@ function extractAudioTranscript(payload: Record<string, unknown>, fallbackText: 
       "speech_to_text",
     ]);
     if (nestedTranscript && isUsefulAudioTranscript(nestedTranscript)) return nestedTranscript;
+
+    const nestedContent = nested.content;
+    if (nestedContent && typeof nestedContent === "object") {
+      const contentObj = nestedContent as Record<string, unknown>;
+      const contentTranscript = getStr(contentObj, [
+        "transcript",
+        "transcription",
+        "audio_transcript",
+        "audioTranscription",
+        "speech_to_text",
+        "text",
+      ]);
+      if (contentTranscript && isUsefulAudioTranscript(contentTranscript)) return contentTranscript;
+    }
   }
 
   return isUsefulAudioTranscript(fallbackText) ? fallbackText : "";
 }
 
 function detectAudio(payload: Record<string, unknown>): boolean {
-  const mediaType = getStr(payload, ["mediaType", "messageType", "type"]);
-  if (mediaType && mediaType.toLowerCase().includes("audio")) return true;
+  const mediaType = getStr(payload, ["mediaType", "messageType", "type", "wa_lastMessageType"]);
+  if (mediaType) {
+    const mt = mediaType.toLowerCase();
+    if (mt.includes("audio") || mt.includes("ptt")) return true;
+  }
 
   const msg = payload.message;
   if (msg && typeof msg === "object") {
     const nested = msg as Record<string, unknown>;
     const nestedType = getStr(nested, ["mediaType", "messageType", "type"]);
-    if (nestedType && nestedType.toLowerCase().includes("audio")) return true;
+    if (nestedType) {
+      const nt = nestedType.toLowerCase();
+      if (nt.includes("audio") || nt.includes("ptt")) return true;
+    }
     if (nested.audioMessage && typeof nested.audioMessage === "object") return true;
+    if (nested.pttMessage && typeof nested.pttMessage === "object") return true;
+  }
+
+  const chat = payload.chat;
+  if (chat && typeof chat === "object") {
+    const c = chat as Record<string, unknown>;
+    const chatType = getStr(c, ["wa_lastMessageType"]);
+    if (chatType) {
+      const ct = chatType.toLowerCase();
+      if (ct.includes("audio") || ct.includes("ptt")) return true;
+    }
   }
   return false;
+}
+
+function collectAudioCandidateUrls(payload: Record<string, unknown>): string[] {
+  const urls = new Set<string>();
+  const addIfUrl = (v: unknown) => {
+    if (typeof v === "string" && /^https?:\/\//i.test(v.trim())) {
+      urls.add(v.trim());
+    }
+  };
+
+  addIfUrl(payload.url);
+  addIfUrl(payload.media_url);
+  addIfUrl(payload.mediaUrl);
+  addIfUrl(payload.audio_url);
+  addIfUrl(payload.audioUrl);
+
+  const msg = payload.message;
+  if (msg && typeof msg === "object") {
+    const nested = msg as Record<string, unknown>;
+    addIfUrl(nested.url);
+    addIfUrl(nested.media_url);
+    addIfUrl(nested.mediaUrl);
+    addIfUrl(nested.audio_url);
+    addIfUrl(nested.audioUrl);
+
+    const content = nested.content;
+    if (content && typeof content === "object") {
+      const c = content as Record<string, unknown>;
+      addIfUrl(c.url);
+      addIfUrl(c.URL);
+      addIfUrl(c.media_url);
+      addIfUrl(c.mediaUrl);
+      addIfUrl(c.audio_url);
+      addIfUrl(c.audioUrl);
+    }
+  }
+
+  return Array.from(urls);
+}
+
+function extractTranscriptFromProviderResponse(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    return isUsefulAudioTranscript(value) ? value.trim() : null;
+  }
+  if (typeof value !== "object") return null;
+
+  const obj = value as Record<string, unknown>;
+  const direct = getStr(obj, [
+    "transcript",
+    "transcription",
+    "text",
+    "message",
+    "result",
+    "content",
+    "audio_transcript",
+    "audioTranscription",
+    "speech_to_text",
+  ]);
+  if (direct && isUsefulAudioTranscript(direct)) return direct;
+
+  const data = obj.data;
+  if (data && typeof data === "object") {
+    const nested = extractTranscriptFromProviderResponse(data);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+async function transcribeWithUazapi(
+  payload: Record<string, unknown>,
+  data: Record<string, unknown>,
+): Promise<{ transcript: string | null; source: string | null }> {
+  const baseUrlRaw =
+    getStr(data, ["baseUrl", "base_url"]) ??
+    getStr(payload, ["baseUrl", "base_url"]) ??
+    Deno.env.get("UAZAPI_BASE_URL") ??
+    null;
+  const token =
+    getStr(data, ["token", "apiKey", "apikey"]) ??
+    getStr(payload, ["token", "apiKey", "apikey"]) ??
+    Deno.env.get("UAZAPI_TOKEN") ??
+    Deno.env.get("UAZAPI_INSTANCE_TOKEN") ??
+    null;
+
+  if (!baseUrlRaw || !token) return { transcript: null, source: null };
+
+  const baseUrl = baseUrlRaw.replace(/\/$/, "");
+  const audioUrls = Array.from(new Set([...collectAudioCandidateUrls(data), ...collectAudioCandidateUrls(payload)]));
+  if (!audioUrls.length) return { transcript: null, source: null };
+
+  const candidates = [
+    "/chat/audio/transcribe",
+    "/message/transcribe",
+    "/transcribe",
+    "/send/audio",
+  ];
+
+  const headers: Record<string, string> = {
+    token,
+    Authorization: `Bearer ${token}`,
+    apikey: token,
+    "x-api-key": token,
+  };
+
+  for (const audioUrl of audioUrls) {
+    for (const endpoint of candidates) {
+      const queryVariants = [
+        `url=${encodeURIComponent(audioUrl)}`,
+        `audio=${encodeURIComponent(audioUrl)}`,
+        `audioUrl=${encodeURIComponent(audioUrl)}`,
+        `mediaUrl=${encodeURIComponent(audioUrl)}`,
+      ];
+
+      for (const q of queryVariants) {
+        const url = `${baseUrl}${endpoint}?${q}`;
+        try {
+          const res = await fetch(url, { method: "GET", headers });
+          const raw = await res.text();
+          if (!res.ok) continue;
+          let parsed: unknown = raw;
+          try {
+            parsed = raw ? JSON.parse(raw) : raw;
+          } catch {
+            parsed = raw;
+          }
+          const transcript = extractTranscriptFromProviderResponse(parsed);
+          if (transcript) {
+            return { transcript, source: `uazapi:${endpoint}:GET` };
+          }
+        } catch {
+          // ignore and continue trying other endpoint variations
+        }
+      }
+
+      const bodyVariants = [
+        { url: audioUrl },
+        { audio: audioUrl },
+        { audioUrl },
+        { mediaUrl: audioUrl },
+      ];
+
+      for (const body of bodyVariants) {
+        try {
+          const res = await fetch(`${baseUrl}${endpoint}`, {
+            method: "POST",
+            headers: {
+              ...headers,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          });
+          const raw = await res.text();
+          if (!res.ok) continue;
+          let parsed: unknown = raw;
+          try {
+            parsed = raw ? JSON.parse(raw) : raw;
+          } catch {
+            parsed = raw;
+          }
+          const transcript = extractTranscriptFromProviderResponse(parsed);
+          if (transcript) {
+            return { transcript, source: `uazapi:${endpoint}:POST` };
+          }
+        } catch {
+          // ignore and continue trying other endpoint variations
+        }
+      }
+    }
+  }
+
+  return { transcript: null, source: null };
 }
 
 Deno.serve(async (req) => {
@@ -151,7 +361,16 @@ Deno.serve(async (req) => {
     const leadPhone = extractLeadPhone(data);
     const text = extractText(data);
     const isAudio = detectAudio(data);
-    const transcript = isAudio ? extractAudioTranscript(data, text) : text;
+    let transcript = isAudio ? extractAudioTranscript(data, text) : text;
+    let transcriptionSource: string | null = null;
+
+    if (isAudio && !isUsefulAudioTranscript(transcript)) {
+      const native = await transcribeWithUazapi(payload, data);
+      if (native.transcript && isUsefulAudioTranscript(native.transcript)) {
+        transcript = native.transcript;
+        transcriptionSource = native.source;
+      }
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -193,6 +412,7 @@ Deno.serve(async (req) => {
         payload: {
           text: isAudio ? (transcript || "[Audio]") : text,
           is_audio: isAudio,
+          transcription_source: transcriptionSource,
           raw: payload,
           dedupe_key: dedupeKey,
         },

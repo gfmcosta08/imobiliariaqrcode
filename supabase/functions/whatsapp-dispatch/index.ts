@@ -34,15 +34,24 @@ function normalizeEndpoint(endpoint: string): string {
   return endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
 }
 
-function buildImageEndpoints(configuredImageEndpoint: string, textEndpoint: string): string[] {
+function buildImageEndpoints(
+  configuredImageEndpoint: string,
+  textEndpoint: string,
+  instanceName: string | null,
+): string[] {
   const endpoints = new Set<string>();
   const normalizedText = normalizeEndpoint(textEndpoint);
   const normalizedConfiguredImage = normalizeEndpoint(configuredImageEndpoint);
 
   endpoints.add(normalizedConfiguredImage);
+  endpoints.add("/send/media");
   endpoints.add("/send/image");
   endpoints.add("/message/image");
   endpoints.add("/message/sendMedia");
+  if (instanceName) {
+    endpoints.add(`/message/sendMedia/${instanceName}`);
+    endpoints.add(`/message/sendImage/${instanceName}`);
+  }
 
   if (normalizedText.includes("/message/sendText")) {
     endpoints.add(normalizedText.replace("/message/sendText", "/message/sendMedia"));
@@ -75,6 +84,19 @@ async function postUazapi(url: string, headers: Record<string, string>, body: st
   return { res, raw, parsed };
 }
 
+function looksLikeTextOnlyResponse(parsed: Record<string, unknown> | null): boolean {
+  if (!parsed) return false;
+  const messageType = String(parsed.messageType ?? "");
+  if (messageType.toLowerCase().includes("extendedtextmessage")) return true;
+  if (messageType.toLowerCase().includes("conversation")) return true;
+  const content = parsed.content;
+  if (content && typeof content === "object") {
+    const c = content as Record<string, unknown>;
+    if (typeof c.text === "string" && !("imageMessage" in c) && !("mediaMessage" in c)) return true;
+  }
+  return false;
+}
+
 async function sendImageViaMultipart(
   baseUrl: string,
   endpoint: string,
@@ -101,8 +123,7 @@ async function sendImageViaMultipart(
   form.append("phone", to);
   const caption = normalizeOutgoingText(row.payload?.caption ?? row.payload?.text ?? "");
   form.append("caption", caption);
-  form.append("text", caption);
-  form.append("message", caption);
+  form.append("mediatype", "image");
 
   const headers = buildAuthHeaders(token);
   const url = `${baseUrl.replace(/\/$/, "")}${endpoint}`;
@@ -114,6 +135,9 @@ async function sendImageViaMultipart(
   const { raw, parsed } = await parseProviderResponse(res);
   if (!res.ok) {
     return { ok: false, detail: raw || `http_${res.status}` };
+  }
+  if (looksLikeTextOnlyResponse(parsed)) {
+    return { ok: false, detail: "multipart_returned_text_for_image" };
   }
   return {
     ok: true,
@@ -144,6 +168,7 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
   const isImage = row.message_type === "image";
   const textEndpoint = Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text";
   const configuredImageEndpoint = Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/image";
+  const configuredInstance = (Deno.env.get("UAZAPI_INSTANCE_NAME") ?? "faroll").trim() || null;
 
   const caption = normalizeOutgoingText(row.payload?.caption ?? row.payload?.text ?? "");
   const imageUrl = row.payload?.image_url ?? null;
@@ -188,9 +213,26 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
     };
   }
 
-  const imageEndpoints = buildImageEndpoints(configuredImageEndpoint, textEndpoint);
+  const imageEndpoints = buildImageEndpoints(configuredImageEndpoint, textEndpoint, configuredInstance);
   const imagePayloadVariants: Array<Record<string, unknown>> = [
     legacyImagePayload,
+    {
+      number: to,
+      text: caption,
+      type: "image",
+      file: imageUrl,
+      docName: "",
+      replyid: "",
+      mentions: "",
+      readchat: true,
+      delay: 0,
+    },
+    {
+      number: to,
+      text: caption,
+      type: "image",
+      file: imageUrl,
+    },
     {
       number: to,
       mediaMessage: {
@@ -200,14 +242,6 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
         media: imageUrl,
       },
       options: { delay: 200 },
-    },
-    {
-      number: to,
-      mediatype: "image",
-      file: imageUrl,
-      media: imageUrl,
-      caption,
-      text: caption,
     },
   ];
 
@@ -223,6 +257,10 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
       console.log(`[whatsapp-dispatch] Uazapi image response (${res.status}): ${raw}`);
 
       if (res.ok) {
+        if (looksLikeTextOnlyResponse(parsed)) {
+          lastDetail = "provider_returned_text_for_image";
+          continue;
+        }
         return {
           ok: true,
           provider_message_id:
