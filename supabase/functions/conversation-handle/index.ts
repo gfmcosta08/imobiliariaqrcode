@@ -62,11 +62,11 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
-  const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,80})/i);
+  const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,100})/i);
   if (m?.[1]) return m[1];
-  const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
+  const mRef = t.match(/Ref:\s*([a-z0-9_-]{16,100})/i);
   if (mRef?.[1]) return mRef[1];
-  const uuidLike = t.match(/[a-z0-9]{32,80}/i);
+  const uuidLike = t.match(/[a-z0-9][a-z0-9_-]{15,99}/i);
   return uuidLike?.[0] ?? null;
 }
 
@@ -527,12 +527,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const hasActiveMenuSession = Boolean(
-      session?.id &&
-        session.origin_property_id &&
-        (session.state === "awaiting_main_choice" || session.state === "awaiting_recommendation_choice"),
-    );
-    const qrToken = hasActiveMenuSession ? null : parseQrToken(text);
+    const qrToken = parseQrToken(text);
     if (qrToken) {
       const property = await loadPropertyByQr(supabase, qrToken);
       if (!property) {
