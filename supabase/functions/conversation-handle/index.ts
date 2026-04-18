@@ -1,5 +1,6 @@
 ﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildWelcomeBackMessage, resolveLeadNameFromTextOrFallback } from "./name-flow.ts";
 
 type InboundInput = {
   lead_phone?: string;
@@ -20,6 +21,7 @@ function isOption(text: string, option: string): boolean {
 const AUDIO = /\[(audio|áudio|áudio)\]/i;
 
 type MainChoice = "1" | "2" | "3" | null;
+type LeadNameSource = "text" | "uazapi" | "existing" | "none";
 
 function normalizeIntentText(text: string): string {
   return text
@@ -193,6 +195,7 @@ async function sendPropertyPack(
   supabase: ReturnType<typeof createClient>,
   property: Record<string, any>,
   leadPhone: string,
+  knownLeadName: string | null,
 ) {
   const propertyId = String(property.id);
   const accountId = String(property.account_id);
@@ -213,7 +216,9 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `Aqui estao as informacoes do imovel que voce solicitou:\n\n${summarizeProperty(property)}`,
+      text: knownLeadName
+        ? `${buildWelcomeBackMessage(knownLeadName)}\n\nAqui estao as informacoes do imovel que voce solicitou:\n\n${summarizeProperty(property)}`
+        : `Aqui estao as informacoes do imovel que voce solicitou:\n\n${summarizeProperty(property)}`,
       public_id: property.public_id,
     },
   });
@@ -268,12 +273,39 @@ async function sendPropertyPack(
   }
 }
 
+async function loadLatestLeadByPhone(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+) {
+  const { data } = await supabase
+    .from("leads")
+    .select("id, client_name")
+    .eq("client_phone", leadPhone)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as { id: string; client_name: string | null } | null;
+}
+
+async function persistLeadName(
+  supabase: ReturnType<typeof createClient>,
+  leadId: string,
+  leadName: string,
+) {
+  await supabase
+    .from("leads")
+    .update({ client_name: leadName })
+    .eq("id", leadId);
+}
+
 async function handleVisitRequest(
   supabase: ReturnType<typeof createClient>,
   session: any,
   property: any,
   leadPhone: string,
   brokerPhone: string | null,
+  leadName: string | null = null,
+  leadNameSource: LeadNameSource = "none",
 ) {
   const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
     p_property_id: property.id,
@@ -281,6 +313,10 @@ async function handleVisitRequest(
     p_client_phone: leadPhone,
     p_intent: "visit_interest",
   });
+
+  if (leadId && leadName) {
+    await persistLeadName(supabase, String(leadId), leadName);
+  }
 
   await queueOutbound(supabase, {
     account_id: property.account_id,
@@ -290,8 +326,11 @@ async function handleVisitRequest(
     message_type: "text",
     payload: {
       kind: "visit_registered",
-      text: "Fechado! Ja anotei aqui seu interesse. O corretor vai te chamar em breve para combinarmos tudo.",
+      text: leadName
+        ? `Fechado, ${leadName}! Ja anotei aqui seu interesse. O corretor vai te chamar em breve para combinarmos tudo.`
+        : "Fechado! Ja anotei aqui seu interesse. O corretor vai te chamar em breve para combinarmos tudo.",
       lead_id: leadId ?? null,
+      name_source: leadNameSource,
     },
   });
 
@@ -481,6 +520,7 @@ Deno.serve(async (req) => {
     const leadPhone = String(body.lead_phone ?? "").trim();
     const text = String(body.text ?? "").trim();
     const isAudio = !!body.is_audio || AUDIO.test(text);
+    const inboundPayload = body.payload ?? null;
 
     console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}" (isAudio: ${isAudio})`);
 
@@ -543,11 +583,13 @@ Deno.serve(async (req) => {
 
     const { data: session } = await supabase
       .from("conversation_sessions")
-      .select("id, state, origin_property_id, current_property_id")
+      .select("id, state, origin_property_id, current_property_id, last_menu")
       .eq("lead_phone", leadPhone)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    const leadProfile = await loadLatestLeadByPhone(supabase, leadPhone);
+    const knownLeadName = leadProfile?.client_name ? String(leadProfile.client_name) : null;
 
     const qrToken = parseQrToken(text);
     console.log(`[conversation-handle] Parsed QR Token: ${qrToken}`);
@@ -583,7 +625,7 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[conversation-handle] Sending property pack for ${property.public_id} to ${leadPhone}`);
-      await sendPropertyPack(supabase, property, leadPhone);
+      await sendPropertyPack(supabase, property, leadPhone, knownLeadName);
       console.log("[conversation-handle] Property pack sent successfully.");
       return json({ ok: true, state: "started", property_id: propertyId });
     }
@@ -610,6 +652,86 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
+    if (session.last_menu === "awaiting_name_for_visit") {
+      const resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      if (!resolved.name) {
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "ask_name_for_visit_retry",
+            text: "Para seguir com o agendamento, preciso do seu nome completo (nome e sobrenome).",
+          },
+        });
+        return json({ ok: true, state: "awaiting_name_for_visit" });
+      }
+
+      await supabase
+        .from("conversation_sessions")
+        .update({ last_menu: "visit_question" })
+        .eq("id", session.id);
+
+      return handleVisitRequest(
+        supabase,
+        session,
+        property,
+        leadPhone,
+        brokerPhone,
+        resolved.name,
+        resolved.source,
+      );
+    }
+
+    if (session.last_menu === "awaiting_name_for_close") {
+      const resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      if (!resolved.name) {
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "ask_name_before_close_retry",
+            text: "Antes de encerrar, preciso do seu nome completo para manter seu cadastro atualizado.",
+          },
+        });
+        return json({ ok: true, state: "awaiting_name_before_close" });
+      }
+
+      const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
+        p_property_id: property.id,
+        p_broker_id: property.broker_id,
+        p_client_phone: leadPhone,
+        p_intent: "similar_property_interest",
+      });
+
+      if (leadId) {
+        await persistLeadName(supabase, String(leadId), resolved.name);
+      }
+
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "close",
+          text: `Perfeito, ${resolved.name}. Cadastro atualizado. Quando quiser, e so enviar outro QR para continuar.`,
+          name_source: resolved.source,
+        },
+      });
+      await supabase
+        .from("conversation_sessions")
+        .update({ state: "closed", last_menu: "closed_with_name" })
+        .eq("id", session.id);
+      return json({ ok: true, state: "closed" });
+    }
+
     if (session.state === "awaiting_main_choice") {
       if (isOption(text, "0")) {
         await queueOutbound(supabase, {
@@ -632,7 +754,27 @@ Deno.serve(async (req) => {
 
       const choice = resolveMainChoice(text);
       if (choice === "1") {
-        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+        if (!knownLeadName) {
+          await queueOutbound(supabase, {
+            account_id: property.account_id,
+            property_id: property.id,
+            lead_phone: leadPhone,
+            broker_phone: brokerPhone,
+            message_type: "text",
+            payload: {
+              kind: "ask_name_for_visit",
+              text: leadProfile?.id
+                ? "Antes de confirmar o agendamento, me informe seu nome completo para atualizar seu cadastro."
+                : "Antes de agendar, preciso do seu nome completo para realizar seu cadastro.",
+            },
+          });
+          await supabase
+            .from("conversation_sessions")
+            .update({ last_menu: "awaiting_name_for_visit" })
+            .eq("id", session.id);
+          return json({ ok: true, state: "awaiting_name_for_visit" });
+        }
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone, knownLeadName, "existing");
       }
       if (choice === "2") {
         return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
@@ -662,7 +804,25 @@ Deno.serve(async (req) => {
           .from("conversation_sessions")
           .update({ state: "awaiting_main_choice", last_menu: "visit_question" })
           .eq("id", session.id);
-        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+        if (!knownLeadName) {
+          await queueOutbound(supabase, {
+            account_id: property.account_id,
+            property_id: property.id,
+            lead_phone: leadPhone,
+            broker_phone: brokerPhone,
+            message_type: "text",
+            payload: {
+              kind: "ask_name_for_visit",
+              text: "Antes de confirmar o agendamento, me informe seu nome completo.",
+            },
+          });
+          await supabase
+            .from("conversation_sessions")
+            .update({ last_menu: "awaiting_name_for_visit" })
+            .eq("id", session.id);
+          return json({ ok: true, state: "awaiting_name_for_visit" });
+        }
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone, knownLeadName, "existing");
       }
       if (choice === "2") {
         await supabase
@@ -679,7 +839,25 @@ Deno.serve(async (req) => {
     if (session.state === "awaiting_recommendation_choice") {
       const choice = resolveMainChoice(text);
       if (choice === "1") {
-        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+        if (!knownLeadName) {
+          await queueOutbound(supabase, {
+            account_id: property.account_id,
+            property_id: property.id,
+            lead_phone: leadPhone,
+            broker_phone: brokerPhone,
+            message_type: "text",
+            payload: {
+              kind: "ask_name_for_visit",
+              text: "Antes de confirmar o agendamento, me informe seu nome completo.",
+            },
+          });
+          await supabase
+            .from("conversation_sessions")
+            .update({ last_menu: "awaiting_name_for_visit" })
+            .eq("id", session.id);
+          return json({ ok: true, state: "awaiting_name_for_visit" });
+        }
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone, knownLeadName, "existing");
       }
       if (choice === "2") {
         return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
@@ -700,12 +878,15 @@ Deno.serve(async (req) => {
           broker_phone: brokerPhone,
           message_type: "text",
           payload: {
-            kind: "close",
-            text: "Perfeito. Quando quiser, e so enviar outro QR para continuar.",
+            kind: "ask_name_before_close",
+            text: "Sem problemas. Antes de encerrar, me informe seu nome completo para mantermos seu cadastro atualizado.",
           },
         });
-        await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
-        return json({ ok: true, state: "closed" });
+        await supabase
+          .from("conversation_sessions")
+          .update({ last_menu: "awaiting_name_for_close" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "awaiting_name_before_close" });
       }
     }
 
