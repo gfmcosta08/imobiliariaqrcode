@@ -39,14 +39,121 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
+  // Padrão 1: imovel [token]
   const m = t.match(/(?:imovel|im[oó]vel)\s+([a-z0-9_-]{16,80})/i);
   if (m?.[1]) return m[1];
+  // Padrão 2: (Ref: [token]) ou Ref: [token]
+  const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
+  if (mRef?.[1]) return mRef[1];
+  // Padrão 3: apenas o token (hash de 32 a 80 chars)
   const uuidLike = t.match(/[a-z0-9]{32,80}/i);
   return uuidLike?.[0] ?? null;
 }
 
 function fmt(v: unknown): string {
   return v == null ? "" : String(v).trim();
+}
+
+function fmtBRL(v: unknown): string {
+  if (v == null || v === "") return "";
+  const n = Number(v);
+  return isNaN(n) ? "" : `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+}
+
+function fmtList(v: unknown): string {
+  if (!v || !Array.isArray(v)) return "";
+  return (v as string[]).filter(Boolean).join(", ");
+}
+
+function summarizeProperty(row: Record<string, unknown>): string {
+  const lines: string[] = [];
+
+  const purpose = fmt(row.purpose) === "sale" ? "Venda" : fmt(row.purpose) === "rent" ? "Aluguel" : fmt(row.purpose);
+  const title = fmt(row.title || row.public_id);
+  const type = [fmt(row.property_type), fmt(row.property_subtype)].filter(Boolean).join(" - ");
+
+  lines.push(`🏠 *${title}*`);
+  if (row.public_id) lines.push(`Ref: ${fmt(row.public_id)}`);
+  if (type) lines.push(`Tipo: ${type}`);
+  if (purpose) lines.push(`Finalidade: ${purpose}`);
+
+  // Localização
+  const loc = [fmt(row.neighborhood), fmt(row.city_region), fmt(row.city), fmt(row.state)].filter(Boolean);
+  if (loc.length) lines.push(`\n📍 *Localização*\n${loc.join(", ")}`);
+  if (row.full_address) lines.push(`Endereço: ${fmt(row.full_address)}`);
+
+  // Características
+  const chars: string[] = [];
+  if (row.bedrooms) chars.push(`${row.bedrooms} quarto(s)`);
+  if (row.suites) chars.push(`${row.suites} suíte(s)`);
+  if (row.bathrooms) chars.push(`${row.bathrooms} banheiro(s)`);
+  if (row.parking_spaces) chars.push(`${row.parking_spaces} vaga(s)`);
+  if (row.living_rooms) chars.push(`${row.living_rooms} sala(s)`);
+  if (row.floors_count) chars.push(`${row.floors_count} pavimento(s)`);
+  if (chars.length) lines.push(`\n🛏 *Características*\n${chars.join(" | ")}`);
+
+  const areas: string[] = [];
+  if (row.area_m2 || row.total_area_m2) areas.push(`Área total: ${row.area_m2 ?? row.total_area_m2} m²`);
+  if (row.built_area_m2) areas.push(`Área construída: ${row.built_area_m2} m²`);
+  if (row.land_area_m2) areas.push(`Terreno: ${row.land_area_m2} m²`);
+  if (areas.length) lines.push(areas.join(" | "));
+
+  const extras: string[] = [];
+  if (row.floor_type) extras.push(`Piso: ${fmt(row.floor_type)}`);
+  if (row.sun_position) extras.push(`Posição solar: ${fmt(row.sun_position)}`);
+  if (row.construction_type) extras.push(`Construção: ${fmt(row.construction_type)}`);
+  if (row.finish_standard) extras.push(`Padrão: ${fmt(row.finish_standard)}`);
+  if (row.property_age_years != null) extras.push(`Idade: ${row.property_age_years} anos`);
+  if (extras.length) lines.push(extras.join(" | "));
+
+  const furnishing = fmt(row.furnishing_status);
+  if (furnishing) {
+    const fmap: Record<string, string> = { furnished: "Mobiliado", semi_furnished: "Semi-mobiliado", unfurnished: "Sem mobília" };
+    lines.push(`Mobília: ${fmap[furnishing] ?? furnishing}`);
+  }
+
+  // Preços
+  const priceLines: string[] = [];
+  const mainPrice = fmtBRL(row.sale_price ?? row.rent_price ?? row.price);
+  if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preço: ${mainPrice}`);
+  if (row.condo_fee) priceLines.push(`Condomínio: ${fmtBRL(row.condo_fee)}`);
+  if (row.iptu_amount) priceLines.push(`IPTU: ${fmtBRL(row.iptu_amount)}`);
+  if (row.other_fees) priceLines.push(`Outras taxas: ${fmtBRL(row.other_fees)}`);
+  if (priceLines.length) lines.push(`\n💰 *Valores*\n${priceLines.join(" | ")}`);
+
+  const conditions: string[] = [];
+  if (row.accepts_financing) conditions.push("Aceita financiamento");
+  if (row.accepts_trade) conditions.push("Aceita permuta");
+  if (conditions.length) lines.push(conditions.join(" | "));
+
+  // Descrição
+  const desc = fmt(row.description || row.full_description);
+  if (desc) lines.push(`\n📝 *Descrição*\n${desc}`);
+  const highlights = fmt(row.highlights);
+  if (highlights) lines.push(`Destaques: ${highlights}`);
+
+  // Diferenciais
+  const feats = fmtList(row.features);
+  if (feats) lines.push(`\n✅ *Diferenciais*\n${feats}`);
+  const infra = fmtList(row.infrastructure);
+  if (infra) lines.push(`Infraestrutura: ${infra}`);
+  const security = fmtList(row.security_items);
+  if (security) lines.push(`Segurança: ${security}`);
+
+  // Localização próxima
+  const nearby = fmtList(row.nearby_points);
+  if (nearby) lines.push(`\n📌 *Pontos próximos*\n${nearby}`);
+  if (row.distance_to_center_km) lines.push(`Distância ao centro: ${row.distance_to_center_km} km`);
+
+  // Documentação
+  const docParts: string[] = [];
+  if (row.documentation_status) docParts.push(`Situação: ${fmt(row.documentation_status)}`);
+  if (row.has_deed) docParts.push("Escritura: Sim");
+  if (row.has_registration) docParts.push("Registro: Sim");
+  if (row.technical_details) docParts.push(fmt(row.technical_details));
+  if (docParts.length) lines.push(`\n📄 *Documentação*\n${docParts.join(" | ")}`);
+
+  return lines.join("\n");
 }
 
 function fmtBRL(v: unknown): string {
@@ -193,12 +300,12 @@ async function loadPropertyByQr(
   if (!p || p.listing_status === "removed" || p.listing_status === "blocked" || p.listing_status === "expired") {
     return null;
   }
-  return p as Record<string, unknown>;
+  return p as Record<string, any>;
 }
 
 async function sendPropertyPack(
   supabase: ReturnType<typeof createClient>,
-  property: Record<string, unknown>,
+  property: Record<string, any>,
   leadPhone: string,
 ) {
   const propertyId = String(property.id);
@@ -212,6 +319,7 @@ async function sendPropertyPack(
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
+  // 1. Enviar Resumo Completo
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -225,13 +333,14 @@ async function sendPropertyPack(
     },
   });
 
+  // 2. Enviar Imagens
   const { data: mediaRows } = await supabase
     .from("property_media")
     .select("storage_path")
     .eq("property_id", propertyId)
     .neq("status", "deleted")
-    .order("created_at", { ascending: true })
-    .limit(8);
+    .order("sort_order", { ascending: true })
+    .limit(10);
 
   for (const m of mediaRows ?? []) {
     const { data: signed } = await supabase.storage
@@ -248,7 +357,28 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Fotos do imóvel ${String(property.public_id ?? "")}`,
+        caption: `Foto do imóvel ${String(property.public_id ?? "")}`,
+      },
+    });
+  }
+
+  // 3. Enviar Mensagens Finais Solicitadas
+  const finalMessages = [
+    "Deseja agendar uma visita? (Responda SIM ou NÃO)",
+    "Quer ver mais imóveis como esse? (Responda SIM ou NÃO)",
+    "Anuncie conosco! Acesse nosso site para cadastrar seu imóvel."
+  ];
+
+  for (const msg of finalMessages) {
+    await queueOutbound(supabase, {
+      account_id: accountId,
+      property_id: propertyId,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "final_option",
+        text: msg,
       },
     });
   }
@@ -284,14 +414,29 @@ async function sendPropertyPack(
 }
 
 Deno.serve(async (req) => {
+  console.log(`[conversation-handle] Received request: ${req.method}`);
+  
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const body = (await req.json()) as InboundInput;
+    const rawBody = await req.text();
+    console.log(`[conversation-handle] Raw payload: ${rawBody}`);
+    
+    let body: InboundInput;
+    try {
+      body = JSON.parse(rawBody) as InboundInput;
+    } catch (e) {
+      console.error("[conversation-handle] Failed to parse JSON:", e);
+      return json({ ok: false, error: "invalid_json" }, 400);
+    }
+
     const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
     const text = String(body.text ?? "").trim();
+    
+    console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}"`);
+
     if (!leadPhone || !text) {
       return json({ ok: false, error: "missing_input" }, 400);
     }
@@ -389,7 +534,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "visit_registered",
-            text: "Perfeito. Seu interesse de visita foi registrado. O corretor vai entrar em contato.",
+            text: "Fechado! Já anotei aqui seu interesse. O corretor vai te dar um alô em breve pra combinarmos tudo! 😉",
             lead_id: leadId ?? null,
           },
         });
@@ -404,7 +549,7 @@ Deno.serve(async (req) => {
             payload: {
               kind: "broker_notification",
               to_broker: true,
-              text: `Novo cliente aguardando contato para visita.\nImóvel: ${property.public_id}\nTelefone: ${leadPhone}`,
+              text: `🚨 *Novo Lead!* 🚨\n\nUm cliente quer visitar o imóvel *${property.public_id}*.\n\n📱 Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
             },
           });
         }
@@ -417,7 +562,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Deseja ver mais imóveis como esse? (responda: sim ou nao)",
+            text: "Enquanto isso, quer dar uma olhadinha em outros imóveis parecidos com esse? (Responda SIM ou NÃO)",
           },
         });
 
@@ -438,7 +583,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Tudo bem. Deseja ver mais imóveis como esse? (responda: sim ou nao)",
+            text: "Sem problemas! Quer que eu te mostre outros imóveis que talvez você curta? (Responda SIM ou NÃO)",
           },
         });
         await supabase
@@ -486,7 +631,7 @@ Deno.serve(async (req) => {
             message_type: "text",
             payload: {
               kind: "similar_empty",
-              text: "No momento nao encontramos outros imóveis similares.",
+              text: "Poxa, no momento não encontrei outros imóveis parecidos com esse aqui na região. Mas fica de olho que sempre tem novidade!",
             },
           });
           await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);

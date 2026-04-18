@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     const targetPhone = botPhone ?? broker?.whatsapp_number ?? null;
 
     const leadStartText = encodeURIComponent(
-      `IMOVEL ${row.qr_token} - Tenho interesse no imovel ${String(p.public_id ?? "")}.`,
+      `Oi! Tenho interesse no imóvel ${String(p.public_id ?? "")} que vi no QR Code. Me passa as informações dele? (Ref: ${row.qr_token})`,
     );
     const wa = targetPhone
       ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`

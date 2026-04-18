@@ -208,6 +208,8 @@ Deno.serve(async (req) => {
       });
 
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
+      console.log(`Calling conversation-handle at: ${conversationUrl}`);
+      
       const response = await fetch(conversationUrl, {
         method: "POST",
         headers: {
@@ -223,6 +225,9 @@ Deno.serve(async (req) => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`conversation-handle failed: ${response.status} - ${errorText}`);
+        
         await supabase
           .from("webhook_events")
           .update({
@@ -230,20 +235,23 @@ Deno.serve(async (req) => {
             processed_at: new Date().toISOString(),
           })
           .eq("id", insertedEvent?.id ?? "");
-        return new Response(JSON.stringify({ ok: false, error: "conversation_handle_failed" }), {
+        return new Response(JSON.stringify({ ok: false, error: "conversation_handle_failed", detail: errorText }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+// NOVO: Disparar o dispatch automaticamente após processar a conversa para resposta rápida
       const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
-      const cronSecret = Deno.env.get("CRON_SECRET");
-      if (cronSecret) {
-        fetch(dispatchUrl, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${cronSecret}` },
-        }).catch(() => {});
-      }
+      console.log(`Triggering dispatch at: ${dispatchUrl}`);
+      
+      // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)
+      fetch(dispatchUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}`,
+        },
+      }).catch(err => console.error("Auto-dispatch trigger failed:", err));
     }
 
     await supabase
