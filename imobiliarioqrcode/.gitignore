@@ -1,0 +1,15 @@
+node_modules
+.pnp
+.pnp.js
+.next
+out
+dist
+build
+.turbo
+.env
+.env.local
+.env.*.local
+.vercel
+coverage
+supabase/.branches
+supabase/.temp
