@@ -19,6 +19,9 @@ export async function POST(request: Request) {
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const qr_token = typeof o.qr_token === "string" ? o.qr_token.trim() : "";
   const client_phone = typeof o.client_phone === "string" ? o.client_phone : "";
+  const provided_name = typeof o.nome === "string" ? o.nome.trim() : "";
+  const profile_name = typeof o.profile_name === "string" ? o.profile_name.trim() : "";
+  const observation = typeof o.observation === "string" ? o.observation.trim() : "";
   const intent =
     typeof o.intent === "string" && o.intent.trim() ? o.intent.trim() : "visit_interest";
 
@@ -46,11 +49,17 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ ok: false, error: "server_config" }, { status: 500 });
   }
-  const { data: leadId, error } = await supabase.rpc("create_lead_from_visit_interest", {
+  const { data: leadId, error } = await supabase.rpc("upsert_lead_from_qr_event", {
     p_property_id: property_id,
     p_broker_id: broker_id,
     p_client_phone: phone,
+    p_nome_informado: provided_name || null,
+    p_nome_perfil: profile_name || null,
+    p_observacao: observation || null,
+    p_origem: "qr_code_anuncio",
+    p_interaction_type: "public_qr_interest",
     p_intent: intent,
+    p_force_name_update: false,
   });
 
   if (error) {

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 type ResolveBody = { qr_token?: string };
@@ -8,6 +8,35 @@ function prefersJson(req: Request, url: URL): boolean {
   if (format && format.toLowerCase() === "json") return true;
   const accept = (req.headers.get("accept") ?? "").toLowerCase();
   return accept.includes("application/json");
+}
+
+function shouldTrackAccess(req: Request, url: URL): boolean {
+  const queryValue = url.searchParams.get("track");
+  if (queryValue === "0" || queryValue?.toLowerCase() === "false") {
+    return false;
+  }
+  const headerValue = req.headers.get("x-skip-access-log");
+  if (headerValue === "1" || headerValue?.toLowerCase() === "true") {
+    return false;
+  }
+  return true;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getClientIp(req: Request): string | null {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  return realIp || null;
 }
 
 Deno.serve(async (req) => {
@@ -54,6 +83,7 @@ Deno.serve(async (req) => {
       .from("property_qrcodes")
       .select(
         `
+        id,
         qr_token,
         is_active,
         properties (
@@ -90,7 +120,6 @@ Deno.serve(async (req) => {
     }
 
     const listingStatus = String(p.listing_status);
-    const originPlan = String(p.origin_plan_code);
     const expiresAt = p.expires_at ? new Date(String(p.expires_at)) : null;
 
     if (!row.is_active || listingStatus === "removed" || listingStatus === "blocked") {
@@ -109,7 +138,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (originPlan === "free" && expiresAt && expiresAt < new Date()) {
+    if (expiresAt && expiresAt < new Date()) {
       return json({
         ok: true,
         state: "expired",
@@ -124,18 +153,33 @@ Deno.serve(async (req) => {
       .eq("id", brokerId)
       .maybeSingle();
 
-    const botPhone =
-      Deno.env.get("UAZAPI_BOT_PHONE") ??
-      Deno.env.get("WHATSAPP_BOT_PHONE") ??
-      null;
+    const botPhone = Deno.env.get("UAZAPI_BOT_PHONE") ?? Deno.env.get("WHATSAPP_BOT_PHONE") ?? null;
     const targetPhone = botPhone ?? broker?.whatsapp_number ?? null;
 
     const leadStartText = encodeURIComponent(
-      `Oi! Tenho interesse no imóvel ${String(p.public_id ?? "")} que vi no QR Code. Me passa as informações dele? (Ref: ${row.qr_token})`,
+      `Oi! Tenho interesse no imovel ${String(p.public_id ?? "")} que vi no QR Code. Me passa as informacoes dele? (Ref: ${row.qr_token})`,
     );
     const wa = targetPhone
       ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
       : null;
+
+    if (shouldTrackAccess(req, url)) {
+      const ip = getClientIp(req);
+      const ipHash = ip ? await sha256Hex(ip) : null;
+      const userAgent = req.headers.get("user-agent");
+      const { error: accessError } = await supabase.rpc("register_qr_access", {
+        p_qr_token: qr_token,
+        p_user_agent: userAgent,
+        p_ip_hash: ipHash,
+        p_lead_phone: null,
+      });
+      if (accessError) {
+        console.error("register_qr_access failed", {
+          tokenPrefix: qr_token.slice(0, 8),
+          detail: accessError.message,
+        });
+      }
+    }
 
     return json({
       ok: true,

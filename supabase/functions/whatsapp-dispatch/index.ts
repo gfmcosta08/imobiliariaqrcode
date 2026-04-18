@@ -108,9 +108,10 @@ Deno.serve(async (req) => {
 
   const { data: rows, error } = await supabase
     .from("whatsapp_messages")
-    .select("id, message_type, payload, lead_phone, broker_phone")
+    .select("id, message_type, payload, lead_phone, broker_phone, scheduled_for")
     .eq("direction", "outbound")
     .eq("status", "queued")
+    .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
     .order("created_at", { ascending: true })
     .limit(MAX_BATCH);
 

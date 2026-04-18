@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 type InboundInput = {
@@ -6,6 +6,13 @@ type InboundInput = {
   text?: string;
   event_id?: string;
   payload?: Record<string, unknown>;
+};
+
+type LeadSnapshot = {
+  id: string;
+  primeiro_nome: string;
+  nome_completo: string;
+  nome_validado: boolean;
 };
 
 function matchChoice1(text: string): boolean {
@@ -19,18 +26,18 @@ function matchChoice1(text: string): boolean {
 function matchChoice2(text: string): boolean {
   const t = text.toLowerCase().trim();
   if (/^2$/.test(t)) return true;
-  return /\b(mais\s+im[oó]veis|im[oó]veis\s+(parecidos|similares)|outros\s+im[oó]veis|ver\s+mais)\b/.test(t);
+  return /\b(mais\s+imoveis|imoveis\s+(parecidos|similares)|outros\s+imoveis|ver\s+mais)\b/.test(t);
 }
 
 function matchChoice3(text: string): boolean {
   const t = text.toLowerCase().trim();
   if (/^3$/.test(t)) return true;
-  return /\b(anunci[ao]r?|anunciem|divulgar|publicar)\b/.test(t);
+  return /\b(anunciar?|anunciem|divulgar|publicar|vender\s+meu\s+imovel)\b/.test(t);
 }
 
 function matchNo(text: string): boolean {
   const t = text.toLowerCase().trim();
-  return /^(n[aã]o|n|no|0)$/.test(t) || /^n[aã]o\b/.test(t);
+  return /^(nao|não|n|no|0)$/.test(t) || /^nao\b/.test(t) || /^não\b/.test(t);
 }
 
 function normalizePhone(v: string): string {
@@ -39,15 +46,82 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
-  // Padrão 1: imovel [token]
-  const m = t.match(/(?:imovel|im[oó]vel)\s+([a-z0-9_-]{16,80})/i);
+  const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,80})/i);
   if (m?.[1]) return m[1];
-  // Padrão 2: (Ref: [token]) ou Ref: [token]
   const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
   if (mRef?.[1]) return mRef[1];
-  // Padrão 3: apenas o token (hash de 32 a 80 chars)
   const uuidLike = t.match(/[a-z0-9]{32,80}/i);
   return uuidLike?.[0] ?? null;
+}
+
+function parseNameFromIntroduction(text: string): string | null {
+  const t = text.trim();
+  const regexes = [
+    /(?:meu\s+nome\s+e|meu\s+nome\s+é)\s+([a-zA-ZÀ-ÿ'\-\s]{2,60})/i,
+    /(?:me\s+chamo|eu\s+sou|sou\s+o|sou\s+a)\s+([a-zA-ZÀ-ÿ'\-\s]{2,60})/i,
+  ];
+  for (const r of regexes) {
+    const m = t.match(r);
+    if (m?.[1]) return normalizePersonName(m[1]);
+  }
+  return null;
+}
+
+function parseNameCorrection(text: string): string | null {
+  const t = text.trim();
+  const regexes = [
+    /meu\s+nome\s+(?:nao\s+e|não\s+é)\s+[a-zA-ZÀ-ÿ'\-\s]{2,60},?\s*(?:e|é)\s+([a-zA-ZÀ-ÿ'\-\s]{2,60})/i,
+    /(?:nao\s+e|não\s+é)\s+[a-zA-ZÀ-ÿ'\-\s]{2,60},?\s*(?:e|é)\s+([a-zA-ZÀ-ÿ'\-\s]{2,60})/i,
+    /corrigindo.*(?:meu\s+nome\s+e|meu\s+nome\s+é)\s+([a-zA-ZÀ-ÿ'\-\s]{2,60})/i,
+  ];
+  for (const r of regexes) {
+    const m = t.match(r);
+    if (m?.[1]) return normalizePersonName(m[1]);
+  }
+  return null;
+}
+
+function normalizePersonName(value: string): string {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "Cliente";
+  return cleaned
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function extractProfileName(payload: Record<string, unknown> | undefined): string | null {
+  if (!payload) return null;
+
+  const directKeys = ["pushName", "notifyName", "senderName", "profileName", "name"];
+  for (const key of directKeys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim().length >= 2) {
+      return normalizePersonName(value);
+    }
+  }
+
+  const message = payload.message;
+  if (message && typeof message === "object") {
+    const m = message as Record<string, unknown>;
+    for (const key of directKeys) {
+      const value = m[key];
+      if (typeof value === "string" && value.trim().length >= 2) {
+        return normalizePersonName(value);
+      }
+    }
+  }
+
+  return null;
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function scheduleIso(toBroker: boolean): string {
+  const delay = toBroker ? randomInt(1, 6) : randomInt(1, 40);
+  return new Date(Date.now() + delay * 1000).toISOString();
 }
 
 function fmt(v: unknown): string {
@@ -72,189 +146,41 @@ function summarizeProperty(row: Record<string, unknown>): string {
   const title = fmt(row.title || row.public_id);
   const type = [fmt(row.property_type), fmt(row.property_subtype)].filter(Boolean).join(" - ");
 
-  lines.push(`🏠 *${title}*`);
+  lines.push(`?? *${title}*`);
   if (row.public_id) lines.push(`Ref: ${fmt(row.public_id)}`);
   if (type) lines.push(`Tipo: ${type}`);
   if (purpose) lines.push(`Finalidade: ${purpose}`);
 
-  // Localização
   const loc = [fmt(row.neighborhood), fmt(row.city_region), fmt(row.city), fmt(row.state)].filter(Boolean);
-  if (loc.length) lines.push(`\n📍 *Localização*\n${loc.join(", ")}`);
-  if (row.full_address) lines.push(`Endereço: ${fmt(row.full_address)}`);
+  if (loc.length) lines.push(`\n?? *Localizacao*\n${loc.join(", ")}`);
+  if (row.full_address) lines.push(`Endereco: ${fmt(row.full_address)}`);
 
-  // Características
   const chars: string[] = [];
   if (row.bedrooms) chars.push(`${row.bedrooms} quarto(s)`);
-  if (row.suites) chars.push(`${row.suites} suíte(s)`);
+  if (row.suites) chars.push(`${row.suites} suite(s)`);
   if (row.bathrooms) chars.push(`${row.bathrooms} banheiro(s)`);
   if (row.parking_spaces) chars.push(`${row.parking_spaces} vaga(s)`);
   if (row.living_rooms) chars.push(`${row.living_rooms} sala(s)`);
-  if (row.floors_count) chars.push(`${row.floors_count} pavimento(s)`);
-  if (chars.length) lines.push(`\n🛏 *Características*\n${chars.join(" | ")}`);
+  if (chars.length) lines.push(`\n?? *Caracteristicas*\n${chars.join(" | ")}`);
 
   const areas: string[] = [];
-  if (row.area_m2 || row.total_area_m2) areas.push(`Área total: ${row.area_m2 ?? row.total_area_m2} m²`);
-  if (row.built_area_m2) areas.push(`Área construída: ${row.built_area_m2} m²`);
-  if (row.land_area_m2) areas.push(`Terreno: ${row.land_area_m2} m²`);
+  if (row.area_m2 || row.total_area_m2) areas.push(`Area total: ${row.area_m2 ?? row.total_area_m2} m2`);
+  if (row.built_area_m2) areas.push(`Area construida: ${row.built_area_m2} m2`);
+  if (row.land_area_m2) areas.push(`Terreno: ${row.land_area_m2} m2`);
   if (areas.length) lines.push(areas.join(" | "));
 
-  const extras: string[] = [];
-  if (row.floor_type) extras.push(`Piso: ${fmt(row.floor_type)}`);
-  if (row.sun_position) extras.push(`Posição solar: ${fmt(row.sun_position)}`);
-  if (row.construction_type) extras.push(`Construção: ${fmt(row.construction_type)}`);
-  if (row.finish_standard) extras.push(`Padrão: ${fmt(row.finish_standard)}`);
-  if (row.property_age_years != null) extras.push(`Idade: ${row.property_age_years} anos`);
-  if (extras.length) lines.push(extras.join(" | "));
-
-  const furnishing = fmt(row.furnishing_status);
-  if (furnishing) {
-    const fmap: Record<string, string> = { furnished: "Mobiliado", semi_furnished: "Semi-mobiliado", unfurnished: "Sem mobília" };
-    lines.push(`Mobília: ${fmap[furnishing] ?? furnishing}`);
-  }
-
-  // Preços
   const priceLines: string[] = [];
   const mainPrice = fmtBRL(row.sale_price ?? row.rent_price ?? row.price);
-  if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preço: ${mainPrice}`);
-  if (row.condo_fee) priceLines.push(`Condomínio: ${fmtBRL(row.condo_fee)}`);
+  if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preco: ${mainPrice}`);
+  if (row.condo_fee) priceLines.push(`Condominio: ${fmtBRL(row.condo_fee)}`);
   if (row.iptu_amount) priceLines.push(`IPTU: ${fmtBRL(row.iptu_amount)}`);
-  if (row.other_fees) priceLines.push(`Outras taxas: ${fmtBRL(row.other_fees)}`);
-  if (priceLines.length) lines.push(`\n💰 *Valores*\n${priceLines.join(" | ")}`);
+  if (priceLines.length) lines.push(`\n?? *Valores*\n${priceLines.join(" | ")}`);
 
-  const conditions: string[] = [];
-  if (row.accepts_financing) conditions.push("Aceita financiamento");
-  if (row.accepts_trade) conditions.push("Aceita permuta");
-  if (conditions.length) lines.push(conditions.join(" | "));
-
-  // Descrição
   const desc = fmt(row.description || row.full_description);
-  if (desc) lines.push(`\n📝 *Descrição*\n${desc}`);
-  const highlights = fmt(row.highlights);
-  if (highlights) lines.push(`Destaques: ${highlights}`);
+  if (desc) lines.push(`\n?? *Descricao*\n${desc}`);
 
-  // Diferenciais
   const feats = fmtList(row.features);
-  if (feats) lines.push(`\n✅ *Diferenciais*\n${feats}`);
-  const infra = fmtList(row.infrastructure);
-  if (infra) lines.push(`Infraestrutura: ${infra}`);
-  const security = fmtList(row.security_items);
-  if (security) lines.push(`Segurança: ${security}`);
-
-  // Localização próxima
-  const nearby = fmtList(row.nearby_points);
-  if (nearby) lines.push(`\n📌 *Pontos próximos*\n${nearby}`);
-  if (row.distance_to_center_km) lines.push(`Distância ao centro: ${row.distance_to_center_km} km`);
-
-  // Documentação
-  const docParts: string[] = [];
-  if (row.documentation_status) docParts.push(`Situação: ${fmt(row.documentation_status)}`);
-  if (row.has_deed) docParts.push("Escritura: Sim");
-  if (row.has_registration) docParts.push("Registro: Sim");
-  if (row.technical_details) docParts.push(fmt(row.technical_details));
-  if (docParts.length) lines.push(`\n📄 *Documentação*\n${docParts.join(" | ")}`);
-
-  return lines.join("\n");
-}
-
-function fmtBRL(v: unknown): string {
-  if (v == null || v === "") return "";
-  const n = Number(v);
-  return isNaN(n) ? "" : `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-}
-
-function fmtList(v: unknown): string {
-  if (!v || !Array.isArray(v)) return "";
-  return (v as string[]).filter(Boolean).join(", ");
-}
-
-function summarizeProperty(row: Record<string, unknown>): string {
-  const lines: string[] = [];
-
-  const purpose = fmt(row.purpose) === "sale" ? "Venda" : fmt(row.purpose) === "rent" ? "Aluguel" : fmt(row.purpose);
-  const title = fmt(row.title || row.public_id);
-  const type = [fmt(row.property_type), fmt(row.property_subtype)].filter(Boolean).join(" - ");
-
-  lines.push(`🏠 *${title}*`);
-  if (row.public_id) lines.push(`Ref: ${fmt(row.public_id)}`);
-  if (type) lines.push(`Tipo: ${type}`);
-  if (purpose) lines.push(`Finalidade: ${purpose}`);
-
-  // Localização
-  const loc = [fmt(row.neighborhood), fmt(row.city_region), fmt(row.city), fmt(row.state)].filter(Boolean);
-  if (loc.length) lines.push(`\n📍 *Localização*\n${loc.join(", ")}`);
-  if (row.full_address) lines.push(`Endereço: ${fmt(row.full_address)}`);
-
-  // Características
-  const chars: string[] = [];
-  if (row.bedrooms) chars.push(`${row.bedrooms} quarto(s)`);
-  if (row.suites) chars.push(`${row.suites} suíte(s)`);
-  if (row.bathrooms) chars.push(`${row.bathrooms} banheiro(s)`);
-  if (row.parking_spaces) chars.push(`${row.parking_spaces} vaga(s)`);
-  if (row.living_rooms) chars.push(`${row.living_rooms} sala(s)`);
-  if (row.floors_count) chars.push(`${row.floors_count} pavimento(s)`);
-  if (chars.length) lines.push(`\n🛏 *Características*\n${chars.join(" | ")}`);
-
-  const areas: string[] = [];
-  if (row.area_m2 || row.total_area_m2) areas.push(`Área total: ${row.area_m2 ?? row.total_area_m2} m²`);
-  if (row.built_area_m2) areas.push(`Área construída: ${row.built_area_m2} m²`);
-  if (row.land_area_m2) areas.push(`Terreno: ${row.land_area_m2} m²`);
-  if (areas.length) lines.push(areas.join(" | "));
-
-  const extras: string[] = [];
-  if (row.floor_type) extras.push(`Piso: ${fmt(row.floor_type)}`);
-  if (row.sun_position) extras.push(`Posição solar: ${fmt(row.sun_position)}`);
-  if (row.construction_type) extras.push(`Construção: ${fmt(row.construction_type)}`);
-  if (row.finish_standard) extras.push(`Padrão: ${fmt(row.finish_standard)}`);
-  if (row.property_age_years != null) extras.push(`Idade: ${row.property_age_years} anos`);
-  if (extras.length) lines.push(extras.join(" | "));
-
-  const furnishing = fmt(row.furnishing_status);
-  if (furnishing) {
-    const fmap: Record<string, string> = { furnished: "Mobiliado", semi_furnished: "Semi-mobiliado", unfurnished: "Sem mobília" };
-    lines.push(`Mobília: ${fmap[furnishing] ?? furnishing}`);
-  }
-
-  // Preços
-  const priceLines: string[] = [];
-  const mainPrice = fmtBRL(row.sale_price ?? row.rent_price ?? row.price);
-  if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preço: ${mainPrice}`);
-  if (row.condo_fee) priceLines.push(`Condomínio: ${fmtBRL(row.condo_fee)}`);
-  if (row.iptu_amount) priceLines.push(`IPTU: ${fmtBRL(row.iptu_amount)}`);
-  if (row.other_fees) priceLines.push(`Outras taxas: ${fmtBRL(row.other_fees)}`);
-  if (priceLines.length) lines.push(`\n💰 *Valores*\n${priceLines.join(" | ")}`);
-
-  const conditions: string[] = [];
-  if (row.accepts_financing) conditions.push("Aceita financiamento");
-  if (row.accepts_trade) conditions.push("Aceita permuta");
-  if (conditions.length) lines.push(conditions.join(" | "));
-
-  // Descrição
-  const desc = fmt(row.description || row.full_description);
-  if (desc) lines.push(`\n📝 *Descrição*\n${desc}`);
-  const highlights = fmt(row.highlights);
-  if (highlights) lines.push(`Destaques: ${highlights}`);
-
-  // Diferenciais
-  const feats = fmtList(row.features);
-  if (feats) lines.push(`\n✅ *Diferenciais*\n${feats}`);
-  const infra = fmtList(row.infrastructure);
-  if (infra) lines.push(`Infraestrutura: ${infra}`);
-  const security = fmtList(row.security_items);
-  if (security) lines.push(`Segurança: ${security}`);
-
-  // Localização próxima
-  const nearby = fmtList(row.nearby_points);
-  if (nearby) lines.push(`\n📌 *Pontos próximos*\n${nearby}`);
-  if (row.distance_to_center_km) lines.push(`Distância ao centro: ${row.distance_to_center_km} km`);
-
-  // Documentação
-  const docParts: string[] = [];
-  if (row.documentation_status) docParts.push(`Situação: ${fmt(row.documentation_status)}`);
-  if (row.has_deed) docParts.push("Escritura: Sim");
-  if (row.has_registration) docParts.push("Registro: Sim");
-  if (row.documentation) docParts.push(fmt(row.documentation));
-  if (row.technical_details) docParts.push(fmt(row.technical_details));
-  if (docParts.length) lines.push(`\n📄 *Documentação*\n${docParts.join(" | ")}`);
+  if (feats) lines.push(`\n? *Diferenciais*\n${feats}`);
 
   return lines.join("\n");
 }
@@ -270,6 +196,7 @@ async function queueOutbound(
     payload: Record<string, unknown>;
   },
 ) {
+  const toBroker = input.payload?.to_broker === true;
   await supabase.from("whatsapp_messages").insert({
     direction: "outbound",
     provider: "uazapi",
@@ -279,38 +206,95 @@ async function queueOutbound(
     broker_phone: input.broker_phone,
     message_type: input.message_type,
     status: "queued",
+    scheduled_for: scheduleIso(toBroker),
     payload: input.payload,
   });
 }
 
-async function loadPropertyByQr(
-  supabase: ReturnType<typeof createClient>,
-  qrToken: string,
-) {
+async function loadPropertyByQr(supabase: ReturnType<typeof createClient>, qrToken: string) {
   const { data, error } = await supabase
     .from("property_qrcodes")
     .select(
-      "qr_token, is_active, properties(id, public_id, broker_id, account_id, listing_status, origin_plan_code, title, description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation)",
+      "qr_token, is_active, properties(id, public_id, broker_id, account_id, listing_status, expires_at, title, description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation)",
     )
     .eq("qr_token", qrToken)
     .eq("is_active", true)
     .maybeSingle();
+
   if (error || !data?.properties) return null;
   const p = Array.isArray(data.properties) ? data.properties[0] : data.properties;
-  if (!p || p.listing_status === "removed" || p.listing_status === "blocked" || p.listing_status === "expired") {
+  if (!p) return null;
+
+  if (
+    p.listing_status === "removed" ||
+    p.listing_status === "blocked" ||
+    p.listing_status === "expired" ||
+    (p.expires_at && new Date(String(p.expires_at)) < new Date())
+  ) {
     return null;
   }
-  return p as Record<string, any>;
+
+  return p as Record<string, unknown>;
+}
+
+async function upsertLead(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    propertyId: string;
+    brokerId: string;
+    leadPhone: string;
+    text: string;
+    profileName: string | null;
+    informedName: string | null;
+    intent: string;
+    interactionType: string;
+    forceNameUpdate: boolean;
+  },
+): Promise<LeadSnapshot | null> {
+  const { data: leadId, error } = await supabase.rpc("upsert_lead_from_qr_event", {
+    p_property_id: input.propertyId,
+    p_broker_id: input.brokerId,
+    p_client_phone: input.leadPhone,
+    p_nome_informado: input.informedName,
+    p_nome_perfil: input.profileName,
+    p_observacao: input.text,
+    p_origem: "qr_code_anuncio",
+    p_interaction_type: input.interactionType,
+    p_intent: input.intent,
+    p_force_name_update: input.forceNameUpdate,
+  });
+
+  if (error || !leadId) {
+    console.error("upsert_lead_from_qr_event failed", error?.message ?? "unknown");
+    return null;
+  }
+
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("id, primeiro_nome, nome_completo, nome_validado")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  if (!lead) return null;
+
+  return {
+    id: String(lead.id),
+    primeiro_nome: String(lead.primeiro_nome ?? "Cliente"),
+    nome_completo: String(lead.nome_completo ?? "Cliente"),
+    nome_validado: Boolean(lead.nome_validado),
+  };
 }
 
 async function sendPropertyPack(
   supabase: ReturnType<typeof createClient>,
-  property: Record<string, any>,
+  property: Record<string, unknown>,
   leadPhone: string,
+  lead: LeadSnapshot | null,
 ) {
   const propertyId = String(property.id);
   const accountId = String(property.account_id);
   const brokerId = String(property.broker_id);
+
   const { data: broker } = await supabase
     .from("brokers")
     .select("whatsapp_number")
@@ -318,8 +302,24 @@ async function sendPropertyPack(
     .maybeSingle();
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+  const firstName = lead?.primeiro_nome || "Cliente";
 
-  // 1. Enviar Resumo Completo
+  const introText = lead?.nome_validado
+    ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
+    : `Ola! Posso te chamar de ${firstName}? Se preferir outro nome, me fala que eu atualizo agora.`;
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "lead_intro",
+      text: introText,
+    },
+  });
+
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -333,7 +333,6 @@ async function sendPropertyPack(
     },
   });
 
-  // 2. Enviar Imagens
   const { data: mediaRows } = await supabase
     .from("property_media")
     .select("storage_path")
@@ -342,10 +341,11 @@ async function sendPropertyPack(
     .order("sort_order", { ascending: true })
     .limit(10);
 
-  for (const m of mediaRows ?? []) {
+  for (const media of mediaRows ?? []) {
     const { data: signed } = await supabase.storage
       .from("property-media")
-      .createSignedUrl(String(m.storage_path), 60 * 60);
+      .createSignedUrl(String(media.storage_path), 60 * 60);
+
     if (!signed?.signedUrl) continue;
 
     await queueOutbound(supabase, {
@@ -357,33 +357,16 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Foto do imóvel ${String(property.public_id ?? "")}`,
+        caption: `Foto do imovel ${String(property.public_id ?? "")}`,
       },
     });
   }
 
-  // 3. Enviar Mensagens Finais Solicitadas
-  const finalMessages = [
-    "Deseja agendar uma visita? (Responda SIM ou NÃO)",
-    "Quer ver mais imóveis como esse? (Responda SIM ou NÃO)",
-    "Anuncie conosco! Acesse nosso site para cadastrar seu imóvel."
-  ];
-
-  for (const msg of finalMessages) {
-    await queueOutbound(supabase, {
-      account_id: accountId,
-      property_id: propertyId,
-      lead_phone: leadPhone,
-      broker_phone: brokerPhone,
-      message_type: "text",
-      payload: {
-        kind: "final_option",
-        text: msg,
-      },
-    });
-  }
-
-  const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? Deno.env.get("APP_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
+  const appUrl =
+    Deno.env.get("NEXT_PUBLIC_APP_URL") ??
+    Deno.env.get("APP_URL") ??
+    Deno.env.get("PUBLIC_APP_URL") ??
+    "";
 
   await queueOutbound(supabase, {
     account_id: accountId,
@@ -391,55 +374,30 @@ async function sendPropertyPack(
     lead_phone: leadPhone,
     broker_phone: brokerPhone,
     message_type: "text",
-    payload: { kind: "menu_option_1", text: "1 - Gostaria de agendar uma visita ao imóvel" },
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: { kind: "menu_option_2", text: "2 - Gostaria de ver mais imóveis como esse" },
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: { kind: "menu_option_3", text: `3 - Anunciem conosco e entre no nosso site${appUrl ? `: ${appUrl}` : ""}` },
+    payload: {
+      kind: "menu_prompt",
+      text: `${firstName}, me diga como posso te ajudar agora:\n1 - Agendar visita ao imovel\n2 - Ver imoveis semelhantes\n3 - Anunciar um imovel conosco${appUrl ? ` (${appUrl})` : ""}`,
+    },
   });
 }
 
 Deno.serve(async (req) => {
-  console.log(`[conversation-handle] Received request: ${req.method}`);
-  
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const rawBody = await req.text();
-    console.log(`[conversation-handle] Raw payload: ${rawBody}`);
-    
-    let body: InboundInput;
-    try {
-      body = JSON.parse(rawBody) as InboundInput;
-    } catch (e) {
-      console.error("[conversation-handle] Failed to parse JSON:", e);
-      return json({ ok: false, error: "invalid_json" }, 400);
-    }
-
+    const body = (await req.json()) as InboundInput;
     const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
     const text = String(body.text ?? "").trim();
-    
-    console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}"`);
 
     if (!leadPhone || !text) {
       return json({ ok: false, error: "missing_input" }, 400);
     }
+
+    const profileName = extractProfileName(body.payload);
+    const correctedName = parseNameCorrection(text);
+    const informedName = correctedName ?? parseNameFromIntroduction(text);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -463,15 +421,19 @@ Deno.serve(async (req) => {
       }
 
       const propertyId = String(property.id);
+      const brokerId = String(property.broker_id);
 
-      // Prevent re-sending pack if session already active for this property
-      if (
-        session?.id &&
-        session.origin_property_id === propertyId &&
-        session.state === "awaiting_main_choice"
-      ) {
-        return json({ ok: true, state: "already_started" });
-      }
+      const lead = await upsertLead(supabase, {
+        propertyId,
+        brokerId,
+        leadPhone,
+        text,
+        profileName,
+        informedName,
+        intent: "visit_interest",
+        interactionType: "qr_entry",
+        forceNameUpdate: Boolean(correctedName),
+      });
 
       if (session?.id) {
         await supabase
@@ -480,7 +442,7 @@ Deno.serve(async (req) => {
             origin_property_id: propertyId,
             current_property_id: propertyId,
             state: "awaiting_main_choice",
-            last_menu: "visit_question",
+            last_menu: "main_menu",
           })
           .eq("id", session.id);
       } else {
@@ -489,11 +451,11 @@ Deno.serve(async (req) => {
           origin_property_id: propertyId,
           current_property_id: propertyId,
           state: "awaiting_main_choice",
-          last_menu: "visit_question",
+          last_menu: "main_menu",
         });
       }
 
-      await sendPropertyPack(supabase, property, leadPhone);
+      await sendPropertyPack(supabase, property, leadPhone, lead);
       return json({ ok: true, state: "started", property_id: propertyId });
     }
 
@@ -506,6 +468,7 @@ Deno.serve(async (req) => {
       .select("id, public_id, broker_id, account_id")
       .eq("id", session.origin_property_id)
       .maybeSingle();
+
     if (!property) {
       return json({ ok: false, error: "property_not_found" }, 400);
     }
@@ -515,15 +478,49 @@ Deno.serve(async (req) => {
       .select("whatsapp_number")
       .eq("id", property.broker_id)
       .maybeSingle();
+
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+
+    const lead = await upsertLead(supabase, {
+      propertyId: String(property.id),
+      brokerId: String(property.broker_id),
+      leadPhone,
+      text,
+      profileName,
+      informedName,
+      intent: "visit_interest",
+      interactionType: correctedName ? "name_correction" : "conversation_message",
+      forceNameUpdate: Boolean(correctedName),
+    });
+
+    const firstName = lead?.primeiro_nome || "Cliente";
+
+    if (correctedName) {
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "name_updated",
+          text: `Perfeito, ${firstName}. Nome atualizado aqui. Obrigado por avisar!`,
+        },
+      });
+    }
 
     if (session.state === "awaiting_main_choice") {
       if (matchChoice1(text)) {
-        const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
-          p_property_id: property.id,
-          p_broker_id: property.broker_id,
-          p_client_phone: leadPhone,
-          p_intent: "visit_interest",
+        const leadVisit = await upsertLead(supabase, {
+          propertyId: String(property.id),
+          brokerId: String(property.broker_id),
+          leadPhone,
+          text: `Interesse em visita: ${text}`,
+          profileName,
+          informedName: informedName ?? null,
+          intent: "visit_interest",
+          interactionType: "visit_interest",
+          forceNameUpdate: false,
         });
 
         await queueOutbound(supabase, {
@@ -534,8 +531,8 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "visit_registered",
-            text: "Fechado! Já anotei aqui seu interesse. O corretor vai te dar um alô em breve pra combinarmos tudo! 😉",
-            lead_id: leadId ?? null,
+            text: `${firstName}, combinado! Ja registrei seu pedido de visita. O corretor vai falar com voce em instantes.`,
+            lead_id: leadVisit?.id ?? null,
           },
         });
 
@@ -549,7 +546,7 @@ Deno.serve(async (req) => {
             payload: {
               kind: "broker_notification",
               to_broker: true,
-              text: `🚨 *Novo Lead!* 🚨\n\nUm cliente quer visitar o imóvel *${property.public_id}*.\n\n📱 Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
+              text: `Novo lead para visita no imovel ${property.public_id}. Cliente: ${leadPhone}. Nome: ${lead?.nome_completo ?? firstName}.`,
             },
           });
         }
@@ -562,7 +559,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Enquanto isso, quer dar uma olhadinha em outros imóveis parecidos com esse? (Responda SIM ou NÃO)",
+            text: `${firstName}, quer que eu te mostre imoveis semelhantes tambem? (Responda SIM ou NAO)`,
           },
         });
 
@@ -583,18 +580,37 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Sem problemas! Quer que eu te mostre outros imóveis que talvez você curta? (Responda SIM ou NÃO)",
+            text: `${firstName}, otimo. Quer que eu te envie agora os imoveis mais parecidos? (Responda SIM ou NAO)`,
           },
         });
+
         await supabase
           .from("conversation_sessions")
           .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
           .eq("id", session.id);
+
         return json({ ok: true, state: "asked_similar" });
       }
 
       if (matchChoice3(text)) {
-        const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? Deno.env.get("APP_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
+        const appUrl =
+          Deno.env.get("NEXT_PUBLIC_APP_URL") ??
+          Deno.env.get("APP_URL") ??
+          Deno.env.get("PUBLIC_APP_URL") ??
+          "";
+
+        await upsertLead(supabase, {
+          propertyId: String(property.id),
+          brokerId: String(property.broker_id),
+          leadPhone,
+          text: `Interesse em anunciar: ${text}`,
+          profileName,
+          informedName: informedName ?? null,
+          intent: "similar_property_interest",
+          interactionType: "advertise_interest",
+          forceNameUpdate: false,
+        });
+
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
@@ -603,19 +619,33 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "close_advertise",
-            text: `Que ótimo! Acesse nosso site e saiba mais${appUrl ? `: ${appUrl}` : "."}`,
+            text: `${firstName}, excelente! ${appUrl ? `Acesse ${appUrl} para anunciar com a gente.` : "Nosso time vai te orientar para anunciar com a gente."}`,
           },
         });
+
         await supabase
           .from("conversation_sessions")
           .update({ state: "closed", last_menu: "advertise" })
           .eq("id", session.id);
+
         return json({ ok: true, state: "closed_advertise" });
       }
     }
 
     if (session.state === "awaiting_recommendation_choice") {
       if (matchChoice1(text)) {
+        await upsertLead(supabase, {
+          propertyId: String(property.id),
+          brokerId: String(property.broker_id),
+          leadPhone,
+          text: `Interesse em imoveis semelhantes: ${text}`,
+          profileName,
+          informedName: informedName ?? null,
+          intent: "similar_property_interest",
+          interactionType: "similar_interest",
+          forceNameUpdate: false,
+        });
+
         const { data: ranked } = await supabase.rpc("recommend_similar_properties", {
           origin_property_id: property.id,
           limit_count: 5,
@@ -631,9 +661,10 @@ Deno.serve(async (req) => {
             message_type: "text",
             payload: {
               kind: "similar_empty",
-              text: "Poxa, no momento não encontrei outros imóveis parecidos com esse aqui na região. Mas fica de olho que sempre tem novidade!",
+              text: `${firstName}, por enquanto nao encontrei imoveis semelhantes disponiveis. Posso te avisar quando entrar uma opcao nova.`,
             },
           });
+
           await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
           return json({ ok: true, state: "closed_no_similar" });
         }
@@ -649,20 +680,41 @@ Deno.serve(async (req) => {
           .in("property_id", ids)
           .eq("is_active", true);
 
+        const appUrl =
+          Deno.env.get("NEXT_PUBLIC_APP_URL") ??
+          Deno.env.get("APP_URL") ??
+          Deno.env.get("PUBLIC_APP_URL") ??
+          "";
+
         const tokenById = new Map((qrs ?? []).map((q) => [q.property_id, q.qr_token]));
         const byId = new Map((props ?? []).map((p) => [p.id, p]));
+
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "similar_intro",
+            text: `${firstName}, encontrei estas opcoes para voce:`,
+          },
+        });
+
         for (const id of ids) {
           const p = byId.get(id);
           if (!p) continue;
           const token = tokenById.get(id);
+          const link = token ? (appUrl ? `${appUrl}/q/${token}` : `/q/${token}`) : null;
           const line = [
             p.title || p.public_id,
             [p.city, p.state].filter(Boolean).join(" / "),
             p.price != null ? `R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
-            token ? `Link: /q/${token}` : null,
+            link ? `Link: ${link}` : null,
           ]
             .filter(Boolean)
             .join("\n");
+
           await queueOutbound(supabase, {
             account_id: property.account_id,
             property_id: p.id,
@@ -678,10 +730,7 @@ Deno.serve(async (req) => {
 
         await supabase
           .from("conversation_sessions")
-          .update({
-            state: "recommendations_sent",
-            last_recommended_properties: ids,
-          })
+          .update({ state: "recommendations_sent", last_recommended_properties: ids })
           .eq("id", session.id);
 
         return json({ ok: true, state: "recommendations_sent", count: ids.length });
@@ -696,9 +745,10 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "close",
-            text: "Perfeito. Quando quiser, é só enviar outro QR para continuar.",
+            text: `${firstName}, perfeito. Quando quiser, e so me chamar por aqui que continuamos.`,
           },
         });
+
         await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
         return json({ ok: true, state: "closed" });
       }
@@ -712,9 +762,10 @@ Deno.serve(async (req) => {
       message_type: "text",
       payload: {
         kind: "help",
-        text: "Nao entendi. Responda com 1, 2 ou 3.",
+        text: `${firstName}, para te ajudar melhor, responda com 1, 2 ou 3.`,
       },
     });
+
     return json({ ok: true, state: "awaiting_valid_reply" });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

@@ -9,6 +9,11 @@ function getStr(obj: Record<string, unknown>, keys: string[]): string | null {
   return null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
 function normalizePhone(v: string | null): string | null {
   if (!v) return null;
   const d = v.replace(/\D/g, "");
@@ -19,14 +24,24 @@ function extractText(payload: Record<string, unknown>): string {
   const direct = getStr(payload, ["text", "body", "content"]);
   if (direct) return direct;
 
-  const msg = payload.message;
-  if (msg && typeof msg === "object") {
-    const nested = msg as Record<string, unknown>;
-    return (
-      getStr(nested, ["text", "body", "content", "caption", "conversation"]) ??
-      ""
-    );
+  const msg = asRecord(payload.message);
+  if (msg) {
+    const msgDirect = getStr(msg, ["text", "body", "content", "caption", "conversation"]);
+    if (msgDirect) return msgDirect;
+
+    const content = asRecord(msg.content);
+    if (content) {
+      const contentText = getStr(content, ["text", "body", "caption", "conversation"]);
+      if (contentText) return contentText;
+    }
   }
+
+  const raw = asRecord(payload.raw);
+  if (raw) {
+    const rawText = extractText(raw);
+    if (rawText) return rawText;
+  }
+
   return "";
 }
 
@@ -53,6 +68,9 @@ function extractPhone(payload: Record<string, unknown>): string | null {
     if (v) return v.split("@")[0];
   }
 
+  const raw = asRecord(payload.raw);
+  if (raw) return extractPhone(raw);
+
   return null;
 }
 
@@ -65,6 +83,8 @@ function extractExternalId(payload: Record<string, unknown>): string | null {
   if (msg && typeof msg === "object") {
     return getStr(msg as Record<string, unknown>, ["messageid", "id", "messageId"]);
   }
+  const raw = asRecord(payload.raw);
+  if (raw) return extractExternalId(raw);
   return null;
 }
 
@@ -134,14 +154,15 @@ Deno.serve(async (req) => {
     }
 
     // ignorar eventos que não sejam mensagens recebidas (ex: status de entrega)
-    const eventType = getStr(payload, ["EventType", "event_type", "event"]);
+    const rootPayload = asRecord(payload.raw) ?? payload;
+    const eventType = getStr(rootPayload, ["EventType", "event_type", "event"]);
     if (eventType && eventType !== "messages" && eventType !== "message") {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const externalId = extractExternalId(payload);
+    const externalId = extractExternalId(rootPayload);
 
     const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw || "empty"));
     const hashHex = Array.from(new Uint8Array(hashBuf))
@@ -149,12 +170,12 @@ Deno.serve(async (req) => {
       .join("");
     const dedupeKey = externalId ?? `sha256:${hashHex.slice(0, 40)}`;
 
-    const leadPhone = normalizePhone(extractPhone(payload));
-    let text = extractText(payload);
+    const leadPhone = normalizePhone(extractPhone(rootPayload));
+    let text = extractText(rootPayload);
 
     // Transcribe audio messages via Whisper if text is empty
     if (leadPhone && !text) {
-      const audioUrl = extractAudioUrl(payload);
+      const audioUrl = extractAudioUrl(rootPayload);
       if (audioUrl) {
         const transcribed = await transcribeAudio(audioUrl);
         if (transcribed) text = transcribed;
@@ -173,7 +194,7 @@ Deno.serve(async (req) => {
         provider: "uazapi",
         event_name: "inbound",
         external_event_id: dedupeKey,
-        payload,
+        payload: rootPayload,
         processing_status: "pending",
       })
       .select("id")
@@ -200,7 +221,7 @@ Deno.serve(async (req) => {
         provider_message_id: externalId,
         payload: {
           text,
-          raw: payload,
+          raw: rootPayload,
           dedupe_key: dedupeKey,
         },
         status: "sent",
@@ -220,7 +241,7 @@ Deno.serve(async (req) => {
           event_id: insertedEvent?.id ?? null,
           lead_phone: leadPhone,
           text,
-          payload,
+          payload: rootPayload,
         }),
       });
 
@@ -246,12 +267,31 @@ Deno.serve(async (req) => {
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
       
       // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)
-      fetch(dispatchUrl, {
+      await fetch(dispatchUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}`,
         },
-      }).catch(err => console.error("Auto-dispatch trigger failed:", err));
+      }).catch((err) => console.error("Auto-dispatch trigger failed:", err));
+    } else {
+      await supabase
+        .from("webhook_events")
+        .update({
+          processing_status: "failed",
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", insertedEvent?.id ?? "");
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          skipped: true,
+          reason: !leadPhone ? "missing_phone" : "missing_text",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     await supabase

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updatePropertyDetails } from "../actions";
 import { PropertyEditorForm } from "../property-editor-form";
 import { MediaSection } from "./media-section";
+import { PropertyCountdown } from "./property-countdown";
 import { PropertySimilarSection } from "./property-similar-section";
 import { StatusForm } from "./status-form";
 
@@ -48,20 +49,32 @@ export default async function PropertyDetailPage(props: PageProps) {
     .order("created_at", { ascending: true });
 
   const signedUrls: Record<string, string> = {};
-  for (const m of mediaRows ?? []) {
+  for (const media of mediaRows ?? []) {
     const { data: signed, error: signError } = await supabase.storage
       .from("property-media")
-      .createSignedUrl(m.storage_path, 3600);
+      .createSignedUrl(media.storage_path, 3600);
     if (!signError && signed?.signedUrl) {
-      signedUrls[m.id] = signed.signedUrl;
+      signedUrls[media.id] = signed.signedUrl;
     }
   }
 
   const { data: qr } = await supabase
     .from("property_qrcodes")
-    .select("qr_token")
+    .select("qr_token, created_at")
     .eq("property_id", id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
+
+  let qrReads = 0;
+  if (qr?.qr_token) {
+    const { count } = await supabase
+      .from("qr_access_events")
+      .select("id", { count: "exact", head: true })
+      .eq("qr_token", qr.qr_token);
+    qrReads = count ?? 0;
+  }
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
@@ -72,13 +85,13 @@ export default async function PropertyDetailPage(props: PageProps) {
     (host ? `${proto}://${host}` : "");
   const publicQrUrl = qr?.qr_token ? `${appBase}/q/${encodeURIComponent(qr.qr_token)}` : null;
 
-  const description = property.full_description ?? property.description ?? "Sem descrição.";
+  const description = property.full_description ?? property.description ?? "Sem descricao.";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <p className="text-sm text-zinc-500">
         <Link href="/properties" className="underline">
-          Imóveis
+          Imoveis
         </Link>{" "}
         / {property.public_id}
       </p>
@@ -91,8 +104,8 @@ export default async function PropertyDetailPage(props: PageProps) {
         </p>
       ) : null}
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {(property.city ?? "Cidade não informada")} / {(property.state ?? "UF")} ·{" "}
-        {property.property_type ?? "Tipo não informado"}
+        {(property.city ?? "Cidade nao informada")} / {(property.state ?? "UF")} ·{" "}
+        {property.property_type ?? "Tipo nao informado"}
       </p>
 
       <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
@@ -108,61 +121,59 @@ export default async function PropertyDetailPage(props: PageProps) {
           </div>
           {property.printed_at ? (
             <div>
-              <dt className="text-zinc-500">Primeira impressão</dt>
+              <dt className="text-zinc-500">Primeira impressao</dt>
               <dd className="font-medium">{new Date(property.printed_at).toLocaleString("pt-BR")}</dd>
             </div>
           ) : null}
           {property.expires_at ? (
             <div>
-              <dt className="text-zinc-500">Expira em (FREE)</dt>
+              <dt className="text-zinc-500">Expira em</dt>
               <dd className="font-medium">{new Date(property.expires_at).toLocaleString("pt-BR")}</dd>
             </div>
           ) : null}
         </dl>
+        {property.expires_at ? <PropertyCountdown expiresAt={property.expires_at} /> : null}
       </div>
 
       <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Edição completa do imóvel</h2>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Edicao completa do imovel</h2>
         <PropertyEditorForm mode="edit" initial={property} action={updatePropertyDetails} />
       </div>
 
       <div className="mt-8">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Publicação</h2>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Publicacao</h2>
         <StatusForm propertyId={property.id} currentStatus={property.listing_status} />
       </div>
 
-      <MediaSection
-        propertyId={property.id}
-        media={mediaRows ?? []}
-        signedUrls={signedUrls}
-        maxImages={maxImages}
-      />
+      <MediaSection propertyId={property.id} media={mediaRows ?? []} signedUrls={signedUrls} maxImages={maxImages} />
 
       {publicQrUrl ? (
         <div className="mt-10">
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (teste)</h2>
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (ativo)</h2>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Escaneie para abrir a página pública do anúncio.
+            Escaneie para abrir a pagina publica do anuncio.
+          </p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Leituras acumuladas do QR ativo: <span className="font-medium">{qrReads}</span>
           </p>
           <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row">
             <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicQrUrl)}`}
-                alt="QR Code do imóvel"
+                alt="QR Code do imovel"
                 width={200}
                 height={200}
               />
             </div>
             <div className="max-w-full break-all text-xs text-zinc-500">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span>{" "}
-              {publicQrUrl}
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span> {publicQrUrl}
             </div>
           </div>
         </div>
       ) : (
         <p className="mt-8 text-sm text-amber-700 dark:text-amber-300">
-          Token de QR não encontrado. Verifique migrations e trigger.
+          Nenhum QR ativo encontrado para este imovel.
         </p>
       )}
 
