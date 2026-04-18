@@ -115,15 +115,6 @@ function extractProfileName(payload: Record<string, unknown> | undefined): strin
   return null;
 }
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function scheduleIso(toBroker: boolean): string {
-  const delay = toBroker ? randomInt(1, 6) : randomInt(1, 40);
-  return new Date(Date.now() + delay * 1000).toISOString();
-}
-
 function fmt(v: unknown): string {
   return v == null ? "" : String(v).trim();
 }
@@ -196,7 +187,6 @@ async function queueOutbound(
     payload: Record<string, unknown>;
   },
 ) {
-  const toBroker = input.payload?.to_broker === true;
   await supabase.from("whatsapp_messages").insert({
     direction: "outbound",
     provider: "uazapi",
@@ -206,7 +196,6 @@ async function queueOutbound(
     broker_phone: input.broker_phone,
     message_type: input.message_type,
     status: "queued",
-    scheduled_for: scheduleIso(toBroker),
     payload: input.payload,
   });
 }

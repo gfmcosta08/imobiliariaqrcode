@@ -154,8 +154,11 @@ Deno.serve(async (req) => {
     }
 
     // ignorar eventos que não sejam mensagens recebidas (ex: status de entrega)
-    const rootPayload = asRecord(payload.raw) ?? payload;
-    const eventType = getStr(rootPayload, ["EventType", "event_type", "event"]);
+    const rootPayload = payload;
+    const rawPayload = asRecord(payload.raw);
+    const eventType =
+      getStr(rootPayload, ["EventType", "event_type", "event"]) ??
+      (rawPayload ? getStr(rawPayload, ["EventType", "event_type", "event"]) : null);
     if (eventType && eventType !== "messages" && eventType !== "message") {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
