@@ -1,7 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const MAX_BATCH = 12;
+const MAX_BATCH = Number(Deno.env.get("WHATSAPP_DISPATCH_BATCH") ?? "40");
 
 type QueueRow = {
   id: string;
@@ -13,6 +13,116 @@ type QueueRow = {
 
 function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
+}
+
+function normalizeOutgoingText(v: unknown): string {
+  return String(v ?? "");
+}
+
+function buildAuthHeaders(token: string | null): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (!token) return headers;
+  headers.Authorization = `Bearer ${token}`;
+  headers.token = token;
+  headers.apikey = token;
+  headers["x-api-key"] = token;
+  return headers;
+}
+
+function normalizeEndpoint(endpoint: string): string {
+  if (!endpoint) return "";
+  return endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+}
+
+function buildImageEndpoints(configuredImageEndpoint: string, textEndpoint: string): string[] {
+  const endpoints = new Set<string>();
+  const normalizedText = normalizeEndpoint(textEndpoint);
+  const normalizedConfiguredImage = normalizeEndpoint(configuredImageEndpoint);
+
+  endpoints.add(normalizedConfiguredImage);
+  endpoints.add("/send/image");
+  endpoints.add("/message/image");
+  endpoints.add("/message/sendMedia");
+
+  if (normalizedText.includes("/message/sendText")) {
+    endpoints.add(normalizedText.replace("/message/sendText", "/message/sendMedia"));
+  }
+  if (normalizedText.includes("/send/text")) {
+    endpoints.add(normalizedText.replace("/send/text", "/send/image"));
+  }
+
+  return Array.from(endpoints).filter(Boolean);
+}
+
+async function parseProviderResponse(res: Response) {
+  const raw = await res.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+  } catch {
+    parsed = null;
+  }
+  return { raw, parsed };
+}
+
+async function postUazapi(url: string, headers: Record<string, string>, body: string) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body,
+  });
+  const { raw, parsed } = await parseProviderResponse(res);
+  return { res, raw, parsed };
+}
+
+async function sendImageViaMultipart(
+  baseUrl: string,
+  endpoint: string,
+  token: string | null,
+  to: string,
+  row: QueueRow,
+) {
+  const imageUrl = String(row.payload?.image_url ?? "");
+  if (!imageUrl) {
+    return { ok: false, detail: "missing_image_url" };
+  }
+
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) {
+    const imageError = await imgRes.text();
+    return { ok: false, detail: `image_fetch_failed:${imgRes.status}:${imageError}` };
+  }
+
+  const blob = await imgRes.blob();
+  const form = new FormData();
+  form.append("file", blob, "image.jpg");
+  form.append("to", to);
+  form.append("number", to);
+  form.append("phone", to);
+  const caption = normalizeOutgoingText(row.payload?.caption ?? row.payload?.text ?? "");
+  form.append("caption", caption);
+  form.append("text", caption);
+  form.append("message", caption);
+
+  const headers = buildAuthHeaders(token);
+  const url = `${baseUrl.replace(/\/$/, "")}${endpoint}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  const { raw, parsed } = await parseProviderResponse(res);
+  if (!res.ok) {
+    return { ok: false, detail: raw || `http_${res.status}` };
+  }
+  return {
+    ok: true,
+    provider_message_id:
+      (parsed && (parsed.id as string)) ||
+      (parsed && (parsed.messageId as string)) ||
+      null,
+    response: parsed ?? raw,
+  };
 }
 
 async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRow) {
@@ -28,59 +138,119 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...buildAuthHeaders(token),
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
 
   const isImage = row.message_type === "image";
-  const endpoint = isImage
-    ? Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/image"
-    : Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text";
+  const textEndpoint = Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text";
+  const configuredImageEndpoint = Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/image";
 
-  const payload = isImage
-    ? {
-        to,
-        number: to,
-        phone: to,
-        imageUrl: row.payload?.image_url ?? null,
-        image_url: row.payload?.image_url ?? null,
-        url: row.payload?.image_url ?? null,
-        caption: row.payload?.caption ?? row.payload?.text ?? "",
-      }
-    : {
-        to,
-        number: to,
-        phone: to,
-        text: String(row.payload?.text ?? ""),
-        message: String(row.payload?.text ?? ""),
-      };
+  const caption = normalizeOutgoingText(row.payload?.caption ?? row.payload?.text ?? "");
+  const imageUrl = row.payload?.image_url ?? null;
 
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}${endpoint}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const raw = await res.text();
-  let parsed: Record<string, unknown> | null = null;
-  try {
-    parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
-  } catch {
-    parsed = null;
-  }
-
-  if (!res.ok) {
-    return { ok: false, detail: raw || `http_${res.status}` };
-  }
-
-  return {
-    ok: true,
-    provider_message_id:
-      (parsed && (parsed.id as string)) ||
-      (parsed && (parsed.messageId as string)) ||
-      null,
-    response: parsed ?? raw,
+  const legacyImagePayload = {
+    to,
+    number: to,
+    phone: to,
+    file: imageUrl,
+    image: imageUrl,
+    imageUrl: imageUrl,
+    image_url: imageUrl,
+    url: imageUrl,
+    caption,
   };
+
+  if (!isImage) {
+    const textPayload = {
+      to,
+      number: to,
+      phone: to,
+      text: normalizeOutgoingText(row.payload?.text ?? ""),
+      message: normalizeOutgoingText(row.payload?.text ?? ""),
+    };
+
+    const url = `${baseUrl.replace(/\/$/, "")}${textEndpoint}`;
+    console.log(`[whatsapp-dispatch] Sending text to Uazapi: ${url} for ${to}`);
+    const { res, raw, parsed } = await postUazapi(url, headers, JSON.stringify(textPayload));
+    console.log(`[whatsapp-dispatch] Uazapi text response (${res.status}): ${raw}`);
+
+    if (!res.ok) {
+      return { ok: false, detail: raw || `http_${res.status}` };
+    }
+
+    return {
+      ok: true,
+      provider_message_id:
+        (parsed && (parsed.id as string)) ||
+        (parsed && (parsed.messageId as string)) ||
+        null,
+      response: parsed ?? raw,
+    };
+  }
+
+  const imageEndpoints = buildImageEndpoints(configuredImageEndpoint, textEndpoint);
+  const imagePayloadVariants: Array<Record<string, unknown>> = [
+    legacyImagePayload,
+    {
+      number: to,
+      mediaMessage: {
+        mediatype: "image",
+        fileName: "image.jpg",
+        caption,
+        media: imageUrl,
+      },
+      options: { delay: 200 },
+    },
+    {
+      number: to,
+      mediatype: "image",
+      file: imageUrl,
+      media: imageUrl,
+      caption,
+      text: caption,
+    },
+  ];
+
+  let lastDetail = "image_dispatch_failed";
+
+  for (const endpoint of imageEndpoints) {
+    const url = `${baseUrl.replace(/\/$/, "")}${endpoint}`;
+
+    for (const imagePayload of imagePayloadVariants) {
+      console.log(`[whatsapp-dispatch] Sending image to Uazapi: ${url} for ${to}`);
+
+      const { res, raw, parsed } = await postUazapi(url, headers, JSON.stringify(imagePayload));
+      console.log(`[whatsapp-dispatch] Uazapi image response (${res.status}): ${raw}`);
+
+      if (res.ok) {
+        return {
+          ok: true,
+          provider_message_id:
+            (parsed && (parsed.id as string)) ||
+            (parsed && (parsed.messageId as string)) ||
+            null,
+          response: parsed ?? raw,
+        };
+      }
+
+      const lower = (raw || "").toLowerCase();
+      lastDetail = raw || `http_${res.status}`;
+
+      if (
+        lower.includes("missing file field") ||
+        lower.includes("missing text for text message") ||
+        lower.includes("file")
+      ) {
+        const multipartResult = await sendImageViaMultipart(baseUrl, endpoint, token, to, row);
+        if (multipartResult.ok) {
+          return multipartResult;
+        }
+        lastDetail = `json:${lastDetail} | multipart:${multipartResult.detail}`;
+      }
+    }
+  }
+
+  return { ok: false, detail: lastDetail };
 }
 
 Deno.serve(async (req) => {

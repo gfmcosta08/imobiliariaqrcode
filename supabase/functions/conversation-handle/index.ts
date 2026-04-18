@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 type InboundInput = {
@@ -10,13 +10,14 @@ type InboundInput = {
 };
 
 const YES = /^(sim|s|yes|y|1|quero)$/i;
-const NO = /^(nao|nÃ£o|n|no|0)$/i;
+const NO = /^(nao|não|n|no|0)$/i;
 
 function isOption(text: string, option: string): boolean {
   const t = text.trim();
-  return t === option || new RegExp(`^${option}\\s*[-â€“â€”:]`, "i").test(t);
+  return t === option || new RegExp(`^${option}\\s*[-–—:]`, "i").test(t);
 }
-const AUDIO = /\[(audio|áudio|áudio|Ã¡udio)\]/i; // Placeholder para áudio se vier no texto ou flag
+
+const AUDIO = /\[(audio|áudio|áudio)\]/i;
 
 type MainChoice = "1" | "2" | "3" | null;
 
@@ -57,25 +58,21 @@ function resolveMainChoice(text: string): MainChoice {
   return null;
 }
 
-function normalizePhone(v: string): string {
-  return v.replace(/\D/g, "");
-}
-
 function parseQrToken(text: string): string | null {
   const t = text.trim();
-  // PadrÃ£o 1: imovel [token]
-  const m = t.match(/(?:imovel|im[oÃ³]vel)\s+([a-z0-9_-]{16,80})/i);
+  // Padrao 1: imovel [token]
+  const m = t.match(/(?:imovel|im[oó]vel)\s+([a-z0-9_-]{16,80})/i);
   if (m?.[1]) return m[1];
-  // PadrÃ£o 2: (Ref: [token]) ou Ref: [token]
+  // Padrao 2: (Ref: [token]) ou Ref: [token]
   const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
   if (mRef?.[1]) return mRef[1];
-  // PadrÃ£o 3: apenas o token (hash de 32 a 80 chars)
+  // Padrao 3: apenas o token (hash de 32 a 80 chars)
   const uuidLike = t.match(/[a-z0-9]{32,80}/i);
   return uuidLike?.[0] ?? null;
 }
 
 function summarizeProperty(row: Record<string, any>): string {
-  const title = String(row.title ?? row.public_id ?? "ImÃ³vel");
+  const title = String(row.title ?? row.public_id ?? "Imovel");
   const city = String(row.city ?? "");
   const state = String(row.state ?? "");
   const neighborhood = String(row.neighborhood ?? "");
@@ -108,33 +105,33 @@ function summarizeProperty(row: Record<string, any>): string {
   const nearbyPoints = Array.isArray(row.nearby_points) ? row.nearby_points.join(", ") : "";
 
   const lines = [
-    `ðŸ  *${title}*`,
-    city || state || neighborhood ? `ðŸ“ Local: ${[neighborhood, city, state].filter(Boolean).join(" / ")}` : null,
-    fullAddress || streetNumber || addressComplement ? `ðŸ“Œ EndereÃ§o: ${[fullAddress, streetNumber, addressComplement].filter(Boolean).join(", ")}` : null,
-    purpose ? `ðŸ“‹ Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
-    price ? `ðŸ’° Valor: R$ ${price}` : null,
-    salePrice ? `ðŸ’µ Valor de Venda: R$ ${salePrice}` : null,
-    rentPrice ? `ðŸ§¾ Valor de Aluguel: R$ ${rentPrice}` : null,
-    otherFees ? `ðŸ“Ž Outras Taxas: R$ ${otherFees}` : null,
-    area ? `ðŸ“ Ãrea: ${area}mÂ²` : null,
-    builtArea ? `ðŸ—ï¸ Ãrea ConstruÃ­da: ${builtArea}mÂ²` : null,
-    landArea ? `ðŸŒ³ Ãrea do Terreno: ${landArea}mÂ²` : null,
-    bedrooms ? `ðŸ›ï¸ Quartos: ${bedrooms}` : null,
-    suites ? `ðŸš¿ SuÃ­tes: ${suites}` : null,
-    bathrooms ? `ðŸš½ Banheiros: ${bathrooms}` : null,
-    parking ? `ðŸš— Vagas: ${parking}` : null,
-    livingRooms ? `ðŸ›‹ï¸ Salas: ${livingRooms}` : null,
-    floorsCount ? `ðŸ¢ Andares: ${floorsCount}` : null,
-    unitFloor ? `ðŸ”¢ Andar da Unidade: ${unitFloor}` : null,
-    typeof isFurnished === "boolean" ? `ðŸª‘ Mobiliado: ${isFurnished ? "Sim" : "NÃ£o"}` : null,
-    furnishingStatus ? `ðŸ›ï¸ Status da MobÃ­lia: ${furnishingStatus}` : null,
-    ownerName ? `ðŸ‘¤ ProprietÃ¡rio: ${ownerName}` : null,
-    listingBrokerName ? `ðŸ¤ Corretor ResponsÃ¡vel: ${listingBrokerName}` : null,
-    features ? `âœ¨ CaracterÃ­sticas: ${features}` : null,
-    infrastructure ? `ðŸ˜ï¸ Infraestrutura: ${infrastructure}` : null,
-    securityItems ? `ðŸ”’ SeguranÃ§a: ${securityItems}` : null,
-    nearbyPoints ? `ðŸ“ Proximidades: ${nearbyPoints}` : null,
-    description ? `\nðŸ“ *DescriÃ§Ã£o:*\n${description}` : null,
+    `*${title}*`,
+    city || state || neighborhood ? `Local: ${[neighborhood, city, state].filter(Boolean).join(" / ")}` : null,
+    fullAddress || streetNumber || addressComplement ? `Endereco: ${[fullAddress, streetNumber, addressComplement].filter(Boolean).join(", ")}` : null,
+    purpose ? `Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
+    price ? `Valor: R$ ${price}` : null,
+    salePrice ? `Valor de Venda: R$ ${salePrice}` : null,
+    rentPrice ? `Valor de Aluguel: R$ ${rentPrice}` : null,
+    otherFees ? `Outras Taxas: R$ ${otherFees}` : null,
+    area ? `Area: ${area}m2` : null,
+    builtArea ? `Area Construida: ${builtArea}m2` : null,
+    landArea ? `Area do Terreno: ${landArea}m2` : null,
+    bedrooms ? `Quartos: ${bedrooms}` : null,
+    suites ? `Suites: ${suites}` : null,
+    bathrooms ? `Banheiros: ${bathrooms}` : null,
+    parking ? `Vagas: ${parking}` : null,
+    livingRooms ? `Salas: ${livingRooms}` : null,
+    floorsCount ? `Andares: ${floorsCount}` : null,
+    unitFloor ? `Andar da Unidade: ${unitFloor}` : null,
+    typeof isFurnished === "boolean" ? `Mobiliado: ${isFurnished ? "Sim" : "Nao"}` : null,
+    furnishingStatus ? `Status da Mobilia: ${furnishingStatus}` : null,
+    ownerName ? `Proprietario: ${ownerName}` : null,
+    listingBrokerName ? `Corretor Responsavel: ${listingBrokerName}` : null,
+    features ? `Caracteristicas: ${features}` : null,
+    infrastructure ? `Infraestrutura: ${infrastructure}` : null,
+    securityItems ? `Seguranca: ${securityItems}` : null,
+    nearbyPoints ? `Proximidades: ${nearbyPoints}` : null,
+    description ? `\n*Descricao:*\n${description}` : null,
   ];
 
   return lines.filter(Boolean).join("\n");
@@ -208,7 +205,6 @@ async function sendPropertyPack(
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
-  // 1. Enviar Resumo Completo
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -217,12 +213,11 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `Aqui estÃ£o as informaÃ§Ãµes do imÃ³vel que vocÃª solicitou:\n\n${summarizeProperty(property)}`,
+      text: `Aqui estao as informacoes do imovel que voce solicitou:\n\n${summarizeProperty(property)}`,
       public_id: property.public_id,
     },
   });
 
-  // 2. Enviar Imagens
   const { data: mediaRows } = await supabase
     .from("property_media")
     .select("storage_path")
@@ -246,17 +241,16 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Foto do imÃ³vel ${String(property.public_id ?? "")}`,
+        caption: `Foto do imovel ${String(property.public_id ?? "")}`,
       },
     });
   }
 
-  // 3. Enviar Mensagens Finais Solicitadas
   const siteUrl = Deno.env.get("PUBLIC_APP_URL") || "nosso site";
   const finalMessages = [
-    "1 - Gostaria de agendar uma visita ao imÃ³vel",
-    "2 - Gostaria de ver mais imÃ³veis como esse",
-    "3 - Anunciem conosco e entre no nosso site: " + siteUrl
+    "1 - Gostaria de agendar uma visita ao imovel",
+    "2 - Gostaria de ver mais imoveis como esse",
+    "3 - Anunciem conosco e entre no nosso site: " + siteUrl,
   ];
 
   for (const msg of finalMessages) {
@@ -296,7 +290,7 @@ async function handleVisitRequest(
     message_type: "text",
     payload: {
       kind: "visit_registered",
-      text: "Fechado! JÃ¡ anotei aqui seu interesse. O corretor vai te dar um alÃ´ em breve pra combinarmos tudo! ðŸ˜‰",
+      text: "Fechado! Ja anotei aqui seu interesse. O corretor vai te chamar em breve para combinarmos tudo.",
       lead_id: leadId ?? null,
     },
   });
@@ -311,7 +305,7 @@ async function handleVisitRequest(
       payload: {
         kind: "broker_notification",
         to_broker: true,
-        text: `ðŸš¨ *Novo Lead!* ðŸš¨\n\nUm cliente quer visitar o imÃ³vel *${property.public_id}*.\n\nðŸ“± Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
+        text: `*Novo Lead!*\n\nUm cliente quer visitar o imovel *${property.public_id}*.\n\nContato: ${leadPhone}\n\nEntre em contato assim que puder.`,
       },
     });
   }
@@ -324,7 +318,7 @@ async function handleVisitRequest(
     message_type: "text",
     payload: {
       kind: "similar_question",
-      text: "Enquanto isso, quer dar uma olhadinha em outros imÃ³veis parecidos com esse? (Responda SIM ou NÃƒO)",
+      text: "Enquanto isso, quer dar uma olhada em outros imoveis parecidos com esse? (Responda SIM ou NAO)",
     },
   });
 
@@ -358,7 +352,7 @@ async function handleSimilarRequest(
       message_type: "text",
       payload: {
         kind: "similar_empty",
-        text: "Poxa, no momento nÃ£o encontrei outros imÃ³veis parecidos com esse aqui na regiÃ£o. Mas fica de olho que sempre tem novidade!",
+        text: "No momento nao encontrei outros imoveis parecidos com esse na regiao. Mas sempre entram novidades.",
       },
     });
     await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
@@ -387,7 +381,7 @@ async function handleSimilarRequest(
     message_type: "text",
     payload: {
       kind: "similar_intro",
-      text: "Legal! Separei alguns imÃ³veis que vocÃª pode gostar:",
+      text: "Legal! Separei alguns imoveis que voce pode gostar:",
     },
   });
 
@@ -396,10 +390,10 @@ async function handleSimilarRequest(
     if (!p) continue;
     const token = tokenById.get(id);
     const line = [
-      `ðŸ  *${p.title || p.public_id}*`,
+      `*${p.title || p.public_id}*`,
       [p.city, p.state].filter(Boolean).join(" / "),
-      p.price != null ? `ðŸ’° R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
-      token ? `ðŸ”— Ver mais: ${Deno.env.get("PUBLIC_APP_URL")}/q/${token}` : null,
+      p.price != null ? `R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
+      token ? `Ver mais: ${Deno.env.get("PUBLIC_APP_URL")}/q/${token}` : null,
     ]
       .filter(Boolean)
       .join("\n");
@@ -444,7 +438,7 @@ async function handleAdvertiseRequest(
     message_type: "text",
     payload: {
       kind: "advertise_info",
-      text: `Que bacana! ðŸš€\n\nPara anunciar seu imÃ³vel com a gente, basta acessar ${siteUrl} e fazer seu cadastro. Ã‰ rapidinho!\n\nQualquer dÃºvida, estamos Ã  disposiÃ§Ã£o.`,
+      text: `Que bacana!\n\nPara anunciar seu imovel com a gente, basta acessar ${siteUrl} e fazer seu cadastro. E rapidinho.\n\nQualquer duvida, estamos a disposicao.`,
     },
   });
   await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
@@ -453,7 +447,7 @@ async function handleAdvertiseRequest(
 
 Deno.serve(async (req) => {
   console.log(`[conversation-handle] Received request: ${req.method}`);
-  
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -461,7 +455,7 @@ Deno.serve(async (req) => {
   try {
     const rawBody = await req.text();
     console.log(`[conversation-handle] Raw payload: ${rawBody}`);
-    
+
     let body: InboundInput;
     try {
       body = JSON.parse(rawBody) as InboundInput;
@@ -473,7 +467,7 @@ Deno.serve(async (req) => {
     const leadPhone = String(body.lead_phone ?? "").trim();
     const text = String(body.text ?? "").trim();
     const isAudio = !!body.is_audio || AUDIO.test(text);
-    
+
     console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}" (isAudio: ${isAudio})`);
 
     if (!leadPhone || (!text && !isAudio)) {
@@ -525,7 +519,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "audio_fallback",
-            text: "Poxa, eu ainda nÃ£o consigo ouvir Ã¡udios. ðŸ˜…\n\nVocÃª poderia digitar o que deseja? Responda com 1, 2 ou 3 para eu te ajudar rapidinho!",
+            text: "No momento eu ainda nao consigo ouvir audios.\n\nPode digitar o que deseja? Responda com 1, 2 ou 3.",
           },
         });
         return json({ ok: true, state: "audio_not_supported" });
@@ -545,7 +539,7 @@ Deno.serve(async (req) => {
     console.log(`[conversation-handle] Parsed QR Token: ${qrToken}`);
 
     if (qrToken) {
-      console.log(`[conversation-handle] QR Token found. Loading property...`);
+      console.log("[conversation-handle] QR Token found. Loading property...");
       const property = await loadPropertyByQr(supabase, qrToken);
       if (!property) {
         console.log("[conversation-handle] Property not found or inactive.");
@@ -612,7 +606,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "similar_question",
-            text: "Sem problemas! Quer que eu te mostre outros imóveis que talvez você curta? (Responda SIM ou NÃO)",
+            text: "Sem problemas! Quer que eu te mostre outros imoveis que talvez voce curta? (Responda SIM ou NAO)",
           },
         });
         await supabase
@@ -661,7 +655,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "close",
-            text: "Perfeito. Quando quiser, Ã© sÃ³ enviar outro QR para continuar.",
+            text: "Perfeito. Quando quiser, e so enviar outro QR para continuar.",
           },
         });
         await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
@@ -693,4 +687,3 @@ function json(body: Record<string, unknown>, status = 200) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
-

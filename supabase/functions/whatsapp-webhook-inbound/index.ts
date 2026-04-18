@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 function getStr(obj: Record<string, unknown>, keys: string[]): string | null {
@@ -60,18 +60,24 @@ function extractText(payload: Record<string, unknown>): string {
   const msg = payload.message;
   if (msg && typeof msg === "object") {
     const nested = msg as Record<string, unknown>;
-    return (
-      getStr(nested, ["text", "body", "message", "caption", "conversation"]) ??
-      ""
-    );
+    return getStr(nested, ["text", "body", "message", "caption", "conversation"]) ?? "";
   }
   return "";
+}
+
+function normalizeAudioTagText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function isUsefulAudioTranscript(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
-  return !/^\[(audio|a[uÃ¡]dio)\]$/i.test(t);
+  const normalized = normalizeAudioTagText(t);
+  return normalized !== "[audio]" && normalized !== "[audios]";
 }
 
 function extractAudioTranscript(payload: Record<string, unknown>, fallbackText: string): string {
@@ -182,10 +188,10 @@ Deno.serve(async (req) => {
         direction: "inbound",
         provider: "uazapi",
         lead_phone: leadPhone,
-        message_type: isAudio ? "system" : "text", // Usamos system para Ã¡udio por enquanto no banco
+        message_type: isAudio ? "system" : "text",
         provider_message_id: externalId,
         payload: {
-          text: isAudio ? (transcript || "[Ãudio]") : text,
+          text: isAudio ? (transcript || "[Audio]") : text,
           is_audio: isAudio,
           raw: payload,
           dedupe_key: dedupeKey,
@@ -196,7 +202,7 @@ Deno.serve(async (req) => {
 
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
       console.log(`Calling conversation-handle at: ${conversationUrl}`);
-      
+
       const response = await fetch(conversationUrl, {
         method: "POST",
         headers: {
@@ -215,7 +221,7 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`conversation-handle failed: ${response.status} - ${errorText}`);
-        
+
         await supabase
           .from("webhook_events")
           .update({
@@ -229,17 +235,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      // NOVO: Disparar o dispatch automaticamente apÃ³s processar a conversa para resposta rÃ¡pida
       const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
-      
-      // Chamada assÃ­ncrona (nÃ£o espera o dispatch terminar para responder o webhook)
+
       fetch(dispatchUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}`,
         },
-      }).catch(err => console.error("Auto-dispatch trigger failed:", err));
+      }).catch((err) => console.error("Auto-dispatch trigger failed:", err));
     }
 
     await supabase
@@ -261,4 +265,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
