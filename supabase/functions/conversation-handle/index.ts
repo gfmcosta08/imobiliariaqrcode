@@ -241,7 +241,7 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Foto do imovel ${String(property.public_id ?? "")}`,
+        caption: "",
       },
     });
   }
