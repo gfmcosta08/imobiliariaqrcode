@@ -8,8 +8,30 @@ type InboundInput = {
   payload?: Record<string, unknown>;
 };
 
-const YES = /^(sim|s|yes|y|1|2|quero)$/i;
-const NO = /^(nao|não|n|no|0)$/i;
+function matchChoice1(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (/^(1|s|sim|yes|y|quero)$/.test(t)) return true;
+  if (/\b(agendar|visita|visitar|marcar)\b/.test(t)) return true;
+  if (/^sim\b/.test(t)) return true;
+  return false;
+}
+
+function matchChoice2(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (/^2$/.test(t)) return true;
+  return /\b(mais\s+im[oó]veis|im[oó]veis\s+(parecidos|similares)|outros\s+im[oó]veis|ver\s+mais)\b/.test(t);
+}
+
+function matchChoice3(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (/^3$/.test(t)) return true;
+  return /\b(anunci[ao]r?|anunciem|divulgar|publicar)\b/.test(t);
+}
+
+function matchNo(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return /^(n[aã]o|n|no|0)$/.test(t) || /^n[aã]o\b/.test(t);
+}
 
 function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
@@ -23,20 +45,111 @@ function parseQrToken(text: string): string | null {
   return uuidLike?.[0] ?? null;
 }
 
+function fmt(v: unknown): string {
+  return v == null ? "" : String(v).trim();
+}
+
+function fmtBRL(v: unknown): string {
+  if (v == null || v === "") return "";
+  const n = Number(v);
+  return isNaN(n) ? "" : `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+}
+
+function fmtList(v: unknown): string {
+  if (!v || !Array.isArray(v)) return "";
+  return (v as string[]).filter(Boolean).join(", ");
+}
+
 function summarizeProperty(row: Record<string, unknown>): string {
-  const title = String(row.title ?? row.public_id ?? "Imóvel");
-  const city = String(row.city ?? "");
-  const state = String(row.state ?? "");
-  const purpose = String(row.purpose ?? "");
-  const price = row.price == null ? "" : Number(row.price).toLocaleString("pt-BR");
-  return [
-    `Imóvel: ${title}`,
-    city || state ? `Local: ${[city, state].filter(Boolean).join(" / ")}` : null,
-    purpose ? `Finalidade: ${purpose}` : null,
-    price ? `Preço: R$ ${price}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const lines: string[] = [];
+
+  const purpose = fmt(row.purpose) === "sale" ? "Venda" : fmt(row.purpose) === "rent" ? "Aluguel" : fmt(row.purpose);
+  const title = fmt(row.title || row.public_id);
+  const type = [fmt(row.property_type), fmt(row.property_subtype)].filter(Boolean).join(" - ");
+
+  lines.push(`🏠 *${title}*`);
+  if (row.public_id) lines.push(`Ref: ${fmt(row.public_id)}`);
+  if (type) lines.push(`Tipo: ${type}`);
+  if (purpose) lines.push(`Finalidade: ${purpose}`);
+
+  // Localização
+  const loc = [fmt(row.neighborhood), fmt(row.city_region), fmt(row.city), fmt(row.state)].filter(Boolean);
+  if (loc.length) lines.push(`\n📍 *Localização*\n${loc.join(", ")}`);
+  if (row.full_address) lines.push(`Endereço: ${fmt(row.full_address)}`);
+
+  // Características
+  const chars: string[] = [];
+  if (row.bedrooms) chars.push(`${row.bedrooms} quarto(s)`);
+  if (row.suites) chars.push(`${row.suites} suíte(s)`);
+  if (row.bathrooms) chars.push(`${row.bathrooms} banheiro(s)`);
+  if (row.parking_spaces) chars.push(`${row.parking_spaces} vaga(s)`);
+  if (row.living_rooms) chars.push(`${row.living_rooms} sala(s)`);
+  if (row.floors_count) chars.push(`${row.floors_count} pavimento(s)`);
+  if (chars.length) lines.push(`\n🛏 *Características*\n${chars.join(" | ")}`);
+
+  const areas: string[] = [];
+  if (row.area_m2 || row.total_area_m2) areas.push(`Área total: ${row.area_m2 ?? row.total_area_m2} m²`);
+  if (row.built_area_m2) areas.push(`Área construída: ${row.built_area_m2} m²`);
+  if (row.land_area_m2) areas.push(`Terreno: ${row.land_area_m2} m²`);
+  if (areas.length) lines.push(areas.join(" | "));
+
+  const extras: string[] = [];
+  if (row.floor_type) extras.push(`Piso: ${fmt(row.floor_type)}`);
+  if (row.sun_position) extras.push(`Posição solar: ${fmt(row.sun_position)}`);
+  if (row.construction_type) extras.push(`Construção: ${fmt(row.construction_type)}`);
+  if (row.finish_standard) extras.push(`Padrão: ${fmt(row.finish_standard)}`);
+  if (row.property_age_years != null) extras.push(`Idade: ${row.property_age_years} anos`);
+  if (extras.length) lines.push(extras.join(" | "));
+
+  const furnishing = fmt(row.furnishing_status);
+  if (furnishing) {
+    const fmap: Record<string, string> = { furnished: "Mobiliado", semi_furnished: "Semi-mobiliado", unfurnished: "Sem mobília" };
+    lines.push(`Mobília: ${fmap[furnishing] ?? furnishing}`);
+  }
+
+  // Preços
+  const priceLines: string[] = [];
+  const mainPrice = fmtBRL(row.sale_price ?? row.rent_price ?? row.price);
+  if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preço: ${mainPrice}`);
+  if (row.condo_fee) priceLines.push(`Condomínio: ${fmtBRL(row.condo_fee)}`);
+  if (row.iptu_amount) priceLines.push(`IPTU: ${fmtBRL(row.iptu_amount)}`);
+  if (row.other_fees) priceLines.push(`Outras taxas: ${fmtBRL(row.other_fees)}`);
+  if (priceLines.length) lines.push(`\n💰 *Valores*\n${priceLines.join(" | ")}`);
+
+  const conditions: string[] = [];
+  if (row.accepts_financing) conditions.push("Aceita financiamento");
+  if (row.accepts_trade) conditions.push("Aceita permuta");
+  if (conditions.length) lines.push(conditions.join(" | "));
+
+  // Descrição
+  const desc = fmt(row.description || row.full_description);
+  if (desc) lines.push(`\n📝 *Descrição*\n${desc}`);
+  const highlights = fmt(row.highlights);
+  if (highlights) lines.push(`Destaques: ${highlights}`);
+
+  // Diferenciais
+  const feats = fmtList(row.features);
+  if (feats) lines.push(`\n✅ *Diferenciais*\n${feats}`);
+  const infra = fmtList(row.infrastructure);
+  if (infra) lines.push(`Infraestrutura: ${infra}`);
+  const security = fmtList(row.security_items);
+  if (security) lines.push(`Segurança: ${security}`);
+
+  // Localização próxima
+  const nearby = fmtList(row.nearby_points);
+  if (nearby) lines.push(`\n📌 *Pontos próximos*\n${nearby}`);
+  if (row.distance_to_center_km) lines.push(`Distância ao centro: ${row.distance_to_center_km} km`);
+
+  // Documentação
+  const docParts: string[] = [];
+  if (row.documentation_status) docParts.push(`Situação: ${fmt(row.documentation_status)}`);
+  if (row.has_deed) docParts.push("Escritura: Sim");
+  if (row.has_registration) docParts.push("Registro: Sim");
+  if (row.documentation) docParts.push(fmt(row.documentation));
+  if (row.technical_details) docParts.push(fmt(row.technical_details));
+  if (docParts.length) lines.push(`\n📄 *Documentação*\n${docParts.join(" | ")}`);
+
+  return lines.join("\n");
 }
 
 async function queueOutbound(
@@ -70,7 +183,7 @@ async function loadPropertyByQr(
   const { data, error } = await supabase
     .from("property_qrcodes")
     .select(
-      "qr_token, is_active, properties(id, public_id, broker_id, account_id, title, city, state, purpose, price, origin_plan_code, listing_status)",
+      "qr_token, is_active, properties(id, public_id, broker_id, account_id, listing_status, origin_plan_code, title, description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation)",
     )
     .eq("qr_token", qrToken)
     .eq("is_active", true)
@@ -107,7 +220,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `${summarizeProperty(property)}\n\n1- Quer agendar uma visita? (responda: sim ou nao)`,
+      text: summarizeProperty(property),
       public_id: property.public_id,
     },
   });
@@ -139,6 +252,35 @@ async function sendPropertyPack(
       },
     });
   }
+
+  const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? Deno.env.get("APP_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_1", text: "1 - Gostaria de agendar uma visita ao imóvel" },
+  });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_2", text: "2 - Gostaria de ver mais imóveis como esse" },
+  });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_3", text: `3 - Anunciem conosco e entre no nosso site${appUrl ? `: ${appUrl}` : ""}` },
+  });
 }
 
 Deno.serve(async (req) => {
@@ -176,6 +318,16 @@ Deno.serve(async (req) => {
       }
 
       const propertyId = String(property.id);
+
+      // Prevent re-sending pack if session already active for this property
+      if (
+        session?.id &&
+        session.origin_property_id === propertyId &&
+        session.state === "awaiting_main_choice"
+      ) {
+        return json({ ok: true, state: "already_started" });
+      }
+
       if (session?.id) {
         await supabase
           .from("conversation_sessions")
@@ -221,7 +373,7 @@ Deno.serve(async (req) => {
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
     if (session.state === "awaiting_main_choice") {
-      if (YES.test(text)) {
+      if (matchChoice1(text)) {
         const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
           p_property_id: property.id,
           p_broker_id: property.broker_id,
@@ -277,7 +429,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, state: "visit_registered" });
       }
 
-      if (NO.test(text)) {
+      if (matchChoice2(text)) {
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
@@ -295,10 +447,30 @@ Deno.serve(async (req) => {
           .eq("id", session.id);
         return json({ ok: true, state: "asked_similar" });
       }
+
+      if (matchChoice3(text)) {
+        const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? Deno.env.get("APP_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "close_advertise",
+            text: `Que ótimo! Acesse nosso site e saiba mais${appUrl ? `: ${appUrl}` : "."}`,
+          },
+        });
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "closed", last_menu: "advertise" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "closed_advertise" });
+      }
     }
 
     if (session.state === "awaiting_recommendation_choice") {
-      if (YES.test(text)) {
+      if (matchChoice1(text)) {
         const { data: ranked } = await supabase.rpc("recommend_similar_properties", {
           origin_property_id: property.id,
           limit_count: 5,
@@ -370,7 +542,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, state: "recommendations_sent", count: ids.length });
       }
 
-      if (NO.test(text)) {
+      if (matchNo(text)) {
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
@@ -395,7 +567,7 @@ Deno.serve(async (req) => {
       message_type: "text",
       payload: {
         kind: "help",
-        text: "Nao entendi. Responda com 'sim' ou 'nao'.",
+        text: "Nao entendi. Responda com 1, 2 ou 3.",
       },
     });
     return json({ ok: true, state: "awaiting_valid_reply" });

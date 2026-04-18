@@ -16,18 +16,107 @@ function normalizePhone(v: string | null): string | null {
 }
 
 function extractText(payload: Record<string, unknown>): string {
-  const direct = getStr(payload, ["text", "body", "message", "content"]);
+  const direct = getStr(payload, ["text", "body", "content"]);
   if (direct) return direct;
 
   const msg = payload.message;
   if (msg && typeof msg === "object") {
     const nested = msg as Record<string, unknown>;
     return (
-      getStr(nested, ["text", "body", "message", "caption", "conversation"]) ??
+      getStr(nested, ["text", "body", "content", "caption", "conversation"]) ??
       ""
     );
   }
   return "";
+}
+
+function extractPhone(payload: Record<string, unknown>): string | null {
+  // campos top-level genéricos
+  const top = getStr(payload, ["from", "sender", "author", "remoteJid", "phone", "lead_phone"]);
+  if (top) return top;
+
+  // Uazapi: payload.message.sender_pn ou payload.message.chatid
+  const msg = payload.message;
+  if (msg && typeof msg === "object") {
+    const m = msg as Record<string, unknown>;
+    // ignorar mensagens enviadas pelo próprio bot
+    if (m.fromMe === true) return null;
+    const v = getStr(m, ["sender_pn", "chatid", "from", "phone"]);
+    if (v) return v.split("@")[0]; // remove "@s.whatsapp.net" se presente
+  }
+
+  // Uazapi: payload.chat.wa_chatid ou payload.chat.phone
+  const chat = payload.chat;
+  if (chat && typeof chat === "object") {
+    const c = chat as Record<string, unknown>;
+    const v = getStr(c, ["wa_chatid", "phone"]);
+    if (v) return v.split("@")[0];
+  }
+
+  return null;
+}
+
+function extractExternalId(payload: Record<string, unknown>): string | null {
+  // top-level
+  const top = getStr(payload, ["id", "messageId", "message_id", "eventId", "event_id"]);
+  if (top) return top;
+  // Uazapi: payload.message.messageid
+  const msg = payload.message;
+  if (msg && typeof msg === "object") {
+    return getStr(msg as Record<string, unknown>, ["messageid", "id", "messageId"]);
+  }
+  return null;
+}
+
+function extractAudioUrl(payload: Record<string, unknown>): string | null {
+  const msg = payload.message;
+  if (!msg || typeof msg !== "object") return null;
+  const m = msg as Record<string, unknown>;
+  const msgType = getStr(m, ["messageType", "type"]) ?? "";
+  if (!/^(audio|ptt|AudioMessage|PttMessage|voice)/i.test(msgType)) return null;
+  // Direct URL field on message
+  const direct = getStr(m, ["mediaUrl", "media_url", "url", "audioUrl"]);
+  if (direct) return direct;
+  // Nested audio/ptt object
+  for (const key of ["audio", "ptt", "voice"]) {
+    const nested = m[key];
+    if (nested && typeof nested === "object") {
+      const n = nested as Record<string, unknown>;
+      const url = getStr(n, ["url", "mediaUrl", "media_url"]);
+      if (url) return url;
+    }
+  }
+  return null;
+}
+
+async function transcribeAudio(audioUrl: string): Promise<string | null> {
+  const apiKey = Deno.env.get("MINIMAX_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) return null;
+  const isMinimax = !!Deno.env.get("MINIMAX_API_KEY");
+  const apiBase = isMinimax ? "https://api.minimax.chat" : "https://api.openai.com";
+  const model = isMinimax
+    ? (Deno.env.get("MINIMAX_STT_MODEL") ?? "speech-01")
+    : "whisper-1";
+  try {
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) return null;
+    const audioBlob = await audioRes.blob();
+    const formData = new FormData();
+    formData.append("file", audioBlob, "audio.ogg");
+    formData.append("model", model);
+    formData.append("language", "pt");
+    const res = await fetch(`${apiBase}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as Record<string, unknown>;
+    const transcribed = typeof data.text === "string" ? data.text.trim() : null;
+    return transcribed || null;
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -44,8 +133,15 @@ Deno.serve(async (req) => {
       payload = { raw };
     }
 
-    const externalId =
-      getStr(payload, ["id", "messageId", "message_id", "eventId", "event_id"]) ?? null;
+    // ignorar eventos que não sejam mensagens recebidas (ex: status de entrega)
+    const eventType = getStr(payload, ["EventType", "event_type", "event"]);
+    if (eventType && eventType !== "messages" && eventType !== "message") {
+      return new Response(JSON.stringify({ ok: true, skipped: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const externalId = extractExternalId(payload);
 
     const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw || "empty"));
     const hashHex = Array.from(new Uint8Array(hashBuf))
@@ -53,10 +149,17 @@ Deno.serve(async (req) => {
       .join("");
     const dedupeKey = externalId ?? `sha256:${hashHex.slice(0, 40)}`;
 
-    const leadPhone = normalizePhone(
-      getStr(payload, ["from", "sender", "author", "remoteJid", "phone", "lead_phone"]),
-    );
-    const text = extractText(payload);
+    const leadPhone = normalizePhone(extractPhone(payload));
+    let text = extractText(payload);
+
+    // Transcribe audio messages via Whisper if text is empty
+    if (leadPhone && !text) {
+      const audioUrl = extractAudioUrl(payload);
+      if (audioUrl) {
+        const transcribed = await transcribeAudio(audioUrl);
+        if (transcribed) text = transcribed;
+      }
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -131,6 +234,15 @@ Deno.serve(async (req) => {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      if (cronSecret) {
+        fetch(dispatchUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${cronSecret}` },
+        }).catch(() => {});
       }
     }
 

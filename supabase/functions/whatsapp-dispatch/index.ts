@@ -30,30 +30,24 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
     "Content-Type": "application/json",
   };
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers["token"] = token;
   }
 
   const isImage = row.message_type === "image";
   const endpoint = isImage
-    ? Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/image"
+    ? Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/media"
     : Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text";
 
   const payload = isImage
     ? {
-        to,
         number: to,
-        phone: to,
-        imageUrl: row.payload?.image_url ?? null,
-        image_url: row.payload?.image_url ?? null,
-        url: row.payload?.image_url ?? null,
-        caption: row.payload?.caption ?? row.payload?.text ?? "",
+        type: "image",
+        file: row.payload?.image_url ?? null,
+        caption: String(row.payload?.caption ?? row.payload?.text ?? ""),
       }
     : {
-        to,
         number: to,
-        phone: to,
         text: String(row.payload?.text ?? ""),
-        message: String(row.payload?.text ?? ""),
       };
 
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}${endpoint}`, {
@@ -131,42 +125,68 @@ Deno.serve(async (req) => {
   const failed: Array<{ id: string; error: string }> = [];
 
   for (const row of (rows ?? []) as QueueRow[]) {
-    await supabase
-      .from("whatsapp_messages")
-      .update({ status: "processing" })
-      .eq("id", row.id)
-      .eq("status", "queued");
+    // pular mensagens de sistema sem conteúdo enviável
+    if (row.message_type === "system" || row.message_type === "menu") {
+      await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+      sent.push(row.id);
+      continue;
+    }
+    if (row.message_type === "text" && !row.payload?.text) {
+      await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+      sent.push(row.id);
+      continue;
+    }
 
-    const result = await sendViaUazapi(baseUrl, apiToken, row);
-    if (!result.ok) {
-      failed.push({ id: row.id, error: result.detail });
+    try {
+      await supabase
+        .from("whatsapp_messages")
+        .update({ status: "processing" })
+        .eq("id", row.id)
+        .eq("status", "queued");
+
+      const result = await sendViaUazapi(baseUrl, apiToken, row);
+      if (!result.ok) {
+        const errDetail = (result as { ok: false; detail: string }).detail;
+        failed.push({ id: row.id, error: errDetail });
+        await supabase
+          .from("whatsapp_messages")
+          .update({
+            status: "failed",
+            payload: {
+              ...(row.payload ?? {}),
+              dispatch_error: errDetail,
+              dispatch_failed_at: new Date().toISOString(),
+            },
+          })
+          .eq("id", row.id);
+        continue;
+      }
+
+      const okResult = result as { ok: true; provider_message_id: string | null; response: unknown };
+      sent.push(row.id);
+      await supabase
+        .from("whatsapp_messages")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          provider_message_id: okResult.provider_message_id,
+          payload: {
+            ...(row.payload ?? {}),
+            provider_response: okResult.response,
+          },
+        })
+        .eq("id", row.id);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      failed.push({ id: row.id, error: errMsg });
       await supabase
         .from("whatsapp_messages")
         .update({
           status: "failed",
-          payload: {
-            ...(row.payload ?? {}),
-            dispatch_error: result.detail,
-            dispatch_failed_at: new Date().toISOString(),
-          },
+          payload: { ...(row.payload ?? {}), dispatch_error: errMsg, dispatch_failed_at: new Date().toISOString() },
         })
         .eq("id", row.id);
-      continue;
     }
-
-    sent.push(row.id);
-    await supabase
-      .from("whatsapp_messages")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        provider_message_id: result.provider_message_id,
-        payload: {
-          ...(row.payload ?? {}),
-          provider_response: result.response,
-        },
-      })
-      .eq("id", row.id);
   }
 
   return new Response(JSON.stringify({ ok: true, processed: sent.length + failed.length, sent, failed }), {
