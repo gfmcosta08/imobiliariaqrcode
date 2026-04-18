@@ -15,6 +15,44 @@ function normalizePhone(v: string | null): string | null {
   return d || null;
 }
 
+function extractLeadPhone(payload: Record<string, unknown>): string | null {
+  const direct = getStr(payload, [
+    "sender_pn",
+    "chatid",
+    "wa_chatid",
+    "from",
+    "sender",
+    "author",
+    "remoteJid",
+    "phone",
+    "lead_phone",
+  ]);
+  if (direct) return normalizePhone(direct);
+
+  const message = payload.message;
+  if (message && typeof message === "object") {
+    const m = message as Record<string, unknown>;
+    const fromMessage = getStr(m, ["sender_pn", "chatid", "from", "sender", "remoteJid"]);
+    if (fromMessage) return normalizePhone(fromMessage);
+  }
+
+  const chat = payload.chat;
+  if (chat && typeof chat === "object") {
+    const c = chat as Record<string, unknown>;
+    const fromChat = getStr(c, ["wa_chatid", "phone"]);
+    if (fromChat) return normalizePhone(fromChat);
+  }
+
+  const key = payload.key;
+  if (key && typeof key === "object") {
+    const k = key as Record<string, unknown>;
+    const fromKey = getStr(k, ["remoteJid"]);
+    if (fromKey) return normalizePhone(fromKey);
+  }
+
+  return null;
+}
+
 function extractText(payload: Record<string, unknown>): string {
   const direct = getStr(payload, ["text", "body", "message", "content"]);
   if (direct) return direct;
@@ -28,6 +66,52 @@ function extractText(payload: Record<string, unknown>): string {
     );
   }
   return "";
+}
+
+function isUsefulAudioTranscript(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return !/^\[(audio|a[uÃ¡]dio)\]$/i.test(t);
+}
+
+function extractAudioTranscript(payload: Record<string, unknown>, fallbackText: string): string {
+  const direct = getStr(payload, [
+    "transcript",
+    "transcription",
+    "audio_transcript",
+    "audioTranscription",
+    "speech_to_text",
+  ]);
+  if (direct && isUsefulAudioTranscript(direct)) return direct;
+
+  const msg = payload.message;
+  if (msg && typeof msg === "object") {
+    const nested = msg as Record<string, unknown>;
+    const nestedTranscript = getStr(nested, [
+      "transcript",
+      "transcription",
+      "audio_transcript",
+      "audioTranscription",
+      "speech_to_text",
+    ]);
+    if (nestedTranscript && isUsefulAudioTranscript(nestedTranscript)) return nestedTranscript;
+  }
+
+  return isUsefulAudioTranscript(fallbackText) ? fallbackText : "";
+}
+
+function detectAudio(payload: Record<string, unknown>): boolean {
+  const mediaType = getStr(payload, ["mediaType", "messageType", "type"]);
+  if (mediaType && mediaType.toLowerCase().includes("audio")) return true;
+
+  const msg = payload.message;
+  if (msg && typeof msg === "object") {
+    const nested = msg as Record<string, unknown>;
+    const nestedType = getStr(nested, ["mediaType", "messageType", "type"]);
+    if (nestedType && nestedType.toLowerCase().includes("audio")) return true;
+    if (nested.audioMessage && typeof nested.audioMessage === "object") return true;
+  }
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -53,10 +137,15 @@ Deno.serve(async (req) => {
       .join("");
     const dedupeKey = externalId ?? `sha256:${hashHex.slice(0, 40)}`;
 
-    const leadPhone = normalizePhone(
-      getStr(payload, ["from", "sender", "author", "remoteJid", "phone", "lead_phone"]),
-    );
-    const text = extractText(payload);
+    let data = payload;
+    if (payload.data && typeof payload.data === "object") {
+      data = payload.data as Record<string, unknown>;
+    }
+
+    const leadPhone = extractLeadPhone(data);
+    const text = extractText(data);
+    const isAudio = detectAudio(data);
+    const transcript = isAudio ? extractAudioTranscript(data, text) : text;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -88,15 +177,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (leadPhone && text) {
+    if (leadPhone && (text || isAudio)) {
       await supabase.from("whatsapp_messages").insert({
         direction: "inbound",
         provider: "uazapi",
         lead_phone: leadPhone,
-        message_type: "text",
+        message_type: isAudio ? "system" : "text", // Usamos system para Ã¡udio por enquanto no banco
         provider_message_id: externalId,
         payload: {
-          text,
+          text: isAudio ? (transcript || "[Ãudio]") : text,
+          is_audio: isAudio,
           raw: payload,
           dedupe_key: dedupeKey,
         },
@@ -116,7 +206,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           event_id: insertedEvent?.id ?? null,
           lead_phone: leadPhone,
-          text,
+          text: isAudio ? transcript : text,
+          is_audio: isAudio,
           payload,
         }),
       });
@@ -138,11 +229,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // NOVO: Disparar o dispatch automaticamente após processar a conversa para resposta rápida
+      // NOVO: Disparar o dispatch automaticamente apÃ³s processar a conversa para resposta rÃ¡pida
       const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
       
-      // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)
+      // Chamada assÃ­ncrona (nÃ£o espera o dispatch terminar para responder o webhook)
       fetch(dispatchUrl, {
         method: "POST",
         headers: {
@@ -170,3 +261,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+

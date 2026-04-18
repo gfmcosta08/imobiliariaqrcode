@@ -5,11 +5,57 @@ type InboundInput = {
   lead_phone?: string;
   text?: string;
   event_id?: string;
+  is_audio?: boolean;
   payload?: Record<string, unknown>;
 };
 
-const YES = /^(sim|s|yes|y|1|2|quero)$/i;
-const NO = /^(nao|não|n|no|0)$/i;
+const YES = /^(sim|s|yes|y|1|quero)$/i;
+const NO = /^(nao|nÃ£o|n|no|0)$/i;
+
+function isOption(text: string, option: string): boolean {
+  const t = text.trim();
+  return t === option || new RegExp(`^${option}\\s*[-â€“â€”:]`, "i").test(t);
+}
+const AUDIO = /\[(audio|áudio|áudio|Ã¡udio)\]/i; // Placeholder para áudio se vier no texto ou flag
+
+type MainChoice = "1" | "2" | "3" | null;
+
+function normalizeIntentText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isUsableText(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (/^\[(audio|a[uá]dio)\]$/i.test(t)) return false;
+  return !AUDIO.test(t);
+}
+
+function resolveMainChoice(text: string): MainChoice {
+  if (isOption(text, "1")) return "1";
+  if (isOption(text, "2")) return "2";
+  if (isOption(text, "3")) return "3";
+
+  const t = normalizeIntentText(text);
+  if (!t) return null;
+
+  if (/ver mais|mais imoveis|outro imovel|outros imoveis|parecid|semelhante|similar/.test(t)) {
+    return "2";
+  }
+  if (/agendar visita|marcar visita|quero visitar|visitar|visita|conhecer o imovel|conhecer imovel/.test(t)) {
+    return "1";
+  }
+  if (/anunciar|anuncie|anuncio|divulgar imovel|colocar imovel/.test(t)) {
+    return "3";
+  }
+
+  return null;
+}
 
 function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
@@ -17,41 +63,78 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
-  // Padrão 1: imovel [token]
-  const m = t.match(/(?:imovel|im[oó]vel)\s+([a-z0-9_-]{16,80})/i);
+  // PadrÃ£o 1: imovel [token]
+  const m = t.match(/(?:imovel|im[oÃ³]vel)\s+([a-z0-9_-]{16,80})/i);
   if (m?.[1]) return m[1];
-  // Padrão 2: (Ref: [token]) ou Ref: [token]
+  // PadrÃ£o 2: (Ref: [token]) ou Ref: [token]
   const mRef = t.match(/Ref:\s*([a-z0-9]{32,80})/i);
   if (mRef?.[1]) return mRef[1];
-  // Padrão 3: apenas o token (hash de 32 a 80 chars)
+  // PadrÃ£o 3: apenas o token (hash de 32 a 80 chars)
   const uuidLike = t.match(/[a-z0-9]{32,80}/i);
   return uuidLike?.[0] ?? null;
 }
 
 function summarizeProperty(row: Record<string, any>): string {
-  const title = String(row.title ?? row.public_id ?? "Imóvel");
+  const title = String(row.title ?? row.public_id ?? "ImÃ³vel");
   const city = String(row.city ?? "");
   const state = String(row.state ?? "");
+  const neighborhood = String(row.neighborhood ?? "");
   const purpose = String(row.purpose ?? "");
   const price = row.price == null ? null : Number(row.price).toLocaleString("pt-BR");
   const area = row.area_m2 || row.total_area_m2;
+  const builtArea = row.built_area_m2;
+  const landArea = row.land_area_m2;
   const bedrooms = row.bedrooms;
   const suites = row.suites;
   const bathrooms = row.bathrooms;
   const parking = row.parking_spaces;
+  const livingRooms = row.living_rooms;
+  const floorsCount = row.floors_count;
+  const unitFloor = row.unit_floor;
+  const isFurnished = row.is_furnished;
+  const furnishingStatus = row.furnishing_status;
+  const ownerName = row.owner_name;
+  const listingBrokerName = row.listing_broker_name;
+  const fullAddress = row.full_address;
+  const streetNumber = row.street_number;
+  const addressComplement = row.address_complement;
+  const salePrice = row.sale_price == null ? null : Number(row.sale_price).toLocaleString("pt-BR");
+  const rentPrice = row.rent_price == null ? null : Number(row.rent_price).toLocaleString("pt-BR");
+  const otherFees = row.other_fees == null ? null : Number(row.other_fees).toLocaleString("pt-BR");
   const description = row.description || row.full_description;
+  const features = Array.isArray(row.features) ? row.features.join(", ") : "";
+  const infrastructure = Array.isArray(row.infrastructure) ? row.infrastructure.join(", ") : "";
+  const securityItems = Array.isArray(row.security_items) ? row.security_items.join(", ") : "";
+  const nearbyPoints = Array.isArray(row.nearby_points) ? row.nearby_points.join(", ") : "";
 
   const lines = [
-    `🏠 *${title}*`,
-    city || state ? `📍 Local: ${[city, state].filter(Boolean).join(" / ")}` : null,
-    purpose ? `📋 Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
-    price ? `💰 Valor: R$ ${price}` : null,
-    area ? `📐 Área: ${area}m²` : null,
-    bedrooms ? `🛏️ Quartos: ${bedrooms}` : null,
-    suites ? `🚿 Suítes: ${suites}` : null,
-    bathrooms ? `🚽 Banheiros: ${bathrooms}` : null,
-    parking ? `🚗 Vagas: ${parking}` : null,
-    description ? `\n📝 *Descrição:*\n${description}` : null,
+    `ðŸ  *${title}*`,
+    city || state || neighborhood ? `ðŸ“ Local: ${[neighborhood, city, state].filter(Boolean).join(" / ")}` : null,
+    fullAddress || streetNumber || addressComplement ? `ðŸ“Œ EndereÃ§o: ${[fullAddress, streetNumber, addressComplement].filter(Boolean).join(", ")}` : null,
+    purpose ? `ðŸ“‹ Finalidade: ${purpose === "sale" ? "Venda" : "Aluguel"}` : null,
+    price ? `ðŸ’° Valor: R$ ${price}` : null,
+    salePrice ? `ðŸ’µ Valor de Venda: R$ ${salePrice}` : null,
+    rentPrice ? `ðŸ§¾ Valor de Aluguel: R$ ${rentPrice}` : null,
+    otherFees ? `ðŸ“Ž Outras Taxas: R$ ${otherFees}` : null,
+    area ? `ðŸ“ Ãrea: ${area}mÂ²` : null,
+    builtArea ? `ðŸ—ï¸ Ãrea ConstruÃ­da: ${builtArea}mÂ²` : null,
+    landArea ? `ðŸŒ³ Ãrea do Terreno: ${landArea}mÂ²` : null,
+    bedrooms ? `ðŸ›ï¸ Quartos: ${bedrooms}` : null,
+    suites ? `ðŸš¿ SuÃ­tes: ${suites}` : null,
+    bathrooms ? `ðŸš½ Banheiros: ${bathrooms}` : null,
+    parking ? `ðŸš— Vagas: ${parking}` : null,
+    livingRooms ? `ðŸ›‹ï¸ Salas: ${livingRooms}` : null,
+    floorsCount ? `ðŸ¢ Andares: ${floorsCount}` : null,
+    unitFloor ? `ðŸ”¢ Andar da Unidade: ${unitFloor}` : null,
+    typeof isFurnished === "boolean" ? `ðŸª‘ Mobiliado: ${isFurnished ? "Sim" : "NÃ£o"}` : null,
+    furnishingStatus ? `ðŸ›ï¸ Status da MobÃ­lia: ${furnishingStatus}` : null,
+    ownerName ? `ðŸ‘¤ ProprietÃ¡rio: ${ownerName}` : null,
+    listingBrokerName ? `ðŸ¤ Corretor ResponsÃ¡vel: ${listingBrokerName}` : null,
+    features ? `âœ¨ CaracterÃ­sticas: ${features}` : null,
+    infrastructure ? `ðŸ˜ï¸ Infraestrutura: ${infrastructure}` : null,
+    securityItems ? `ðŸ”’ SeguranÃ§a: ${securityItems}` : null,
+    nearbyPoints ? `ðŸ“ Proximidades: ${nearbyPoints}` : null,
+    description ? `\nðŸ“ *DescriÃ§Ã£o:*\n${description}` : null,
   ];
 
   return lines.filter(Boolean).join("\n");
@@ -92,7 +175,10 @@ async function loadPropertyByQr(
        properties(
          id, public_id, broker_id, account_id, title, city, state, purpose, price, 
          origin_plan_code, listing_status, description, full_description, 
-         area_m2, total_area_m2, bedrooms, suites, bathrooms, parking_spaces
+         area_m2, total_area_m2, built_area_m2, land_area_m2, bedrooms, suites, bathrooms, parking_spaces,
+         neighborhood, full_address, street_number, address_complement, sale_price, rent_price, other_fees,
+         living_rooms, floors_count, unit_floor, is_furnished, furnishing_status,
+         owner_name, listing_broker_name, features, infrastructure, security_items, nearby_points
        )`,
     )
     .eq("qr_token", qrToken)
@@ -131,7 +217,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "property_summary",
-      text: `Aqui estão as informações do imóvel que você solicitou:\n\n${summarizeProperty(property)}`,
+      text: `Aqui estÃ£o as informaÃ§Ãµes do imÃ³vel que vocÃª solicitou:\n\n${summarizeProperty(property)}`,
       public_id: property.public_id,
     },
   });
@@ -160,16 +246,17 @@ async function sendPropertyPack(
       payload: {
         kind: "property_image",
         image_url: signed.signedUrl,
-        caption: `Foto do imóvel ${String(property.public_id ?? "")}`,
+        caption: `Foto do imÃ³vel ${String(property.public_id ?? "")}`,
       },
     });
   }
 
   // 3. Enviar Mensagens Finais Solicitadas
+  const siteUrl = Deno.env.get("PUBLIC_APP_URL") || "nosso site";
   const finalMessages = [
-    "Deseja agendar uma visita? (Responda SIM ou NÃO)",
-    "Quer ver mais imóveis como esse? (Responda SIM ou NÃO)",
-    "Anuncie conosco! Acesse nosso site para cadastrar seu imóvel."
+    "1 - Gostaria de agendar uma visita ao imÃ³vel",
+    "2 - Gostaria de ver mais imÃ³veis como esse",
+    "3 - Anunciem conosco e entre no nosso site: " + siteUrl
   ];
 
   for (const msg of finalMessages) {
@@ -185,6 +272,183 @@ async function sendPropertyPack(
       },
     });
   }
+}
+
+async function handleVisitRequest(
+  supabase: ReturnType<typeof createClient>,
+  session: any,
+  property: any,
+  leadPhone: string,
+  brokerPhone: string | null,
+) {
+  const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
+    p_property_id: property.id,
+    p_broker_id: property.broker_id,
+    p_client_phone: leadPhone,
+    p_intent: "visit_interest",
+  });
+
+  await queueOutbound(supabase, {
+    account_id: property.account_id,
+    property_id: property.id,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "visit_registered",
+      text: "Fechado! JÃ¡ anotei aqui seu interesse. O corretor vai te dar um alÃ´ em breve pra combinarmos tudo! ðŸ˜‰",
+      lead_id: leadId ?? null,
+    },
+  });
+
+  if (brokerPhone) {
+    await queueOutbound(supabase, {
+      account_id: property.account_id,
+      property_id: property.id,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "broker_notification",
+        to_broker: true,
+        text: `ðŸš¨ *Novo Lead!* ðŸš¨\n\nUm cliente quer visitar o imÃ³vel *${property.public_id}*.\n\nðŸ“± Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
+      },
+    });
+  }
+
+  await queueOutbound(supabase, {
+    account_id: property.account_id,
+    property_id: property.id,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "similar_question",
+      text: "Enquanto isso, quer dar uma olhadinha em outros imÃ³veis parecidos com esse? (Responda SIM ou NÃƒO)",
+    },
+  });
+
+  await supabase
+    .from("conversation_sessions")
+    .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
+    .eq("id", session.id);
+
+  return json({ ok: true, state: "visit_registered" });
+}
+
+async function handleSimilarRequest(
+  supabase: ReturnType<typeof createClient>,
+  session: any,
+  property: any,
+  leadPhone: string,
+  brokerPhone: string | null,
+) {
+  const { data: ranked } = await supabase.rpc("recommend_similar_properties", {
+    origin_property_id: property.id,
+    limit_count: 5,
+  });
+
+  const ids = (ranked ?? []).map((r: { id: string }) => r.id);
+  if (!ids.length) {
+    await queueOutbound(supabase, {
+      account_id: property.account_id,
+      property_id: property.id,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "similar_empty",
+        text: "Poxa, no momento nÃ£o encontrei outros imÃ³veis parecidos com esse aqui na regiÃ£o. Mas fica de olho que sempre tem novidade!",
+      },
+    });
+    await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
+    return json({ ok: true, state: "closed_no_similar" });
+  }
+
+  const { data: props } = await supabase
+    .from("properties")
+    .select("id, public_id, title, city, state, purpose, price")
+    .in("id", ids);
+
+  const { data: qrs } = await supabase
+    .from("property_qrcodes")
+    .select("property_id, qr_token")
+    .in("property_id", ids)
+    .eq("is_active", true);
+
+  const tokenById = new Map((qrs ?? []).map((q) => [q.property_id, q.qr_token]));
+  const byId = new Map((props ?? []).map((p) => [p.id, p]));
+
+  await queueOutbound(supabase, {
+    account_id: property.account_id,
+    property_id: property.id,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "similar_intro",
+      text: "Legal! Separei alguns imÃ³veis que vocÃª pode gostar:",
+    },
+  });
+
+  for (const id of ids) {
+    const p = byId.get(id);
+    if (!p) continue;
+    const token = tokenById.get(id);
+    const line = [
+      `ðŸ  *${p.title || p.public_id}*`,
+      [p.city, p.state].filter(Boolean).join(" / "),
+      p.price != null ? `ðŸ’° R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
+      token ? `ðŸ”— Ver mais: ${Deno.env.get("PUBLIC_APP_URL")}/q/${token}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await queueOutbound(supabase, {
+      account_id: property.account_id,
+      property_id: p.id,
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "similar_item",
+        text: line,
+      },
+    });
+  }
+
+  await supabase
+    .from("conversation_sessions")
+    .update({
+      state: "recommendations_sent",
+      last_recommended_properties: ids,
+    })
+    .eq("id", session.id);
+
+  return json({ ok: true, state: "recommendations_sent", count: ids.length });
+}
+
+async function handleAdvertiseRequest(
+  supabase: ReturnType<typeof createClient>,
+  session: any,
+  property: any,
+  leadPhone: string,
+  brokerPhone: string | null,
+) {
+  const siteUrl = Deno.env.get("PUBLIC_APP_URL") || "nosso site";
+  await queueOutbound(supabase, {
+    account_id: property.account_id,
+    property_id: property.id,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "advertise_info",
+      text: `Que bacana! ðŸš€\n\nPara anunciar seu imÃ³vel com a gente, basta acessar ${siteUrl} e fazer seu cadastro. Ã‰ rapidinho!\n\nQualquer dÃºvida, estamos Ã  disposiÃ§Ã£o.`,
+    },
+  });
+  await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
+  return json({ ok: true, state: "closed_advertise" });
 }
 
 Deno.serve(async (req) => {
@@ -206,12 +470,13 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "invalid_json" }, 400);
     }
 
-    const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
+    const leadPhone = String(body.lead_phone ?? "").trim();
     const text = String(body.text ?? "").trim();
+    const isAudio = !!body.is_audio || AUDIO.test(text);
     
-    console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}"`);
+    console.log(`[conversation-handle] Processing message from ${leadPhone}: "${text}" (isAudio: ${isAudio})`);
 
-    if (!leadPhone || !text) {
+    if (!leadPhone || (!text && !isAudio)) {
       return json({ ok: false, error: "missing_input" }, 400);
     }
 
@@ -221,21 +486,73 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
+    if (isAudio && !isUsableText(text)) {
+      const { data: lastSession } = await supabase
+        .from("conversation_sessions")
+        .select("id, origin_property_id")
+        .eq("lead_phone", leadPhone)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const propertyId = lastSession?.origin_property_id;
+      let accountId: string | null = null;
+      let brokerPhone: string | null = null;
+
+      if (propertyId) {
+        const { data: prop } = await supabase
+          .from("properties")
+          .select("account_id, broker_id")
+          .eq("id", propertyId)
+          .maybeSingle();
+        if (prop) {
+          accountId = prop.account_id;
+          const { data: brk } = await supabase
+            .from("brokers")
+            .select("whatsapp_number")
+            .eq("id", prop.broker_id)
+            .maybeSingle();
+          brokerPhone = brk?.whatsapp_number;
+        }
+      }
+
+      if (accountId) {
+        await queueOutbound(supabase, {
+          account_id: accountId,
+          property_id: propertyId || null,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "audio_fallback",
+            text: "Poxa, eu ainda nÃ£o consigo ouvir Ã¡udios. ðŸ˜…\n\nVocÃª poderia digitar o que deseja? Responda com 1, 2 ou 3 para eu te ajudar rapidinho!",
+          },
+        });
+        return json({ ok: true, state: "audio_not_supported" });
+      }
+      return json({ ok: true, state: "audio_without_active_session" });
+    }
+
     const { data: session } = await supabase
       .from("conversation_sessions")
       .select("id, state, origin_property_id, current_property_id")
       .eq("lead_phone", leadPhone)
-      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     const qrToken = parseQrToken(text);
+    console.log(`[conversation-handle] Parsed QR Token: ${qrToken}`);
+
     if (qrToken) {
+      console.log(`[conversation-handle] QR Token found. Loading property...`);
       const property = await loadPropertyByQr(supabase, qrToken);
       if (!property) {
+        console.log("[conversation-handle] Property not found or inactive.");
         return json({ ok: false, error: "invalid_or_unavailable_qr" }, 400);
       }
 
+      console.log(`[conversation-handle] Property found: ${property.public_id}`);
       const propertyId = String(property.id);
       if (session?.id) {
         await supabase
@@ -257,9 +574,13 @@ Deno.serve(async (req) => {
         });
       }
 
+      console.log(`[conversation-handle] Sending property pack for ${property.public_id} to ${leadPhone}`);
       await sendPropertyPack(supabase, property, leadPhone);
+      console.log("[conversation-handle] Property pack sent successfully.");
       return json({ ok: true, state: "started", property_id: propertyId });
     }
+
+    console.log("[conversation-handle] No QR Token found in message. Checking session...");
 
     if (!session?.id || !session.origin_property_id) {
       return json({ ok: true, state: "ignored_without_session" });
@@ -282,63 +603,7 @@ Deno.serve(async (req) => {
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
     if (session.state === "awaiting_main_choice") {
-      if (YES.test(text)) {
-        const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
-          p_property_id: property.id,
-          p_broker_id: property.broker_id,
-          p_client_phone: leadPhone,
-          p_intent: "visit_interest",
-        });
-
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "visit_registered",
-            text: "Fechado! Já anotei aqui seu interesse. O corretor vai te dar um alô em breve pra combinarmos tudo! 😉",
-            lead_id: leadId ?? null,
-          },
-        });
-
-        if (brokerPhone) {
-          await queueOutbound(supabase, {
-            account_id: property.account_id,
-            property_id: property.id,
-            lead_phone: leadPhone,
-            broker_phone: brokerPhone,
-            message_type: "text",
-            payload: {
-              kind: "broker_notification",
-              to_broker: true,
-              text: `🚨 *Novo Lead!* 🚨\n\nUm cliente quer visitar o imóvel *${property.public_id}*.\n\n📱 Contato: ${leadPhone}\n\nEntra em contato com ele assim que puder!`,
-            },
-          });
-        }
-
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "similar_question",
-            text: "Enquanto isso, quer dar uma olhadinha em outros imóveis parecidos com esse? (Responda SIM ou NÃO)",
-          },
-        });
-
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
-          .eq("id", session.id);
-
-        return json({ ok: true, state: "visit_registered" });
-      }
-
-      if (NO.test(text)) {
+      if (isOption(text, "0")) {
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
@@ -356,79 +621,35 @@ Deno.serve(async (req) => {
           .eq("id", session.id);
         return json({ ok: true, state: "asked_similar" });
       }
+
+      const choice = resolveMainChoice(text);
+      if (choice === "1") {
+        return handleVisitRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "2") {
+        return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+      if (choice === "3") {
+        return handleAdvertiseRequest(supabase, session, property, leadPhone, brokerPhone);
+      }
+
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "help_main_choice",
+          text: "Nao entendi. Escolha uma opcao: 1 para visita, 2 para ver mais imoveis ou 3 para anunciar.",
+        },
+      });
+      return json({ ok: true, state: "awaiting_main_choice" });
     }
 
     if (session.state === "awaiting_recommendation_choice") {
       if (YES.test(text)) {
-        const { data: ranked } = await supabase.rpc("recommend_similar_properties", {
-          origin_property_id: property.id,
-          limit_count: 5,
-        });
-
-        const ids = (ranked ?? []).map((r: { id: string }) => r.id);
-        if (!ids.length) {
-          await queueOutbound(supabase, {
-            account_id: property.account_id,
-            property_id: property.id,
-            lead_phone: leadPhone,
-            broker_phone: brokerPhone,
-            message_type: "text",
-            payload: {
-              kind: "similar_empty",
-              text: "Poxa, no momento não encontrei outros imóveis parecidos com esse aqui na região. Mas fica de olho que sempre tem novidade!",
-            },
-          });
-          await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
-          return json({ ok: true, state: "closed_no_similar" });
-        }
-
-        const { data: props } = await supabase
-          .from("properties")
-          .select("id, public_id, title, city, state, purpose, price")
-          .in("id", ids);
-
-        const { data: qrs } = await supabase
-          .from("property_qrcodes")
-          .select("property_id, qr_token")
-          .in("property_id", ids)
-          .eq("is_active", true);
-
-        const tokenById = new Map((qrs ?? []).map((q) => [q.property_id, q.qr_token]));
-        const byId = new Map((props ?? []).map((p) => [p.id, p]));
-        for (const id of ids) {
-          const p = byId.get(id);
-          if (!p) continue;
-          const token = tokenById.get(id);
-          const line = [
-            p.title || p.public_id,
-            [p.city, p.state].filter(Boolean).join(" / "),
-            p.price != null ? `R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
-            token ? `Link: /q/${token}` : null,
-          ]
-            .filter(Boolean)
-            .join("\n");
-          await queueOutbound(supabase, {
-            account_id: property.account_id,
-            property_id: p.id,
-            lead_phone: leadPhone,
-            broker_phone: brokerPhone,
-            message_type: "text",
-            payload: {
-              kind: "similar_item",
-              text: line,
-            },
-          });
-        }
-
-        await supabase
-          .from("conversation_sessions")
-          .update({
-            state: "recommendations_sent",
-            last_recommended_properties: ids,
-          })
-          .eq("id", session.id);
-
-        return json({ ok: true, state: "recommendations_sent", count: ids.length });
+        return handleSimilarRequest(supabase, session, property, leadPhone, brokerPhone);
       }
 
       if (NO.test(text)) {
@@ -440,7 +661,7 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "close",
-            text: "Perfeito. Quando quiser, é só enviar outro QR para continuar.",
+            text: "Perfeito. Quando quiser, Ã© sÃ³ enviar outro QR para continuar.",
           },
         });
         await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
@@ -472,3 +693,4 @@ function json(body: Record<string, unknown>, status = 200) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
