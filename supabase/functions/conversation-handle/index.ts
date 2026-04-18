@@ -13,6 +13,7 @@ type LeadSnapshot = {
   primeiro_nome: string;
   nome_completo: string;
   nome_validado: boolean;
+  interaction_count: number;
 };
 
 function matchChoice1(text: string): boolean {
@@ -137,13 +138,13 @@ function summarizeProperty(row: Record<string, unknown>): string {
   const title = fmt(row.title || row.public_id);
   const type = [fmt(row.property_type), fmt(row.property_subtype)].filter(Boolean).join(" - ");
 
-  lines.push(`?? *${title}*`);
+  lines.push(`Imovel: *${title}*`);
   if (row.public_id) lines.push(`Ref: ${fmt(row.public_id)}`);
   if (type) lines.push(`Tipo: ${type}`);
   if (purpose) lines.push(`Finalidade: ${purpose}`);
 
   const loc = [fmt(row.neighborhood), fmt(row.city_region), fmt(row.city), fmt(row.state)].filter(Boolean);
-  if (loc.length) lines.push(`\n?? *Localizacao*\n${loc.join(", ")}`);
+  if (loc.length) lines.push(`\nLocalizacao\n${loc.join(", ")}`);
   if (row.full_address) lines.push(`Endereco: ${fmt(row.full_address)}`);
 
   const chars: string[] = [];
@@ -152,7 +153,7 @@ function summarizeProperty(row: Record<string, unknown>): string {
   if (row.bathrooms) chars.push(`${row.bathrooms} banheiro(s)`);
   if (row.parking_spaces) chars.push(`${row.parking_spaces} vaga(s)`);
   if (row.living_rooms) chars.push(`${row.living_rooms} sala(s)`);
-  if (chars.length) lines.push(`\n?? *Caracteristicas*\n${chars.join(" | ")}`);
+  if (chars.length) lines.push(`\nCaracteristicas\n${chars.join(" | ")}`);
 
   const areas: string[] = [];
   if (row.area_m2 || row.total_area_m2) areas.push(`Area total: ${row.area_m2 ?? row.total_area_m2} m2`);
@@ -165,13 +166,13 @@ function summarizeProperty(row: Record<string, unknown>): string {
   if (mainPrice) priceLines.push(purpose === "Aluguel" ? `Aluguel: ${mainPrice}` : `Preco: ${mainPrice}`);
   if (row.condo_fee) priceLines.push(`Condominio: ${fmtBRL(row.condo_fee)}`);
   if (row.iptu_amount) priceLines.push(`IPTU: ${fmtBRL(row.iptu_amount)}`);
-  if (priceLines.length) lines.push(`\n?? *Valores*\n${priceLines.join(" | ")}`);
+  if (priceLines.length) lines.push(`\nValores\n${priceLines.join(" | ")}`);
 
-  const desc = fmt(row.description || row.full_description);
-  if (desc) lines.push(`\n?? *Descricao*\n${desc}`);
+  const desc = fmt(row.full_description || row.description);
+  if (desc) lines.push(`\nDescricao\n${desc}`);
 
   const feats = fmtList(row.features);
-  if (feats) lines.push(`\n? *Diferenciais*\n${feats}`);
+  if (feats) lines.push(`\nDiferenciais\n${feats}`);
 
   return lines.join("\n");
 }
@@ -204,7 +205,7 @@ async function loadPropertyByQr(supabase: ReturnType<typeof createClient>, qrTok
   const { data, error } = await supabase
     .from("property_qrcodes")
     .select(
-      "qr_token, is_active, properties(id, public_id, broker_id, account_id, listing_status, expires_at, title, description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation)",
+      "qr_token, is_active, properties(id, public_id, broker_id, account_id, listing_status, expires_at, title, description, full_description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation)",
     )
     .eq("qr_token", qrToken)
     .eq("is_active", true)
@@ -266,11 +267,17 @@ async function upsertLead(
 
   if (!lead) return null;
 
+  const { count } = await supabase
+    .from("lead_interactions")
+    .select("id", { count: "exact", head: true })
+    .eq("lead_id", leadId);
+
   return {
     id: String(lead.id),
     primeiro_nome: String(lead.primeiro_nome ?? "Cliente"),
     nome_completo: String(lead.nome_completo ?? "Cliente"),
     nome_validado: Boolean(lead.nome_validado),
+    interaction_count: count ?? 0,
   };
 }
 
@@ -293,9 +300,10 @@ async function sendPropertyPack(
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
   const firstName = lead?.primeiro_nome || "Cliente";
 
-  const introText = lead?.nome_validado
-    ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
-    : `Ola! Posso te chamar de ${firstName}? Se preferir outro nome, me fala que eu atualizo agora.`;
+  const shouldAskName = Boolean(lead && lead.interaction_count <= 1 && !lead.nome_validado);
+  const introText = shouldAskName
+    ? `Ola! Para te atender melhor, me confirma seu nome completo? Se preferir, posso usar ${firstName}.`
+    : `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`;
 
   await queueOutbound(supabase, {
     account_id: accountId,
@@ -327,8 +335,7 @@ async function sendPropertyPack(
     .select("storage_path")
     .eq("property_id", propertyId)
     .neq("status", "deleted")
-    .order("sort_order", { ascending: true })
-    .limit(10);
+    .order("sort_order", { ascending: true });
 
   for (const media of mediaRows ?? []) {
     const { data: signed } = await supabase.storage
@@ -365,7 +372,43 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "menu_prompt",
-      text: `${firstName}, me diga como posso te ajudar agora:\n1 - Agendar visita ao imovel\n2 - Ver imoveis semelhantes\n3 - Anunciar um imovel conosco${appUrl ? ` (${appUrl})` : ""}`,
+      text: `${firstName}, me diga como posso te ajudar agora:`,
+    },
+  });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "menu_option_1",
+      text: "1 - Agendar visita ao imovel",
+    },
+  });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "menu_option_2",
+      text: "2 - Ver imoveis semelhantes",
+    },
+  });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "menu_option_3",
+      text: `3 - Anunciar um imovel conosco${appUrl ? ` (${appUrl})` : ""}`,
     },
   });
 }
