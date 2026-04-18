@@ -1,6 +1,6 @@
 ﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { buildWelcomeBackMessage, resolveLeadNameFromTextOrFallback } from "./name-flow.ts";
+import { buildWelcomeBackMessage, extractUazapiName, resolveLeadNameFromTextOrFallback } from "./name-flow.ts";
 
 type InboundInput = {
   lead_phone?: string;
@@ -22,6 +22,7 @@ const AUDIO = /\[(audio|áudio|áudio)\]/i;
 
 type MainChoice = "1" | "2" | "3" | null;
 type LeadNameSource = "text" | "uazapi" | "existing" | "none";
+const NAME_REFUSAL = /^(nao|não|prefiro nao|prefiro não|nao quero informar|não quero informar|sem nome)$/i;
 
 function normalizeIntentText(text: string): string {
   return text
@@ -292,10 +293,45 @@ async function persistLeadName(
   leadId: string,
   leadName: string,
 ) {
-  await supabase
+  const { error } = await supabase
     .from("leads")
     .update({ client_name: leadName })
     .eq("id", leadId);
+  if (error) {
+    throw new Error(`persist_lead_name_failed:${error.message}`);
+  }
+}
+
+function shouldForceFallbackFromRefusal(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  return NAME_REFUSAL.test(t);
+}
+
+async function loadFallbackUazapiNameFromInboundHistory(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+): Promise<string | null> {
+  const { data: rows } = await supabase
+    .from("whatsapp_messages")
+    .select("payload")
+    .eq("direction", "inbound")
+    .eq("lead_phone", leadPhone)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  for (const row of rows ?? []) {
+    const payload = row?.payload as Record<string, unknown> | null;
+    if (!payload || typeof payload !== "object") continue;
+    const raw = payload.raw;
+    if (raw && typeof raw === "object") {
+      const extracted = extractUazapiName(raw as Record<string, unknown>);
+      if (extracted) return extracted;
+    }
+    const directExtracted = extractUazapiName(payload);
+    if (directExtracted) return directExtracted;
+  }
+  return null;
 }
 
 async function handleVisitRequest(
@@ -307,12 +343,16 @@ async function handleVisitRequest(
   leadName: string | null = null,
   leadNameSource: LeadNameSource = "none",
 ) {
-  const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
+  const { data: leadId, error: leadError } = await supabase.rpc("create_lead_from_visit_interest", {
     p_property_id: property.id,
     p_broker_id: property.broker_id,
     p_client_phone: leadPhone,
     p_intent: "visit_interest",
+    p_client_name: leadName,
   });
+  if (leadError) {
+    throw new Error(`create_lead_failed:${leadError.message}`);
+  }
 
   if (leadId && leadName) {
     await persistLeadName(supabase, String(leadId), leadName);
@@ -653,7 +693,13 @@ Deno.serve(async (req) => {
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
 
     if (session.last_menu === "awaiting_name_for_visit") {
-      const resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      let resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      if (!resolved.name && shouldForceFallbackFromRefusal(text)) {
+        const historicalFallback = await loadFallbackUazapiNameFromInboundHistory(supabase, leadPhone);
+        if (historicalFallback) {
+          resolved = { name: historicalFallback, source: "uazapi" };
+        }
+      }
       if (!resolved.name) {
         await queueOutbound(supabase, {
           account_id: property.account_id,
@@ -686,7 +732,13 @@ Deno.serve(async (req) => {
     }
 
     if (session.last_menu === "awaiting_name_for_close") {
-      const resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      let resolved = resolveLeadNameFromTextOrFallback(text, inboundPayload);
+      if (!resolved.name && shouldForceFallbackFromRefusal(text)) {
+        const historicalFallback = await loadFallbackUazapiNameFromInboundHistory(supabase, leadPhone);
+        if (historicalFallback) {
+          resolved = { name: historicalFallback, source: "uazapi" };
+        }
+      }
       if (!resolved.name) {
         await queueOutbound(supabase, {
           account_id: property.account_id,
@@ -702,12 +754,16 @@ Deno.serve(async (req) => {
         return json({ ok: true, state: "awaiting_name_before_close" });
       }
 
-      const { data: leadId } = await supabase.rpc("create_lead_from_visit_interest", {
+      const { data: leadId, error: leadError } = await supabase.rpc("create_lead_from_visit_interest", {
         p_property_id: property.id,
         p_broker_id: property.broker_id,
         p_client_phone: leadPhone,
         p_intent: "similar_property_interest",
+        p_client_name: resolved.name,
       });
+      if (leadError) {
+        throw new Error(`create_lead_failed:${leadError.message}`);
+      }
 
       if (leadId) {
         await persistLeadName(supabase, String(leadId), resolved.name);

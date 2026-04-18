@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { normalizeBrazilPhone } from "@/lib/phone";
 import { assertQrTokenActive } from "@/lib/public/qr-token-active";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { resolvePublicLeadName } from "./name-resolution";
 
 /**
  * Registra interesse de visita a partir do QR público (sem WhatsApp API).
@@ -19,6 +20,8 @@ export async function POST(request: Request) {
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const qr_token = typeof o.qr_token === "string" ? o.qr_token.trim() : "";
   const client_phone = typeof o.client_phone === "string" ? o.client_phone : "";
+  const client_name = typeof o.client_name === "string" ? o.client_name : "";
+  const uazapi_name = typeof o.uazapi_name === "string" ? o.uazapi_name : "";
   const intent =
     typeof o.intent === "string" && o.intent.trim() ? o.intent.trim() : "visit_interest";
 
@@ -28,6 +31,21 @@ export async function POST(request: Request) {
   }
   if (!qr_token) {
     return NextResponse.json({ ok: false, error: "missing_token" }, { status: 400 });
+  }
+
+  const resolvedName = resolvePublicLeadName({
+    clientNameRaw: client_name,
+    uazapiNameRaw: uazapi_name,
+  });
+  if (resolvedName.requiresPrompt || !resolvedName.name) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "name_required",
+        prompt: "Informe o nome completo do lead para continuar.",
+      },
+      { status: 400 },
+    );
   }
 
   const v = await assertQrTokenActive(qr_token);
@@ -51,6 +69,7 @@ export async function POST(request: Request) {
     p_broker_id: broker_id,
     p_client_phone: phone,
     p_intent: intent,
+    p_client_name: resolvedName.name,
   });
 
   if (error) {
