@@ -45,6 +45,7 @@ function matchChoice2(text: string): boolean {
   return /\b(mais\s+imoveis|imoveis\s+(parecidos|similares)|outros\s+imoveis|ver\s+mais)\b/.test(t);
 }
 
+
 function matchNo(text: string): boolean {
   const t = text.toLowerCase().trim();
   return /^(nao|não|n|no|0)$/.test(t) || /^nao\b/.test(t) || /^não\b/.test(t);
@@ -93,7 +94,7 @@ function parseNameCorrection(text: string): string | null {
 
 function normalizePersonName(value: string): string {
   const cleaned = value.replace(/\s+/g, " ").trim();
-  if (!cleaned) return "Cliente";
+  if (!cleaned) return "";
   return cleaned
     .split(" ")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
@@ -107,7 +108,7 @@ function isGenericName(value: string | null | undefined): boolean {
   if (!v) return true;
 
   return (
-    v === "cliente" ||
+    /^cliente\b/.test(v) ||
     v === "unknown" ||
     v === "desconhecido" ||
     v === "sem nome" ||
@@ -327,8 +328,8 @@ async function upsertLead(
 
   return {
     id: String(lead.id),
-    primeiro_nome: String(lead.primeiro_nome ?? "Cliente"),
-    nome_completo: String(lead.nome_completo ?? "Cliente"),
+    primeiro_nome: String(lead.primeiro_nome ?? ""),
+    nome_completo: String(lead.nome_completo ?? ""),
     nome_validado: Boolean(lead.nome_validado),
     interaction_count: count ?? 0,
   };
@@ -353,10 +354,9 @@ async function sendPropertyPack(
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
   const firstName = pickGreetingName(lead, profileName);
-  const shouldAskName = Boolean(lead && lead.interaction_count <= 1 && !lead.nome_validado && !firstName);
-  const introText = shouldAskName
-    ? "Ola! Para te atender melhor, me confirma seu nome completo?"
-    : `Ola, ${firstName ?? "tudo bem"}! Que bom ter voce aqui. Separei os detalhes do imovel:`;
+  const introText = firstName
+    ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
+    : `Ola! Que bom ter voce aqui. Separei os detalhes do imovel:`;
   const flowGroup = crypto.randomUUID();
   let flowStep = 1;
 
@@ -426,6 +426,12 @@ async function sendPropertyPack(
     });
   }
 
+  const appUrl =
+    Deno.env.get("NEXT_PUBLIC_APP_URL") ??
+    Deno.env.get("APP_URL") ??
+    Deno.env.get("PUBLIC_APP_URL") ??
+    "";
+
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -434,7 +440,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "menu_prompt",
-      text: `${firstName ?? "Me diga"} como posso te ajudar agora:`,
+      text: firstName ? `${firstName}, como posso te ajudar agora:` : `Como posso te ajudar agora:`,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -469,6 +475,263 @@ async function sendPropertyPack(
   });
 }
 
+async function sendMainMenu(
+  supabase: ReturnType<typeof createClient>,
+  property: Record<string, unknown>,
+  leadPhone: string,
+  brokerPhone: string | null,
+  firstName: string,
+) {
+  const accountId = String(property.account_id);
+  const propertyId = String(property.id);
+  const flowGroup = crypto.randomUUID();
+  let flowStep = 1;
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_prompt", text: `${firstName}, como posso te ajudar agora:` },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_1", text: "1 - Agendar visita ao imovel" },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_2", text: "2 - Ver imoveis semelhantes" },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+}
+
+async function handleShowSimilarProperties(
+  supabase: ReturnType<typeof createClient>,
+  property: Record<string, unknown>,
+  lead: LeadSnapshot | null,
+  leadPhone: string,
+  brokerPhone: string | null,
+  firstName: string,
+  profileName: string | null,
+  informedName: string | null,
+  sessionId: string,
+): Promise<Response> {
+  await upsertLead(supabase, {
+    propertyId: String(property.id),
+    brokerId: String(property.broker_id),
+    leadPhone,
+    text: `Interesse em imoveis semelhantes`,
+    profileName,
+    informedName: informedName ?? null,
+    intent: "similar_property_interest",
+    interactionType: "similar_interest",
+    forceNameUpdate: false,
+  });
+
+  const { data: ranked } = await supabase.rpc("recommend_similar_properties", {
+    origin_property_id: property.id,
+    limit_count: 5,
+  });
+
+  const ids = (ranked ?? []).map((r: { id: string }) => r.id);
+
+  if (!ids.length) {
+    await queueOutbound(supabase, {
+      account_id: String(property.account_id),
+      property_id: String(property.id),
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "similar_empty",
+        text: `${firstName}, por enquanto nao encontrei imoveis semelhantes disponiveis.`,
+      },
+    });
+    await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
+    await supabase
+      .from("conversation_sessions")
+      .update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar" })
+      .eq("id", sessionId);
+    return json({ ok: true, state: "no_similar_back_to_menu" });
+  }
+
+  const { data: props } = await supabase
+    .from("properties")
+    .select("id, public_id, title, city, state, purpose, price")
+    .in("id", ids);
+
+  const { data: qrs } = await supabase
+    .from("property_qrcodes")
+    .select("property_id, qr_token")
+    .in("property_id", ids)
+    .eq("is_active", true);
+
+  const appUrl =
+    Deno.env.get("NEXT_PUBLIC_APP_URL") ??
+    Deno.env.get("APP_URL") ??
+    Deno.env.get("PUBLIC_APP_URL") ??
+    "";
+
+  const tokenById = new Map((qrs ?? []).map((q: { property_id: string; qr_token: string }) => [q.property_id, q.qr_token]));
+  const byId = new Map((props ?? []).map((p: Record<string, unknown>) => [p.id, p]));
+
+  const flowGroup = crypto.randomUUID();
+  let flowStep = 1;
+
+  await queueOutbound(supabase, {
+    account_id: String(property.account_id),
+    property_id: String(property.id),
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "similar_intro", text: `${firstName}, encontrei estas opcoes para voce:` },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const p = byId.get(id);
+    if (!p) continue;
+    const token = tokenById.get(id);
+    const link = token ? (appUrl ? `${appUrl}/q/${token}` : `/q/${token}`) : null;
+    const line = [
+      `*${i + 1}.* ${p.title || p.public_id}`,
+      [p.city, p.state].filter(Boolean).join(" / "),
+      p.price != null ? `R$ ${Number(p.price).toLocaleString("pt-BR")}` : null,
+      link ? `Link: ${link}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await queueOutbound(supabase, {
+      account_id: String(property.account_id),
+      property_id: String(p.id),
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: { kind: "similar_item", text: line },
+      flow_group: flowGroup,
+      flow_step: flowStep++,
+    });
+  }
+
+  await queueOutbound(supabase, {
+    account_id: String(property.account_id),
+    property_id: String(property.id),
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "similar_next_action",
+      text: `O que deseja fazer?\n1 - Agendar visita\n2 - Ver mais imoveis`,
+    },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+
+  await supabase
+    .from("conversation_sessions")
+    .update({
+      state: "awaiting_post_similar_choice",
+      last_menu: "post_similar",
+      last_recommended_properties: ids,
+    })
+    .eq("id", sessionId);
+
+  return json({ ok: true, state: "similar_shown", count: ids.length });
+}
+
+async function doRegisterVisit(
+  supabase: ReturnType<typeof createClient>,
+  property: Record<string, unknown>,
+  lead: LeadSnapshot | null,
+  leadPhone: string,
+  brokerPhone: string | null,
+  firstName: string,
+  sessionId: string,
+  lastMenu: string | null,
+  profileName: string | null,
+  interactionText: string,
+): Promise<void> {
+  await upsertLead(supabase, {
+    propertyId: String(property.id),
+    brokerId: String(property.broker_id),
+    leadPhone,
+    text: interactionText,
+    profileName,
+    informedName: null,
+    intent: "visit_interest",
+    interactionType: "visit_interest",
+    forceNameUpdate: false,
+  });
+
+  await queueOutbound(supabase, {
+    account_id: String(property.account_id),
+    property_id: String(property.id),
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "visit_registered",
+      text: `${firstName}, combinado! Ja registrei seu pedido de visita. O corretor vai falar com voce em instantes.`,
+      lead_id: lead?.id ?? null,
+    },
+  });
+
+  if (brokerPhone) {
+    await queueOutbound(supabase, {
+      account_id: String(property.account_id),
+      property_id: String(property.id),
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "broker_notification",
+        to_broker: true,
+        text: `Novo lead para visita no imovel ${property.public_id}. Cliente: ${leadPhone}. Nome: ${lead?.nome_completo || firstName}.`,
+      },
+    });
+  }
+
+  if (lastMenu !== "main_menu_post_similar") {
+    await queueOutbound(supabase, {
+      account_id: String(property.account_id),
+      property_id: String(property.id),
+      lead_phone: leadPhone,
+      broker_phone: brokerPhone,
+      message_type: "text",
+      payload: {
+        kind: "similar_question",
+        text: `${firstName}, quer que eu te mostre imoveis semelhantes tambem? (Responda SIM ou NAO)`,
+      },
+    });
+    await supabase
+      .from("conversation_sessions")
+      .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
+      .eq("id", sessionId);
+  } else {
+    await supabase
+      .from("conversation_sessions")
+      .update({ state: "closed" })
+      .eq("id", sessionId);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -495,7 +758,7 @@ Deno.serve(async (req) => {
 
     const { data: session } = await supabase
       .from("conversation_sessions")
-      .select("id, state, origin_property_id, current_property_id")
+      .select("id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, target_property_id")
       .eq("lead_phone", leadPhone)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -599,85 +862,59 @@ Deno.serve(async (req) => {
 
     if (session.state === "awaiting_main_choice") {
       if (matchChoice1(text)) {
-        const leadVisit = await upsertLead(supabase, {
-          propertyId: String(property.id),
-          brokerId: String(property.broker_id),
-          leadPhone,
-          text: `Interesse em visita: ${text}`,
-          profileName,
-          informedName: informedName ?? null,
-          intent: "visit_interest",
-          interactionType: "visit_interest",
-          forceNameUpdate: false,
-        });
+        if (!lead?.nome_validado) {
+          const confirmName = profileName ??
+            (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
 
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "visit_registered",
-            text: `${firstName}, combinado! Ja registrei seu pedido de visita. O corretor vai falar com voce em instantes.`,
-            lead_id: leadVisit?.id ?? null,
-          },
-        });
-
-        if (brokerPhone) {
-          await queueOutbound(supabase, {
-            account_id: property.account_id,
-            property_id: property.id,
-            lead_phone: leadPhone,
-            broker_phone: brokerPhone,
-            message_type: "text",
-            payload: {
-              kind: "broker_notification",
-              to_broker: true,
-              text: `Novo lead para visita no imovel ${property.public_id}. Cliente: ${leadPhone}. Nome: ${lead?.nome_completo ?? firstName}.`,
-            },
-          });
+          if (confirmName) {
+            await queueOutbound(supabase, {
+              account_id: property.account_id,
+              property_id: property.id,
+              lead_phone: leadPhone,
+              broker_phone: brokerPhone,
+              message_type: "text",
+              payload: {
+                kind: "name_confirmation",
+                text: `${firstName !== "tudo bem" ? firstName + ", a" : "A"}ntes de registrar sua visita: seu nome e ${confirmName}? (Responda SIM ou NAO)`,
+              },
+            });
+            await supabase
+              .from("conversation_sessions")
+              .update({ state: "awaiting_name_confirmation", last_menu: session.last_menu })
+              .eq("id", session.id);
+            return json({ ok: true, state: "awaiting_name_confirmation" });
+          } else {
+            await queueOutbound(supabase, {
+              account_id: property.account_id,
+              property_id: property.id,
+              lead_phone: leadPhone,
+              broker_phone: brokerPhone,
+              message_type: "text",
+              payload: {
+                kind: "name_request",
+                text: `Para agendar sua visita, pode me informar seu nome completo?`,
+              },
+            });
+            await supabase
+              .from("conversation_sessions")
+              .update({ state: "awaiting_name_input", last_menu: session.last_menu })
+              .eq("id", session.id);
+            return json({ ok: true, state: "awaiting_name_input" });
+          }
         }
 
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "similar_question",
-            text: `${firstName}, quer que eu te mostre imoveis semelhantes tambem? (Responda SIM ou NAO)`,
-          },
-        });
-
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
-          .eq("id", session.id);
-
+        await doRegisterVisit(
+          supabase, property, lead, leadPhone, brokerPhone,
+          firstName, session.id, session.last_menu, profileName,
+          `Interesse em visita: ${text}`,
+        );
         return json({ ok: true, state: "visit_registered" });
       }
 
       if (matchChoice2(text)) {
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "similar_question",
-            text: `${firstName}, otimo. Quer que eu te envie agora os imoveis mais parecidos? (Responda SIM ou NAO)`,
-          },
-        });
-
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
-          .eq("id", session.id);
-
-        return json({ ok: true, state: "asked_similar" });
+        return await handleShowSimilarProperties(
+          supabase, property, lead, leadPhone, brokerPhone, firstName, profileName, informedName, session.id,
+        );
       }
     }
 
@@ -714,8 +951,9 @@ Deno.serve(async (req) => {
             },
           });
 
-          await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
-          return json({ ok: true, state: "closed_no_similar" });
+          await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
+          await supabase.from("conversation_sessions").update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar" }).eq("id", session.id);
+          return json({ ok: true, state: "no_similar_back_to_menu" });
         }
 
         const { data: props } = await supabase
@@ -779,10 +1017,10 @@ Deno.serve(async (req) => {
 
         await supabase
           .from("conversation_sessions")
-          .update({ state: "recommendations_sent", last_recommended_properties: ids })
+          .update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar", last_recommended_properties: ids })
           .eq("id", session.id);
-
-        return json({ ok: true, state: "recommendations_sent", count: ids.length });
+        await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
+        return json({ ok: true, state: "recommendations_sent_back_to_menu", count: ids.length });
       }
 
       if (matchNo(text)) {
@@ -801,6 +1039,268 @@ Deno.serve(async (req) => {
         await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
         return json({ ok: true, state: "closed" });
       }
+    }
+
+    if (session.state === "awaiting_post_similar_choice") {
+      if (matchChoice1(text)) {
+        const count = Array.isArray(session.last_recommended_properties)
+          ? session.last_recommended_properties.length
+          : 0;
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "ask_property_id",
+            text: count > 0
+              ? `Qual o numero do imovel que deseja visitar? (1 a ${count})`
+              : `Qual o numero do imovel que deseja visitar?`,
+          },
+        });
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "awaiting_visit_property_id" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "awaiting_visit_property_id" });
+      }
+
+      if (matchChoice2(text)) {
+        return await handleShowSimilarProperties(
+          supabase, property, lead, leadPhone, brokerPhone, firstName, profileName, informedName, session.id,
+        );
+      }
+
+      if (matchNo(text)) {
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "close",
+            text: `${firstName}, tudo bem! Quando quiser, e so me chamar por aqui.`,
+          },
+        });
+        await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
+        return json({ ok: true, state: "closed" });
+      }
+
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "similar_next_action_retry",
+          text: `Responda:\n1 - Agendar visita\n2 - Ver mais imoveis`,
+        },
+      });
+      return json({ ok: true, state: "awaiting_post_similar_choice" });
+    }
+
+    if (session.state === "awaiting_visit_property_id") {
+      const recommended = Array.isArray(session.last_recommended_properties)
+        ? (session.last_recommended_properties as string[])
+        : [];
+      const num = parseInt(text.trim(), 10);
+
+      if (!isNaN(num) && num >= 1 && num <= recommended.length) {
+        const targetId = recommended[num - 1];
+
+        const { data: targetProp } = await supabase
+          .from("properties")
+          .select("id, public_id, broker_id, account_id")
+          .eq("id", targetId)
+          .maybeSingle();
+
+        if (targetProp) {
+          const hasName = lead?.nome_validado ||
+            profileName != null ||
+            (lead?.nome_completo && !isGenericName(lead.nome_completo));
+
+          if (hasName) {
+            await supabase
+              .from("conversation_sessions")
+              .update({ target_property_id: targetId, last_menu: "main_menu_post_similar" })
+              .eq("id", session.id);
+            await doRegisterVisit(
+              supabase, targetProp, lead, leadPhone, brokerPhone,
+              firstName, session.id, "main_menu_post_similar", profileName,
+              `Interesse em visita ao imovel ${targetProp.public_id}`,
+            );
+          } else {
+            const confirmName = profileName ??
+              (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
+            if (confirmName) {
+              await queueOutbound(supabase, {
+                account_id: property.account_id,
+                property_id: property.id,
+                lead_phone: leadPhone,
+                broker_phone: brokerPhone,
+                message_type: "text",
+                payload: {
+                  kind: "name_confirmation",
+                  text: `Antes de registrar sua visita: seu nome e ${confirmName}? (Responda SIM ou NAO)`,
+                },
+              });
+              await supabase
+                .from("conversation_sessions")
+                .update({ state: "awaiting_name_confirmation", last_menu: "main_menu_post_similar", target_property_id: targetId })
+                .eq("id", session.id);
+              return json({ ok: true, state: "awaiting_name_confirmation" });
+            } else {
+              await queueOutbound(supabase, {
+                account_id: property.account_id,
+                property_id: property.id,
+                lead_phone: leadPhone,
+                broker_phone: brokerPhone,
+                message_type: "text",
+                payload: {
+                  kind: "name_request",
+                  text: `Para agendar sua visita, pode me informar seu nome completo?`,
+                },
+              });
+              await supabase
+                .from("conversation_sessions")
+                .update({ state: "awaiting_name_input", last_menu: "main_menu_post_similar", target_property_id: targetId })
+                .eq("id", session.id);
+              return json({ ok: true, state: "awaiting_name_input" });
+            }
+          }
+          return json({ ok: true, state: "visit_registered" });
+        }
+      }
+
+      const count = recommended.length;
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "ask_property_id_retry",
+          text: count > 0
+            ? `Numero invalido. Responda com um numero de 1 a ${count}.`
+            : `Numero invalido. Responda com o numero do imovel desejado.`,
+        },
+      });
+      return json({ ok: true, state: "awaiting_visit_property_id" });
+    }
+
+    if (session.state === "awaiting_name_confirmation") {
+      const visitProperty = session.target_property_id
+        ? ((await supabase.from("properties").select("id, public_id, broker_id, account_id").eq("id", session.target_property_id).maybeSingle()).data ?? property)
+        : property;
+      const visitLastMenu = session.target_property_id ? "main_menu_post_similar" : session.last_menu;
+      const confirmName = profileName ??
+        (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
+
+      if (matchChoice1(text)) {
+        if (confirmName) {
+          const updatedLead = await upsertLead(supabase, {
+            propertyId: String(visitProperty.id),
+            brokerId: String(visitProperty.broker_id),
+            leadPhone,
+            text: `Nome confirmado: ${confirmName}`,
+            profileName,
+            informedName: confirmName,
+            intent: "visit_interest",
+            interactionType: "name_correction",
+            forceNameUpdate: true,
+          });
+          const confirmedFirstName = pickGreetingName(updatedLead, profileName) ?? firstName;
+          await doRegisterVisit(
+            supabase, visitProperty, updatedLead ?? lead, leadPhone, brokerPhone,
+            confirmedFirstName, session.id, visitLastMenu, profileName,
+            `Visita apos confirmacao de nome`,
+          );
+        } else {
+          await doRegisterVisit(
+            supabase, visitProperty, lead, leadPhone, brokerPhone,
+            firstName, session.id, visitLastMenu, profileName,
+            `Visita apos confirmacao de nome`,
+          );
+        }
+        return json({ ok: true, state: "visit_registered_after_name_confirm" });
+      }
+
+      if (matchNo(text)) {
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "name_request",
+            text: `Tudo bem! Qual e o seu nome completo?`,
+          },
+        });
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "awaiting_name_input" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "awaiting_name_input" });
+      }
+
+      await queueOutbound(supabase, {
+        account_id: property.account_id,
+        property_id: property.id,
+        lead_phone: leadPhone,
+        broker_phone: brokerPhone,
+        message_type: "text",
+        payload: {
+          kind: "name_confirmation_retry",
+          text: `Responda SIM para confirmar ou NAO para corrigir seu nome.`,
+        },
+      });
+      return json({ ok: true, state: "awaiting_name_confirmation" });
+    }
+
+    if (session.state === "awaiting_name_input") {
+      const visitProperty = session.target_property_id
+        ? ((await supabase.from("properties").select("id, public_id, broker_id, account_id").eq("id", session.target_property_id).maybeSingle()).data ?? property)
+        : property;
+      const visitLastMenu = session.target_property_id ? "main_menu_post_similar" : session.last_menu;
+      const rawName = text.trim();
+      if (rawName.length < 2 || matchChoice1(rawName) || matchChoice2(rawName)) {
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "name_request_retry",
+            text: `Por favor, me informe seu nome completo para eu registrar sua visita.`,
+          },
+        });
+        return json({ ok: true, state: "awaiting_name_input" });
+      }
+      const normalizedName = normalizePersonName(rawName);
+      const updatedLead = await upsertLead(supabase, {
+        propertyId: String(visitProperty.id),
+        brokerId: String(visitProperty.broker_id),
+        leadPhone,
+        text: `Nome informado: ${normalizedName}`,
+        profileName,
+        informedName: normalizedName,
+        intent: "visit_interest",
+        interactionType: "name_correction",
+        forceNameUpdate: true,
+      });
+      const newFirstName = normalizedName.split(" ")[0] || firstName;
+      await doRegisterVisit(
+        supabase, visitProperty, updatedLead ?? lead, leadPhone, brokerPhone,
+        newFirstName, session.id, visitLastMenu, profileName,
+        `Visita apos coleta de nome`,
+      );
+      return json({ ok: true, state: "visit_registered_after_name_input" });
     }
 
     await queueOutbound(supabase, {
