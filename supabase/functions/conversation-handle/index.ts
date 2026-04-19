@@ -736,6 +736,7 @@ async function sendTypingNow(leadPhone: string): Promise<void> {
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL") ?? "";
   const token = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
   const endpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT") ?? "";
+  console.log("[typing] baseUrl:", baseUrl ? "set" : "MISSING", "endpoint:", endpoint || "MISSING", "phone:", leadPhone);
   if (!baseUrl || !endpoint) return;
 
   const url = endpoint.startsWith("http")
@@ -746,13 +747,15 @@ async function sendTypingNow(leadPhone: string): Promise<void> {
   if (token) headers["token"] = token;
 
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify({ number: leadPhone, presence: "composing" }),
     });
-  } catch {
-    // typing é best-effort, nunca bloqueia o fluxo
+    const body = await res.text();
+    console.log("[typing] url:", url, "status:", res.status, "response:", body);
+  } catch (err) {
+    console.error("[typing] error:", err);
   }
 }
 
