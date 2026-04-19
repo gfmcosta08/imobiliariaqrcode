@@ -1,4 +1,4 @@
-﻿﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿﻿﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_BATCH = 12;
@@ -459,7 +459,15 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      const payloadKind = typeof row.payload?.kind === "string" ? row.payload.kind : "";
+      if (payloadKind === "menu_option_3") {
+        await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+        sent.push(row.id);
+        continue;
+      }
+
       try {
+        const rowToSend = row;
         await supabase
           .from("whatsapp_messages")
           .update({ status: "processing" })
@@ -475,7 +483,7 @@ Deno.serve(async (req) => {
           typingHeartbeatMs,
         });
 
-        const result = await sendViaUazapi(baseUrl, apiToken, row);
+        const result = await sendViaUazapi(baseUrl, apiToken, rowToSend);
         if (!result.ok) {
           const errDetail = (result as { ok: false; detail: string }).detail;
           failed.push({ id: row.id, error: errDetail });
@@ -484,7 +492,7 @@ Deno.serve(async (req) => {
             .update({
               status: "failed",
               payload: {
-                ...(row.payload ?? {}),
+                ...(rowToSend.payload ?? {}),
                 dispatch_error: errDetail,
                 dispatch_failed_at: new Date().toISOString(),
               },
@@ -502,7 +510,7 @@ Deno.serve(async (req) => {
             sent_at: new Date().toISOString(),
             provider_message_id: okResult.provider_message_id,
             payload: {
-              ...(row.payload ?? {}),
+              ...(rowToSend.payload ?? {}),
               provider_response: okResult.response,
             },
           })
