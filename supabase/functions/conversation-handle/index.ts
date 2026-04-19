@@ -771,7 +771,7 @@ Deno.serve(async (req) => {
     }
 
     // dispara "digitando" imediatamente para o cliente saber que o sistema recebeu
-    sendTypingNow(leadPhone);
+    await sendTypingNow(leadPhone);
 
     const profileName = extractProfileName(body.payload);
     const correctedName = parseNameCorrection(text);
