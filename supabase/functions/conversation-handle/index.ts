@@ -45,12 +45,6 @@ function matchChoice2(text: string): boolean {
   return /\b(mais\s+imoveis|imoveis\s+(parecidos|similares)|outros\s+imoveis|ver\s+mais)\b/.test(t);
 }
 
-function matchChoice3(text: string): boolean {
-  const t = text.toLowerCase().trim();
-  if (/^3$/.test(t)) return true;
-  return /\b(anunciar?|anunciem|divulgar|publicar|vender\s+meu\s+imovel)\b/.test(t);
-}
-
 function matchNo(text: string): boolean {
   const t = text.toLowerCase().trim();
   return /^(nao|não|n|no|0)$/.test(t) || /^nao\b/.test(t) || /^não\b/.test(t);
@@ -432,12 +426,6 @@ async function sendPropertyPack(
     });
   }
 
-  const appUrl =
-    Deno.env.get("NEXT_PUBLIC_APP_URL") ??
-    Deno.env.get("APP_URL") ??
-    Deno.env.get("PUBLIC_APP_URL") ??
-    "";
-
   await queueOutbound(supabase, {
     account_id: accountId,
     property_id: propertyId,
@@ -475,20 +463,6 @@ async function sendPropertyPack(
     payload: {
       kind: "menu_option_2",
       text: "2 - Ver imoveis semelhantes",
-    },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: {
-      kind: "menu_option_3",
-      text: `3 - Anunciar um imovel conosco${appUrl ? ` (${appUrl})` : ""}`,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -705,45 +679,6 @@ Deno.serve(async (req) => {
 
         return json({ ok: true, state: "asked_similar" });
       }
-
-      if (matchChoice3(text)) {
-        const appUrl =
-          Deno.env.get("NEXT_PUBLIC_APP_URL") ??
-          Deno.env.get("APP_URL") ??
-          Deno.env.get("PUBLIC_APP_URL") ??
-          "";
-
-        await upsertLead(supabase, {
-          propertyId: String(property.id),
-          brokerId: String(property.broker_id),
-          leadPhone,
-          text: `Interesse em anunciar: ${text}`,
-          profileName,
-          informedName: informedName ?? null,
-          intent: "similar_property_interest",
-          interactionType: "advertise_interest",
-          forceNameUpdate: false,
-        });
-
-        await queueOutbound(supabase, {
-          account_id: property.account_id,
-          property_id: property.id,
-          lead_phone: leadPhone,
-          broker_phone: brokerPhone,
-          message_type: "text",
-          payload: {
-            kind: "close_advertise",
-            text: `${firstName}, excelente! ${appUrl ? `Acesse ${appUrl} para anunciar com a gente.` : "Nosso time vai te orientar para anunciar com a gente."}`,
-          },
-        });
-
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "closed", last_menu: "advertise" })
-          .eq("id", session.id);
-
-        return json({ ok: true, state: "closed_advertise" });
-      }
     }
 
     if (session.state === "awaiting_recommendation_choice") {
@@ -876,7 +811,7 @@ Deno.serve(async (req) => {
       message_type: "text",
       payload: {
         kind: "help",
-        text: `${firstName}, para te ajudar melhor, responda com 1, 2 ou 3.`,
+        text: `${firstName}, para te ajudar melhor, responda com 1 ou 2.`,
       },
     });
 
