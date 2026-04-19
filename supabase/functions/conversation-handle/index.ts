@@ -732,6 +732,30 @@ async function doRegisterVisit(
   }
 }
 
+async function sendTypingNow(leadPhone: string): Promise<void> {
+  const baseUrl = Deno.env.get("UAZAPI_BASE_URL") ?? "";
+  const token = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
+  const endpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT") ?? "";
+  if (!baseUrl || !endpoint) return;
+
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${baseUrl.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`;
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["token"] = token;
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ number: leadPhone, status: "composing", presence: "composing", type: "composing" }),
+    });
+  } catch {
+    // typing é best-effort, nunca bloqueia o fluxo
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -745,6 +769,9 @@ Deno.serve(async (req) => {
     if (!leadPhone || !text) {
       return json({ ok: false, error: "missing_input" }, 400);
     }
+
+    // dispara "digitando" imediatamente para o cliente saber que o sistema recebeu
+    sendTypingNow(leadPhone);
 
     const profileName = extractProfileName(body.payload);
     const correctedName = parseNameCorrection(text);
