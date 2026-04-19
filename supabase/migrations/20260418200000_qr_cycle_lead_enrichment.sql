@@ -24,6 +24,7 @@ create index if not exists idx_qr_access_events_token_created
 alter table public.qr_access_events enable row level security;
 
 -- Permite que o corretor veja leituras apenas dos próprios imóveis.
+drop policy if exists "qr_access_events_select_own_property" on public.qr_access_events;
 create policy "qr_access_events_select_own_property"
 on public.qr_access_events
 for select
@@ -113,6 +114,7 @@ create index if not exists idx_leads_phone
 create index if not exists idx_lead_interactions_lead_created
   on public.lead_interactions (lead_id, created_at desc);
 
+drop policy if exists "leads_update_own_broker" on public.leads;
 create policy "leads_update_own_broker"
 on public.leads
 for update
