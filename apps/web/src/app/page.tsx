@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -42,57 +42,108 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-zinc-950">
-      <main className="max-w-5xl text-center">
-        <p className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Imobiliária QR Code
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          QR, leads e Supabase
-        </h1>
-        <p className="mt-4 text-balance text-zinc-600 dark:text-zinc-400">
-          Painel para corretores, página pública do QR com recomendações e registro de interesse.
-          Integrações de WhatsApp API e cobrança ficam para a fase final.
-        </p>
-
-        <div className="mt-8 grid grid-cols-1 gap-3 text-left sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Imóveis cadastrados</p>
-            <p className="mt-1 text-2xl font-semibold">{metrics.total_properties}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Imóveis vendidos</p>
-            <p className="mt-1 text-2xl font-semibold">{metrics.total_sold}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Clientes atendidos</p>
-            <p className="mt-1 text-2xl font-semibold">{metrics.total_clients}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Corretores ativos</p>
-            <p className="mt-1 text-2xl font-semibold">{metrics.active_brokers}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs text-zinc-500">Comissão total</p>
-            <p className="mt-1 text-2xl font-semibold">{formatBRL(metrics.total_commission)}</p>
-          </div>
+    <div className="flex min-h-screen flex-col bg-white dark:bg-zinc-950">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/95 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <span className="font-display text-xl font-normal tracking-tight text-zinc-900 dark:text-zinc-50">
+            ImobQR
+          </span>
+          <nav className="flex items-center gap-6">
+            <Link
+              href="/dashboard"
+              className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              Painel
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-none border border-zinc-900 px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-900 hover:text-white dark:border-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-100 dark:hover:text-zinc-900"
+            >
+              Entrar
+            </Link>
+          </nav>
         </div>
+      </header>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <Link
-            href="/login"
-            className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            Entrar ou cadastrar
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-full border border-zinc-300 px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
-            Painel
-          </Link>
-        </div>
+      <main className="flex flex-1 flex-col">
+        {/* Hero */}
+        <section className="mx-auto flex w-full max-w-6xl flex-col items-start px-6 py-24 lg:py-36">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+            Plataforma imobiliária
+          </p>
+          <h1 className="font-display mt-4 max-w-2xl text-5xl font-normal leading-tight tracking-tight text-zinc-900 dark:text-zinc-50 lg:text-6xl">
+            Imóveis com QR, leads e inteligência
+          </h1>
+          <p className="mt-6 max-w-lg text-lg leading-relaxed text-zinc-500 dark:text-zinc-400">
+            Painel completo para corretores: QR Code por imóvel, captura automática de leads via
+            WhatsApp e recomendações inteligentes.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <Link
+              href="/login"
+              className="bg-zinc-900 px-8 py-3.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              Começar agora
+            </Link>
+            <Link
+              href="/dashboard"
+              className="border border-zinc-300 px-8 py-3.5 text-sm font-medium text-zinc-900 transition hover:border-zinc-900 dark:border-zinc-600 dark:text-zinc-100 dark:hover:border-zinc-300"
+            >
+              Acessar painel
+            </Link>
+          </div>
+        </section>
+
+        {/* Divider */}
+        <div className="border-t border-zinc-100 dark:border-zinc-800" />
+
+        {/* Metrics */}
+        <section className="mx-auto w-full max-w-6xl px-6 py-16">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+            Números da plataforma
+          </p>
+          <div className="mt-8 grid grid-cols-2 gap-x-12 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
+              <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {metrics.total_properties}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Imóveis cadastrados</p>
+            </div>
+            <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
+              <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {metrics.total_sold}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Imóveis vendidos</p>
+            </div>
+            <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
+              <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {metrics.total_clients}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Clientes atendidos</p>
+            </div>
+            <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
+              <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {metrics.active_brokers}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Corretores ativos</p>
+            </div>
+            <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
+              <p className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {formatBRL(metrics.total_commission)}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Comissão total</p>
+            </div>
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t border-zinc-100 dark:border-zinc-800">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+          <span className="font-display text-sm text-zinc-400">ImobQR</span>
+          <p className="text-xs text-zinc-400">Plataforma imobiliária</p>
+        </div>
+      </footer>
     </div>
   );
 }

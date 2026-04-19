@@ -46,45 +46,62 @@ export function PublicQrActive({ body }: Props) {
   }, [targetLink]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
-      <div className="mx-auto flex max-w-lg flex-col px-4 py-10">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <div className="mx-auto flex max-w-lg flex-col px-6 py-12">
+        {/* Badge de finalidade */}
+        <span className="inline-flex w-fit items-center bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-widest text-white dark:bg-zinc-100 dark:text-zinc-900">
           {purposeLabel(listing.purpose)}
-          {priceStr ? ` · ${priceStr}` : ""}
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold leading-tight text-zinc-900 dark:text-zinc-50">
+        </span>
+
+        {/* Headline */}
+        <h1 className="font-display mt-5 text-3xl font-normal leading-tight text-zinc-900 dark:text-zinc-50">
           {headline}
         </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {[listing.city, listing.state].filter(Boolean).join(" / ")}
+
+        {/* Localização */}
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          {[listing.city, listing.state].filter(Boolean).join(" · ")}
         </p>
 
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            Abrindo o WhatsApp do atendimento...
+        {/* Preço */}
+        {priceStr ? (
+          <p className="mt-4 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+            {priceStr}
           </p>
+        ) : null}
+
+        {/* Card de ação */}
+        <div className="mt-8 border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Abrindo o atendimento via WhatsApp...
+          </p>
+
           {targetLink ? (
             <a
               href={targetLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="mt-5 inline-flex w-full items-center justify-center bg-zinc-900 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              Abrir WhatsApp agora
+              Abrir WhatsApp
             </a>
           ) : (
-            <p className="mt-3 text-sm text-red-600">Numero do bot nao configurado.</p>
+            <p className="mt-3 text-sm text-red-600">Número do bot não configurado.</p>
           )}
 
           {autoStatus === "pending" ? (
-            <p className="mt-3 text-xs text-zinc-500">Se nao abrir automaticamente, toque no botao acima.</p>
+            <p className="mt-3 text-xs text-zinc-400">
+              Se não abrir automaticamente, toque no botão acima.
+            </p>
           ) : null}
           {autoStatus === "failed" ? (
-            <p className="mt-3 text-xs text-red-600">Nao foi possivel abrir automaticamente neste navegador.</p>
+            <p className="mt-3 text-xs text-red-500">
+              Não foi possível abrir automaticamente neste navegador.
+            </p>
           ) : null}
         </div>
 
-        <p className="mt-8 text-center text-xs text-zinc-500">Ref. {publicId}</p>
+        <p className="mt-10 text-center text-xs text-zinc-400">Ref. {publicId}</p>
       </div>
     </div>
   );
