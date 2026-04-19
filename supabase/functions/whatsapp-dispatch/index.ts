@@ -10,6 +10,7 @@ type QueueRow = {
   payload: Record<string, unknown>;
   lead_phone: string | null;
   broker_phone: string | null;
+  scheduled_for: string | null;
   created_at: string;
 };
 
@@ -166,12 +167,146 @@ async function sendImageViaMultipart(
   };
 }
 
+function toInt(value: string | null | undefined, fallback: number): number {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function sleep(ms: number) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomBetween(min: number, max: number): number {
+  if (max <= min) return min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function isAbsoluteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+function normalizePath(path: string): string {
+  if (!path) return "";
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+function resolveTargetPhone(row: QueueRow): { to: string | null; toBroker: boolean } {
+  const toBroker = row.payload?.to_broker === true;
+  const toRaw = toBroker ? row.broker_phone : row.lead_phone;
+  if (!toRaw) return { to: null, toBroker };
+
+  const to = normalizePhone(String(toRaw));
+  if (!to) return { to: null, toBroker };
+  return { to, toBroker };
+}
+
+function getPayloadDelayMs(row: QueueRow): number | null {
+  const raw = row.payload?.delay_ms;
+  if (raw == null) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.floor(parsed));
+}
+
+function getWaitMs(
+  row: QueueRow,
+  defaultDelayMinMs: number,
+  defaultDelayMaxMs: number,
+): number {
+  const payloadDelay = getPayloadDelayMs(row);
+  if (payloadDelay != null) return payloadDelay;
+
+  if (row.scheduled_for) {
+    const scheduledTs = new Date(row.scheduled_for).getTime();
+    if (Number.isFinite(scheduledTs)) {
+      const remaining = scheduledTs - Date.now();
+      if (remaining > 0) return remaining;
+    }
+  }
+
+  return randomBetween(defaultDelayMinMs, defaultDelayMaxMs);
+}
+
+async function sendTypingPresence(
+  baseUrl: string,
+  token: string | null,
+  endpoint: string,
+  to: string,
+  state: "composing" | "paused",
+) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.token = token;
+
+  try {
+    const url = isAbsoluteUrl(endpoint)
+      ? endpoint
+      : `${baseUrl.replace(/\/$/, "")}${normalizePath(endpoint)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        number: to,
+        status: state,
+        presence: state,
+        type: state,
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("typing_presence_failed", { to, state, status: res.status, detail });
+    }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("typing_presence_error", { to, state, detail });
+  }
+}
+
+async function waitWithTyping(
+  row: QueueRow,
+  waitMs: number,
+  config: {
+    baseUrl: string;
+    token: string | null;
+    typingEndpoint: string | null;
+    typingHeartbeatMs: number;
+  },
+) {
+  if (waitMs <= 0) return;
+
+  const { to, toBroker } = resolveTargetPhone(row);
+  const typingEnabled = !toBroker && !!to && !!config.typingEndpoint;
+  if (!typingEnabled) {
+    await sleep(waitMs);
+    return;
+  }
+
+  const target = to as string;
+  const endpoint = config.typingEndpoint as string;
+  const heartbeatMs = Math.max(250, config.typingHeartbeatMs);
+  const deadline = Date.now() + waitMs;
+
+  await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
+
+  while (true) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await sleep(Math.min(heartbeatMs, remaining));
+    if (deadline - Date.now() > 0) {
+      await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
+    }
+  }
+
+  await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "paused");
+}
+
 async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRow) {
   const toRaw = row.payload?.to_broker ? row.broker_phone : row.lead_phone;
   if (!toRaw) {
     return { ok: false, detail: "missing_target_phone" };
   }
-
   const to = normalizePhone(String(toRaw));
   if (!to) {
     return { ok: false, detail: "invalid_target_phone" };
@@ -279,6 +414,10 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+  const typingEndpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT");
+  const typingHeartbeatMs = toInt(Deno.env.get("UAZAPI_TYPING_HEARTBEAT_MS"), 3500);
+  const defaultDelayMinMs = Math.max(0, toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MIN_MS"), 2000));
+  const defaultDelayMaxMs = Math.max(defaultDelayMinMs, toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MAX_MS"), 5000));
 
   const sent: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
@@ -289,7 +428,7 @@ Deno.serve(async (req) => {
 
     const { data: rows, error } = await supabase
       .from("whatsapp_messages")
-      .select("id, message_type, payload, lead_phone, broker_phone, created_at")
+      .select("id, message_type, payload, lead_phone, broker_phone, scheduled_for, created_at")
       .eq("direction", "outbound")
       .eq("status", "queued")
       .order("created_at", { ascending: true })
@@ -326,6 +465,15 @@ Deno.serve(async (req) => {
           .update({ status: "processing" })
           .eq("id", row.id)
           .eq("status", "queued");
+
+        const { toBroker } = resolveTargetPhone(row);
+        const waitMs = toBroker ? 0 : getWaitMs(row, defaultDelayMinMs, defaultDelayMaxMs);
+        await waitWithTyping(row, waitMs, {
+          baseUrl,
+          token: apiToken,
+          typingEndpoint,
+          typingHeartbeatMs,
+        });
 
         const result = await sendViaUazapi(baseUrl, apiToken, row);
         if (!result.ok) {
