@@ -749,7 +749,7 @@ async function sendTypingNow(leadPhone: string): Promise<void> {
     await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ number: leadPhone, status: "composing", presence: "composing", type: "composing" }),
+      body: JSON.stringify({ number: leadPhone, presence: "composing" }),
     });
   } catch {
     // typing é best-effort, nunca bloqueia o fluxo

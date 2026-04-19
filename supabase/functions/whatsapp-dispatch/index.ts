@@ -249,9 +249,7 @@ async function sendTypingPresence(
       headers,
       body: JSON.stringify({
         number: to,
-        status: state,
         presence: state,
-        type: state,
       }),
     });
     if (!res.ok) {
