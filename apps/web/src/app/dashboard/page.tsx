@@ -55,176 +55,158 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/95 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
           <Link href="/">
-            <span className="font-display text-xl font-normal tracking-tight text-zinc-900 dark:text-zinc-50">
-              ImobQR
+            <span className="text-sm font-bold uppercase tracking-widest text-gray-900">
+              IMOBQR
             </span>
           </Link>
-          <nav className="flex items-center gap-6">
+          <nav className="hidden items-center gap-8 md:flex">
             <Link
               href="/properties"
-              className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="text-sm text-gray-600 transition hover:text-gray-900"
             >
               Imóveis
             </Link>
-            <Link
-              href="/leads"
-              className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
+            <Link href="/leads" className="text-sm text-gray-600 transition hover:text-gray-900">
               Leads
             </Link>
-            <Link
-              href="/plans"
-              className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
+            <Link href="/plans" className="text-sm text-gray-600 transition hover:text-gray-900">
               Planos
             </Link>
-            <Link
-              href="/profile"
-              className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
+            <Link href="/partner" className="text-sm text-gray-600 transition hover:text-gray-900">
+              Parceiros
+            </Link>
+            <Link href="/profile" className="text-sm text-gray-600 transition hover:text-gray-900">
               Perfil
             </Link>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
-                Sair
-              </button>
-            </form>
           </nav>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:border-gray-500 hover:text-gray-900"
+            >
+              Sair
+            </button>
+          </form>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-6xl px-8 py-12">
         {/* Saudação */}
-        <div className="mb-10">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Painel</p>
-          <h1 className="font-display mt-2 text-4xl font-normal text-zinc-900 dark:text-zinc-50">
-            {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
-          </h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">Bem-vindo ao seu painel de corretagem.</p>
+
+        {/* Acesso rápido */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/properties"
+            className="bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+          >
+            Meus Imóveis
+          </Link>
+          <Link
+            href="/leads"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+          >
+            Leads
+          </Link>
+          <Link
+            href="/plans"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+          >
+            Planos
+          </Link>
+          <Link
+            href="/partner"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+          >
+            Portal parceiro
+          </Link>
         </div>
 
         {/* Info da conta */}
-        <div className="border border-zinc-100 p-6 dark:border-zinc-800">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Conta</p>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-10 border border-gray-200 p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
+            Minha conta
+          </h2>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <p className="text-xs text-zinc-400">E-mail</p>
-              <p className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">
-                {user?.email ?? "—"}
-              </p>
+              <p className="text-xs text-gray-400">E-mail</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">{user?.email ?? "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400">Nome</p>
-              <p className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">
+              <p className="text-xs text-gray-400">Nome</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">
                 {profile?.full_name ?? "—"}
               </p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400">WhatsApp</p>
-              <p className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">
+              <p className="text-xs text-gray-400">WhatsApp</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">
                 {profile?.whatsapp_number ?? "—"}
               </p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400">Plano</p>
-              <p className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">
-                {subscription?.plan_code?.toUpperCase() ?? "FREE"}{" "}
-                <span className="text-zinc-400">({subscription?.status ?? "—"})</span>
+              <p className="text-xs text-gray-400">Plano</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">
+                {subscription?.plan_code?.toUpperCase() ?? "FREE"}
+                {" · "}
+                <span className="text-gray-400">{subscription?.status ?? "—"}</span>
               </p>
             </div>
           </div>
           <Link
             href="/profile"
-            className="mt-5 inline-block text-xs text-zinc-500 underline underline-offset-2 transition hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="mt-5 inline-block text-sm font-medium text-[#0055d2] transition hover:underline"
           >
             Editar perfil
           </Link>
         </div>
 
-        {/* Métricas PRO */}
+        {/* Métricas */}
         {isPro ? (
           <div className="mt-8">
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Métricas</p>
-            <div className="mt-6 grid grid-cols-2 gap-x-12 gap-y-8 sm:grid-cols-4">
-              <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
-                <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {metrics.total_properties}
-                </p>
-                <p className="mt-1 text-xs text-zinc-400">Imóveis cadastrados</p>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Métricas</h2>
+            <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
+              <div className="border border-gray-200 p-5">
+                <p className="text-3xl font-bold text-gray-900">{metrics.total_properties}</p>
+                <p className="mt-1 text-xs text-gray-500">Imóveis cadastrados</p>
               </div>
-              <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
-                <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {metrics.total_sold}
-                </p>
-                <p className="mt-1 text-xs text-zinc-400">Imóveis vendidos</p>
+              <div className="border border-gray-200 p-5">
+                <p className="text-3xl font-bold text-gray-900">{metrics.total_sold}</p>
+                <p className="mt-1 text-xs text-gray-500">Imóveis vendidos</p>
               </div>
-              <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
-                <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {metrics.total_clients}
-                </p>
-                <p className="mt-1 text-xs text-zinc-400">Clientes atendidos</p>
+              <div className="border border-gray-200 p-5">
+                <p className="text-3xl font-bold text-gray-900">{metrics.total_clients}</p>
+                <p className="mt-1 text-xs text-gray-500">Clientes atendidos</p>
               </div>
-              <div className="border-l-2 border-zinc-900 pl-4 dark:border-zinc-100">
-                <p className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+              <div className="border border-gray-200 p-5">
+                <p className="text-2xl font-bold text-gray-900">
                   {formatBRL(metrics.total_commission)}
                 </p>
-                <p className="mt-1 text-xs text-zinc-400">Comissão acumulada</p>
+                <p className="mt-1 text-xs text-gray-500">Comissão acumulada</p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="mt-8 border border-zinc-100 p-6 dark:border-zinc-800">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="mt-8 border border-gray-200 bg-gray-50 p-6">
+            <p className="text-sm text-gray-600">
               Métricas detalhadas disponíveis no plano PRO.
             </p>
             <Link
               href="/plans"
-              className="mt-4 inline-block bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="mt-4 inline-block bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
             >
               Ver planos
             </Link>
           </div>
         )}
-
-        {/* Navegação rápida */}
-        <div className="mt-12 border-t border-zinc-100 pt-10 dark:border-zinc-800">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-            Acesso rápido
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href="/properties"
-              className="border border-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-900 hover:text-white dark:border-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-100 dark:hover:text-zinc-900"
-            >
-              Imóveis
-            </Link>
-            <Link
-              href="/leads"
-              className="border border-zinc-300 px-5 py-2.5 text-sm text-zinc-700 transition hover:border-zinc-900 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-zinc-300"
-            >
-              Leads
-            </Link>
-            <Link
-              href="/plans"
-              className="border border-zinc-300 px-5 py-2.5 text-sm text-zinc-700 transition hover:border-zinc-900 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-zinc-300"
-            >
-              Planos
-            </Link>
-            <Link
-              href="/partner"
-              className="border border-zinc-300 px-5 py-2.5 text-sm text-zinc-700 transition hover:border-zinc-900 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-zinc-300"
-            >
-              Portal parceiro
-            </Link>
-          </div>
-        </div>
       </main>
     </div>
   );

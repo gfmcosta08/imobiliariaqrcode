@@ -48,108 +48,138 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-zinc-950">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-10 text-center">
+    <div className="flex min-h-screen bg-white">
+      {/* Lado esquerdo — foto */}
+      <div
+        className="hidden w-1/2 lg:block"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="flex h-full flex-col justify-between bg-black/30 p-10">
           <Link href="/">
-            <span className="font-display text-2xl font-normal tracking-tight text-zinc-900 dark:text-zinc-50">
-              ImobQR
-            </span>
+            <span className="text-sm font-bold uppercase tracking-widest text-white">IMOBQR</span>
           </Link>
+          <p className="text-2xl font-bold leading-snug text-white">
+            A plataforma de QR Code para corretores de imóveis.
+          </p>
         </div>
+      </div>
 
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          {mode === "login" ? "Entrar na sua conta" : "Criar conta"}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {mode === "login"
-            ? "Acesse seu painel de imóveis e leads."
-            : "Conta gratuita com 1 imóvel ativo."}
-        </p>
+      {/* Lado direito — formulário */}
+      <div className="flex w-full flex-col items-center justify-center px-8 lg:w-1/2">
+        <div className="w-full max-w-md">
+          {/* Logo mobile */}
+          <div className="mb-8 lg:hidden">
+            <Link href="/">
+              <span className="text-sm font-bold uppercase tracking-widest text-gray-900">
+                IMOBQR
+              </span>
+            </Link>
+          </div>
 
-        <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-6">
-          {mode === "signup" ? (
-            <>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">Nome completo</span>
-                <input
-                  type="text"
-                  autoComplete="name"
-                  required={mode === "signup"}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="border-b border-zinc-300 bg-transparent pb-2 text-zinc-900 outline-none transition focus:border-zinc-900 dark:border-zinc-600 dark:text-zinc-50 dark:focus:border-zinc-100"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">WhatsApp</span>
-                <input
-                  type="tel"
-                  autoComplete="tel"
-                  required={mode === "signup"}
-                  placeholder="+55 11 99999-0000"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="border-b border-zinc-300 bg-transparent pb-2 text-zinc-900 outline-none transition focus:border-zinc-900 dark:border-zinc-600 dark:text-zinc-50 dark:focus:border-zinc-100"
-                />
-              </label>
-            </>
-          ) : null}
+          <h1 className="text-2xl font-bold text-gray-900">
+            {mode === "login" ? "Entrar na sua conta" : "Criar conta gratuita"}
+          </h1>
+          <p className="mt-2 text-sm text-gray-500">
+            {mode === "login"
+              ? "Acesse seu painel de imóveis e leads."
+              : "1 imóvel ativo grátis. Sem cartão de crédito."}
+          </p>
 
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">E-mail</span>
-            <input
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border-b border-zinc-300 bg-transparent pb-2 text-zinc-900 outline-none transition focus:border-zinc-900 dark:border-zinc-600 dark:text-zinc-50 dark:focus:border-zinc-100"
-            />
-          </label>
+          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+            {mode === "signup" ? (
+              <>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Nome completo
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    autoComplete="tel"
+                    required
+                    placeholder="+55 11 99999-0000"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                  />
+                </div>
+              </>
+            ) : null}
 
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">Senha</span>
-            <input
-              type="password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border-b border-zinc-300 bg-transparent pb-2 text-zinc-900 outline-none transition focus:border-zinc-900 dark:border-zinc-600 dark:text-zinc-50 dark:focus:border-zinc-100"
-            />
-          </label>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">E-mail</label>
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+              />
+            </div>
 
-          {error ? (
-            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-              {error}
-            </p>
-          ) : null}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Senha</label>
+              <input
+                type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full bg-zinc-900 py-3.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
-          </button>
-        </form>
+            {error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
 
-        <button
-          type="button"
-          className="mt-6 w-full text-center text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-          onClick={() => setMode(mode === "login" ? "signup" : "login")}
-        >
-          {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-        </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#0055d2] py-3.5 text-sm font-semibold text-white transition hover:bg-[#0044b0] disabled:opacity-50"
+            >
+              {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
+            </button>
+          </form>
 
-        <p className="mt-8 text-center text-xs text-zinc-400">
-          <Link href="/" className="hover:text-zinc-700 dark:hover:text-zinc-200">
-            ← Voltar ao início
-          </Link>
-        </p>
+          <p className="mt-6 text-center text-sm text-gray-500">
+            {mode === "login" ? "Não tem conta? " : "Já tem conta? "}
+            <button
+              type="button"
+              className="font-medium text-[#0055d2] transition hover:underline"
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            >
+              {mode === "login" ? "Cadastre-se" : "Entrar"}
+            </button>
+          </p>
+
+          <p className="mt-8 text-center text-xs text-gray-400">
+            <Link href="/" className="transition hover:text-gray-700">
+              ← Voltar ao início
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

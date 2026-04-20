@@ -33,7 +33,6 @@ export function PublicQrActive({ body }: Props) {
       setAutoStatus("failed");
       return;
     }
-
     const t = window.setTimeout(() => {
       try {
         window.location.href = targetLink;
@@ -46,62 +45,62 @@ export function PublicQrActive({ body }: Props) {
   }, [targetLink]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <div className="mx-auto flex max-w-lg flex-col px-6 py-12">
-        {/* Badge de finalidade */}
-        <span className="inline-flex w-fit items-center bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-widest text-white dark:bg-zinc-100 dark:text-zinc-900">
+    <div className="min-h-screen bg-white">
+      {/* Nav */}
+      <header className="border-b border-gray-200 bg-white px-6 py-4">
+        <span className="text-xs font-bold uppercase tracking-widest text-gray-900">IMOBQR</span>
+      </header>
+
+      <div className="mx-auto max-w-lg px-6 py-10">
+        {/* Badge finalidade */}
+        <span className="inline-block bg-[#0055d2] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
           {purposeLabel(listing.purpose)}
         </span>
 
-        {/* Headline */}
-        <h1 className="font-display mt-5 text-3xl font-normal leading-tight text-zinc-900 dark:text-zinc-50">
-          {headline}
-        </h1>
+        {/* Título */}
+        <h1 className="mt-4 text-3xl font-bold leading-tight text-gray-900">{headline}</h1>
 
         {/* Localização */}
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          {[listing.city, listing.state].filter(Boolean).join(" · ")}
+        <p className="mt-2 text-sm text-gray-500">
+          {[listing.city, listing.state].filter(Boolean).join(", ")}
         </p>
 
         {/* Preço */}
         {priceStr ? (
-          <p className="mt-4 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-            {priceStr}
+          <p className="mt-4 text-2xl font-bold text-gray-900">{priceStr}</p>
+        ) : null}
+
+        {/* Separador */}
+        <div className="my-6 border-t border-gray-200" />
+
+        {/* Card de ação */}
+        <p className="text-sm text-gray-600">Abrindo o atendimento via WhatsApp...</p>
+
+        {targetLink ? (
+          <a
+            href={targetLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 flex w-full items-center justify-center bg-[#0055d2] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#0044b0]"
+          >
+            Abrir WhatsApp
+          </a>
+        ) : (
+          <p className="mt-3 text-sm text-red-600">Número do bot não configurado.</p>
+        )}
+
+        {autoStatus === "pending" ? (
+          <p className="mt-3 text-center text-xs text-gray-400">
+            Se não abrir automaticamente, toque no botão acima.
+          </p>
+        ) : null}
+        {autoStatus === "failed" ? (
+          <p className="mt-3 text-center text-xs text-red-500">
+            Não foi possível abrir automaticamente neste navegador.
           </p>
         ) : null}
 
-        {/* Card de ação */}
-        <div className="mt-8 border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Abrindo o atendimento via WhatsApp...
-          </p>
-
-          {targetLink ? (
-            <a
-              href={targetLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-5 inline-flex w-full items-center justify-center bg-zinc-900 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              Abrir WhatsApp
-            </a>
-          ) : (
-            <p className="mt-3 text-sm text-red-600">Número do bot não configurado.</p>
-          )}
-
-          {autoStatus === "pending" ? (
-            <p className="mt-3 text-xs text-zinc-400">
-              Se não abrir automaticamente, toque no botão acima.
-            </p>
-          ) : null}
-          {autoStatus === "failed" ? (
-            <p className="mt-3 text-xs text-red-500">
-              Não foi possível abrir automaticamente neste navegador.
-            </p>
-          ) : null}
-        </div>
-
-        <p className="mt-10 text-center text-xs text-zinc-400">Ref. {publicId}</p>
+        <p className="mt-10 text-center text-xs text-gray-400">Ref. {publicId}</p>
       </div>
     </div>
   );
