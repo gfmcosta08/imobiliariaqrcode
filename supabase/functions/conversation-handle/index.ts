@@ -483,7 +483,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "menu_option_1",
-      text: "1 - Agendar visita ao imovel",
+      text: "1 - Falar com o corretor sobre esse imóvel",
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -532,7 +532,7 @@ async function sendMainMenu(
     lead_phone: leadPhone,
     broker_phone: brokerPhone,
     message_type: "text",
-    payload: { kind: "menu_option_1", text: "1 - Agendar visita ao imovel" },
+    payload: { kind: "menu_option_1", text: "1 - Falar com o corretor sobre esse imóvel" },
     flow_group: flowGroup,
     flow_step: flowStep++,
   });
@@ -667,7 +667,7 @@ async function handleShowSimilarProperties(
     message_type: "text",
     payload: {
       kind: "similar_next_action",
-      text: `O que deseja fazer?\n1 - Agendar visita\n2 - Ver mais imoveis`,
+      text: `O que deseja fazer?\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis`,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -1157,7 +1157,7 @@ Deno.serve(async (req) => {
         message_type: "text",
         payload: {
           kind: "similar_next_action_retry",
-          text: `Responda:\n1 - Agendar visita\n2 - Ver mais imoveis`,
+          text: `Responda:\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis`,
         },
       });
       return json({ ok: true, state: "awaiting_post_similar_choice" });
