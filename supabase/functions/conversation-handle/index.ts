@@ -780,25 +780,12 @@ async function doRegisterVisit(
     });
   }
 
-  if (lastMenu !== "main_menu_post_similar") {
-    await queueOutbound(supabase, {
-      account_id: String(property.account_id),
-      property_id: String(property.id),
-      lead_phone: leadPhone,
-      broker_phone: brokerPhone,
-      message_type: "text",
-      payload: {
-        kind: "similar_question",
-        text: `${firstName}, quer que eu te mostre imoveis semelhantes tambem? (Responda SIM ou NAO)`,
-      },
-    });
-    await supabase
-      .from("conversation_sessions")
-      .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
-      .eq("id", sessionId);
-  } else {
-    await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", sessionId);
-  }
+  // Re-mostra o menu: cliente pode ainda escolher opção 2 ou 3
+  await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
+  await supabase
+    .from("conversation_sessions")
+    .update({ state: "awaiting_main_choice" })
+    .eq("id", sessionId);
 }
 
 async function sendTypingNow(leadPhone: string): Promise<void> {
@@ -849,9 +836,6 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "missing_input" }, 400);
     }
 
-    // dispara "digitando" imediatamente para o cliente saber que o sistema recebeu
-    await sendTypingNow(leadPhone);
-
     const profileName = extractProfileName(body.payload);
     const correctedName = parseNameCorrection(text);
     const informedName = correctedName ?? parseNameFromIntroduction(text);
@@ -862,17 +846,36 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
+    const qrToken = parseQrToken(text);
+
     const { data: session } = await supabase
       .from("conversation_sessions")
       .select(
-        "id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, target_property_id",
+        "id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, target_property_id, updated_at",
       )
       .eq("lead_phone", leadPhone)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const qrToken = parseQrToken(text);
+    // Para mensagens sem QR: verificar sessão antes de disparar "digitando"
+    if (!qrToken) {
+      if (!session?.id || !session.origin_property_id) {
+        return json({ ok: true, state: "ignored_without_session" });
+      }
+      if (session.state === "closed") {
+        return json({ ok: true, state: "ignored_closed_session" });
+      }
+      const lastUpdate = session.updated_at
+        ? new Date(String(session.updated_at)).getTime()
+        : 0;
+      if (Date.now() - lastUpdate > 5 * 60 * 1000) {
+        return json({ ok: true, state: "session_expired" });
+      }
+    }
+
+    // Dispara "digitando" apenas para sessões ativas ou novo scan de QR
+    await sendTypingNow(leadPhone);
     if (qrToken) {
       const property =
         (await loadPropertyByQr(supabase, qrToken)) ??
