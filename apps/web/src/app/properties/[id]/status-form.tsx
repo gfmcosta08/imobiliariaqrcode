@@ -121,9 +121,12 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
             onSubmit={onConfirmSold}
             className="w-full max-w-lg rounded-none border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
           >
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Confirmar venda</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Confirmar venda
+            </h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Este anúncio será removido do sistema. Para confirmar, digite <strong>VENDIDO</strong>, informe a data da venda e a comissão.
+              Este anúncio será removido do sistema. Para confirmar, digite <strong>VENDIDO</strong>
+              , informe a data da venda e a comissão.
             </p>
 
             <div className="mt-4 space-y-4">

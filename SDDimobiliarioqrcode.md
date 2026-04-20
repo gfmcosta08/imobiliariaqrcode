@@ -149,9 +149,11 @@ Mesmo começando com 1 corretor por conta, o modelo deve nascer assim:
 - `properties`
 
 Hoje:
+
 - 1 `account` = 1 `broker`
 
 Amanhã:
+
 - 1 `account` = N `brokers`
 
 ### Isolamento de dados
@@ -897,27 +899,33 @@ Usar **Supabase Queues / pgmq** para jobs duráveis.
 ### 15.1 `expire-free-properties-job`
 
 Frequência:
+
 - a cada 5 minutos
 
 Responsabilidades:
+
 - chamar `expire_free_properties()`
 
 ### 15.2 `process-whatsapp-queue-job`
 
 Frequência:
+
 - a cada 10–30 segundos, conforme volume
 
 Responsabilidades:
+
 - disparar `whatsapp-dispatch`
 
 ### 15.3 `process-media-job`
 
 Frequência:
+
 - a cada 30 segundos ou 1 minuto
 
 ### 15.4 `retry-failed-webhooks-job`
 
 Frequência:
+
 - a cada 5 minutos
 
 ---
@@ -1220,6 +1228,7 @@ Se PRO perder pagamento:
 Criar a fundação do projeto com Supabase e web app.
 
 **Entregas**
+
 - criar projeto Supabase
 - configurar ambiente local com CLI
 - criar projeto Next.js
@@ -1230,6 +1239,7 @@ Criar a fundação do projeto com Supabase e web app.
 - configurar lint, format, CI
 
 **DoD**
+
 - projeto sobe localmente
 - login em ambiente local funcional
 - migrations versionadas
@@ -1242,6 +1252,7 @@ Criar a fundação do projeto com Supabase e web app.
 Colocar autenticação de pé com bootstrap automático de domínio.
 
 **Entregas**
+
 - signup/login com Supabase Auth
 - trigger `handle_new_user()`
 - criação de `accounts`, `profiles`, `brokers`, `subscriptions`
@@ -1251,6 +1262,7 @@ Colocar autenticação de pé com bootstrap automático de domínio.
 - RLS inicial de ownership
 
 **DoD**
+
 - novo usuário entra no sistema com conta FREE pronta
 
 ---
@@ -1261,6 +1273,7 @@ Colocar autenticação de pé com bootstrap automático de domínio.
 Implementar CRUD de imóveis.
 
 **Entregas**
+
 - tabelas `properties` e `property_features`
 - criação, edição, listagem e remoção lógica
 - função `can_create_property()`
@@ -1270,6 +1283,7 @@ Implementar CRUD de imóveis.
 - UI do formulário detalhado
 
 **DoD**
+
 - corretor gerencia imóveis respeitando regras do plano
 
 ---
@@ -1280,6 +1294,7 @@ Implementar CRUD de imóveis.
 Implementar upload e processamento de imagens.
 
 **Entregas**
+
 - bucket `property-media`
 - tabela `property_media`
 - upload no frontend
@@ -1290,6 +1305,7 @@ Implementar upload e processamento de imagens.
 - limite por plano
 
 **DoD**
+
 - imagens sobem, processam e ficam disponíveis
 
 ---
@@ -1300,6 +1316,7 @@ Implementar upload e processamento de imagens.
 Gerar e resolver QR por imóvel.
 
 **Entregas**
+
 - tabela `property_qrcodes`
 - função de geração de token
 - endpoint/Edge Function `qr-resolve`
@@ -1307,6 +1324,7 @@ Gerar e resolver QR por imóvel.
 - fluxo de status ativo/expirado/removido
 
 **DoD**
+
 - todo imóvel elegível tem QR funcional
 
 ---
@@ -1317,6 +1335,7 @@ Gerar e resolver QR por imóvel.
 Ativar o fluxo físico da placa.
 
 **Entregas**
+
 - tabelas `partners`, `partner_users`, `print_events`
 - login parceiro
 - busca por ID e telefone
@@ -1325,6 +1344,7 @@ Ativar o fluxo físico da placa.
 - UI portal parceiro
 
 **DoD**
+
 - impressão registrada altera FREE corretamente
 
 ---
@@ -1335,6 +1355,7 @@ Ativar o fluxo físico da placa.
 Integrar Uazapi de forma isolada.
 
 **Entregas**
+
 - tabela `whatsapp_messages`
 - tabela `webhook_events`
 - provider adapter interno
@@ -1344,6 +1365,7 @@ Integrar Uazapi de forma isolada.
 - throttling + jitter operacional
 
 **DoD**
+
 - sistema envia e recebe mensagens reais sem acoplamento do domínio ao provider
 
 ---
@@ -1354,6 +1376,7 @@ Integrar Uazapi de forma isolada.
 Implementar a máquina de estados do fluxo WhatsApp.
 
 **Entregas**
+
 - tabela `conversation_sessions`
 - estados de conversa
 - fluxo de envio do imóvel
@@ -1362,6 +1385,7 @@ Implementar a máquina de estados do fluxo WhatsApp.
 - reinício controlado de sessão
 
 **DoD**
+
 - cliente percorre o fluxo sem quebrar o contexto
 
 ---
@@ -1372,12 +1396,14 @@ Implementar a máquina de estados do fluxo WhatsApp.
 Capturar leads e notificar o corretor.
 
 **Entregas**
+
 - tabelas `leads` e `lead_interactions`
 - função `create_lead_from_visit_interest()`
 - Edge Function `lead-notify-broker`
 - idempotência de geração de lead
 
 **DoD**
+
 - ação de agendar gera lead e notifica o corretor
 
 ---
@@ -1388,6 +1414,7 @@ Capturar leads e notificar o corretor.
 Implementar o diferencial de negócio.
 
 **Entregas**
+
 - função `recommend_similar_properties()`
 - tabela `recommendation_events`
 - retorno em lotes de até 5 imóveis
@@ -1395,6 +1422,7 @@ Implementar o diferencial de negócio.
 - integração com WhatsApp
 
 **DoD**
+
 - recomendações respeitam as regras comerciais
 
 ---
@@ -1405,6 +1433,7 @@ Implementar o diferencial de negócio.
 Ativar monetização real.
 
 **Entregas**
+
 - integração Stripe
 - integração Mercado Pago
 - Edge Functions de webhook
@@ -1413,6 +1442,7 @@ Ativar monetização real.
 - upgrade/downgrade
 
 **DoD**
+
 - usuário vira PRO por pagamento confirmado
 
 ---
@@ -1423,12 +1453,14 @@ Ativar monetização real.
 Fechar o ciclo do plano FREE.
 
 **Entregas**
+
 - função `expire_free_properties()`
 - Cron `expire-free-properties-job`
 - atualização automática de imóveis vencidos
 - integração com QR resolve
 
 **DoD**
+
 - anúncio FREE expira automaticamente no prazo correto
 
 ---
@@ -1439,6 +1471,7 @@ Fechar o ciclo do plano FREE.
 Preparar produção.
 
 **Entregas**
+
 - logs estruturados
 - alertas operacionais
 - dashboards
@@ -1449,6 +1482,7 @@ Preparar produção.
 - testes finais E2E
 
 **DoD**
+
 - sistema monitorável, previsível e pronto para beta fechado
 
 ---
@@ -1458,6 +1492,7 @@ Preparar produção.
 ### 25.1 Auth Agent
 
 Responsável por:
+
 - Supabase Auth
 - onboarding
 - sessões
@@ -1466,6 +1501,7 @@ Responsável por:
 ### 25.2 Database & RLS Agent
 
 Responsável por:
+
 - schema SQL
 - migrations
 - functions
@@ -1476,6 +1512,7 @@ Responsável por:
 ### 25.3 Property Agent
 
 Responsável por:
+
 - CRUD dos imóveis
 - validação de plano
 - estado do anúncio
@@ -1483,6 +1520,7 @@ Responsável por:
 ### 25.4 Media Agent
 
 Responsável por:
+
 - upload
 - compressão
 - variantes
@@ -1491,6 +1529,7 @@ Responsável por:
 ### 25.5 QR Agent
 
 Responsável por:
+
 - tokens
 - geração visual
 - resolução pública
@@ -1498,6 +1537,7 @@ Responsável por:
 ### 25.6 Partner Agent
 
 Responsável por:
+
 - portal parceiro
 - consulta
 - impressão
@@ -1506,6 +1546,7 @@ Responsável por:
 ### 25.7 WhatsApp Gateway Agent
 
 Responsável por:
+
 - provider layer
 - Uazapi
 - retries
@@ -1515,6 +1556,7 @@ Responsável por:
 ### 25.8 Conversation Agent
 
 Responsável por:
+
 - state machine do WhatsApp
 - menus
 - fallback
@@ -1523,6 +1565,7 @@ Responsável por:
 ### 25.9 Recommendation Agent
 
 Responsável por:
+
 - motor de similares
 - score
 - filtros
@@ -1531,6 +1574,7 @@ Responsável por:
 ### 25.10 Lead Agent
 
 Responsável por:
+
 - criação de leads
 - interações
 - notificação do corretor
@@ -1538,6 +1582,7 @@ Responsável por:
 ### 25.11 Billing Agent
 
 Responsável por:
+
 - Stripe
 - Mercado Pago
 - reconciliação de plano
@@ -1546,6 +1591,7 @@ Responsável por:
 ### 25.12 Expiration Agent
 
 Responsável por:
+
 - contagem pós-impressão
 - cron de expiração
 - consistência temporal
@@ -1553,6 +1599,7 @@ Responsável por:
 ### 25.13 Frontend UI Agent
 
 Responsável por:
+
 - dashboard
 - forms
 - área de planos
@@ -1562,6 +1609,7 @@ Responsável por:
 ### 25.14 DevOps / Platform Agent
 
 Responsável por:
+
 - ambientes
 - CI/CD
 - secrets
@@ -1572,6 +1620,7 @@ Responsável por:
 ### 25.15 QA Agent
 
 Responsável por:
+
 - testes de migrations
 - testes de funções SQL
 - testes de RLS
@@ -1666,4 +1715,3 @@ Este documento define:
 - prompt mestre para implementação por outra IA
 
 Este é o blueprint oficial do projeto.
-

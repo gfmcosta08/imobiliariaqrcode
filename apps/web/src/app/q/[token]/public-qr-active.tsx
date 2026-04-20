@@ -66,9 +66,7 @@ export function PublicQrActive({ body }: Props) {
         </p>
 
         {/* Preço */}
-        {priceStr ? (
-          <p className="mt-4 text-2xl font-bold text-gray-900">{priceStr}</p>
-        ) : null}
+        {priceStr ? <p className="mt-4 text-2xl font-bold text-gray-900">{priceStr}</p> : null}
 
         {/* Separador */}
         <div className="my-6 border-t border-gray-200" />

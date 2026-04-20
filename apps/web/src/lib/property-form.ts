@@ -94,7 +94,9 @@ function parseIntegerInput(value: FormDataEntryValue | null): number | null {
 }
 
 function parseTriState(value: FormDataEntryValue | null): boolean | null {
-  const raw = String(value ?? "").trim().toLowerCase();
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!raw) {
     return null;
   }
@@ -122,9 +124,7 @@ function parseTextList(value: FormDataEntryValue | null): string[] | null {
 export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
   const purposeRaw = String(formData.get("purpose") ?? "").trim();
   const purpose =
-    purposeRaw === "sale" || purposeRaw === "rent" || purposeRaw === "season"
-      ? purposeRaw
-      : null;
+    purposeRaw === "sale" || purposeRaw === "rent" || purposeRaw === "season" ? purposeRaw : null;
 
   const listingStatusRaw = String(formData.get("listing_status") ?? "").trim();
   const listing_status =
@@ -138,7 +138,9 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
 
   const furnishingRaw = String(formData.get("furnishing_status") ?? "").trim();
   const furnishing_status =
-    furnishingRaw === "unfurnished" || furnishingRaw === "semi_furnished" || furnishingRaw === "furnished"
+    furnishingRaw === "unfurnished" ||
+    furnishingRaw === "semi_furnished" ||
+    furnishingRaw === "furnished"
       ? furnishingRaw
       : null;
 

@@ -95,9 +95,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
         >
           Escolher arquivos
         </button>
-        <span className="text-sm text-zinc-700 dark:text-zinc-300">
-          {props.label}
-        </span>
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">{props.label}</span>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {previews.length} selecionada(s)
           {props.maxFiles ? ` / ${props.maxFiles} permitidas` : ""}

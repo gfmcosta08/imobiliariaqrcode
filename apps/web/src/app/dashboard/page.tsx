@@ -96,7 +96,9 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-xs text-gray-400">WhatsApp</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">{profile?.whatsapp_number ?? "—"}</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">
+                {profile?.whatsapp_number ?? "—"}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Plano</p>
@@ -131,7 +133,9 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-xs text-gray-500">Clientes atendidos</p>
               </div>
               <div className="border border-gray-200 p-5">
-                <p className="text-2xl font-bold text-gray-900">{formatBRL(metrics.total_commission)}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatBRL(metrics.total_commission)}
+                </p>
                 <p className="mt-1 text-xs text-gray-500">Comissão acumulada</p>
               </div>
             </div>

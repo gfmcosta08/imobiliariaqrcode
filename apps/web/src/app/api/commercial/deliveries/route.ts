@@ -38,7 +38,9 @@ export async function GET(request: Request) {
 
   let query = ctx.supabase
     .from("delivery_orders")
-    .select("id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at")
+    .select(
+      "id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at",
+    )
     .eq("account_id", ctx.accountId)
     .order("created_at", { ascending: false });
 
@@ -69,7 +71,8 @@ export async function POST(request: Request) {
 
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const contractId = typeof o.contract_id === "string" ? o.contract_id.trim() : "";
-  const propertyId = typeof o.property_id === "string" && o.property_id.trim() ? o.property_id.trim() : null;
+  const propertyId =
+    typeof o.property_id === "string" && o.property_id.trim() ? o.property_id.trim() : null;
   const deliveryModel = typeof o.delivery_model === "string" ? o.delivery_model.trim() : "";
   const layoutMode = typeof o.layout_mode === "string" ? o.layout_mode.trim() : "";
   const scheduledAt =
@@ -130,7 +133,9 @@ export async function POST(request: Request) {
       scheduled_at: scheduledAt,
       notes,
     })
-    .select("id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at")
+    .select(
+      "id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at",
+    )
     .maybeSingle();
 
   if (error) {

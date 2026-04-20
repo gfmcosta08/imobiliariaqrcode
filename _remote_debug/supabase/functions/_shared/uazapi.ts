@@ -36,7 +36,10 @@ export async function sendUazapiMessage(payload: UazapiMessagePayload) {
   }
 }
 
-export async function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): Promise<boolean> {
+export async function verifyWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+): Promise<boolean> {
   const secret = Deno.env.get("UAZAPI_WEBHOOK_SECRET");
 
   if (!secret) {
@@ -52,7 +55,7 @@ export async function verifyWebhookSignature(rawBody: string, signatureHeader: s
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
 
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));

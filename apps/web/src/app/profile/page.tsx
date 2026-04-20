@@ -20,10 +20,7 @@ export default async function ProfilePage() {
       .select("full_name, whatsapp_number, role")
       .eq("id", user.id)
       .maybeSingle(),
-    supabase
-      .from("subscriptions")
-      .select("plan_code, status, updated_at")
-      .maybeSingle(),
+    supabase.from("subscriptions").select("plan_code, status, updated_at").maybeSingle(),
   ]);
 
   return (
@@ -31,7 +28,9 @@ export default async function ProfilePage() {
       <AppHeader active="/profile" />
       <main className="mx-auto max-w-3xl px-8 py-12">
         <p className="text-sm text-gray-400">
-          <Link href="/dashboard" className="transition hover:text-gray-700">Painel</Link>
+          <Link href="/dashboard" className="transition hover:text-gray-700">
+            Painel
+          </Link>
           {" / "}Perfil
         </p>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">Meu perfil</h1>
@@ -47,7 +46,9 @@ export default async function ProfilePage() {
             </div>
             <div>
               <dt className="text-xs text-gray-400">Perfil</dt>
-              <dd className="mt-1 text-sm font-medium text-gray-900">{profile?.role ?? "corretor"}</dd>
+              <dd className="mt-1 text-sm font-medium text-gray-900">
+                {profile?.role ?? "corretor"}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-gray-400">Membro desde</dt>
@@ -93,7 +94,9 @@ export default async function ProfilePage() {
 
         {/* Editar dados de contato */}
         <div className="mt-4 border border-gray-200 p-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Dados de contato</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Dados de contato
+          </h2>
           <div className="mt-5">
             <ProfileForm
               fullName={profile?.full_name ?? ""}

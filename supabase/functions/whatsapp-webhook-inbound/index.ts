@@ -114,9 +114,7 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
   if (!apiKey) return null;
   const isMinimax = !!Deno.env.get("MINIMAX_API_KEY");
   const apiBase = isMinimax ? "https://api.minimax.chat" : "https://api.openai.com";
-  const model = isMinimax
-    ? (Deno.env.get("MINIMAX_STT_MODEL") ?? "speech-01")
-    : "whisper-1";
+  const model = isMinimax ? (Deno.env.get("MINIMAX_STT_MODEL") ?? "speech-01") : "whisper-1";
   try {
     const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) return null;
@@ -131,7 +129,7 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
       body: formData,
     });
     if (!res.ok) return null;
-    const data = await res.json() as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, unknown>;
     const transcribed = typeof data.text === "string" ? data.text.trim() : null;
     return transcribed || null;
   } catch {
@@ -233,7 +231,7 @@ Deno.serve(async (req) => {
 
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
       console.log(`Calling conversation-handle at: ${conversationUrl}`);
-      
+
       const response = await fetch(conversationUrl, {
         method: "POST",
         headers: {
@@ -251,7 +249,7 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`conversation-handle failed: ${response.status} - ${errorText}`);
-        
+
         await supabase
           .from("webhook_events")
           .update({
@@ -259,16 +257,19 @@ Deno.serve(async (req) => {
             processed_at: new Date().toISOString(),
           })
           .eq("id", insertedEvent?.id ?? "");
-        return new Response(JSON.stringify({ ok: false, error: "conversation_handle_failed", detail: errorText }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ ok: false, error: "conversation_handle_failed", detail: errorText }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
-// NOVO: Disparar o dispatch automaticamente após processar a conversa para resposta rápida
+      // NOVO: Disparar o dispatch automaticamente após processar a conversa para resposta rápida
       const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
-      
+
       // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)
       await fetch(dispatchUrl, {
         method: "POST",

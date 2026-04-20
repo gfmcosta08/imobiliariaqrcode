@@ -62,7 +62,8 @@ export async function POST(request: Request) {
 
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const packageId = typeof o.package_id === "string" ? o.package_id.trim() : "";
-  const startsAt = typeof o.starts_at === "string" && o.starts_at.trim() ? o.starts_at.trim() : null;
+  const startsAt =
+    typeof o.starts_at === "string" && o.starts_at.trim() ? o.starts_at.trim() : null;
   const endsAt = typeof o.ends_at === "string" && o.ends_at.trim() ? o.ends_at.trim() : null;
   const renewalMode = typeof o.renewal_mode === "string" ? o.renewal_mode.trim() : "manual";
   const notes = typeof o.notes === "string" && o.notes.trim() ? o.notes.trim() : null;
@@ -107,7 +108,9 @@ export async function POST(request: Request) {
       renewal_mode: renewalMode,
       notes,
     })
-    .select("id, account_id, package_id, status, starts_at, ends_at, renewal_mode, notes, created_at, updated_at")
+    .select(
+      "id, account_id, package_id, status, starts_at, ends_at, renewal_mode, notes, created_at, updated_at",
+    )
     .maybeSingle();
 
   if (error) {

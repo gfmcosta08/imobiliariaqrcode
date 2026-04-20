@@ -9,7 +9,7 @@ export function getServiceClient() {
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false }
+    auth: { persistSession: false },
   });
 }
 

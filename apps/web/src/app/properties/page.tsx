@@ -16,9 +16,7 @@ export default async function PropertiesPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Imóveis</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Gerencie seus imóveis e QR Codes.
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Gerencie seus imóveis e QR Codes.</p>
           </div>
           <Link
             href="/properties/new"
@@ -29,7 +27,9 @@ export default async function PropertiesPage() {
         </div>
 
         {error ? (
-          <p className="mt-6 text-sm text-red-600" role="alert">{error.message}</p>
+          <p className="mt-6 text-sm text-red-600" role="alert">
+            {error.message}
+          </p>
         ) : null}
 
         <ul className="mt-8 space-y-3">

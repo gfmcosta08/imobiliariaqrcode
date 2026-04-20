@@ -191,7 +191,9 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
 
   return (
     <form action={formAction} className="mt-8 space-y-8">
-      {props.mode === "edit" && initial.id ? <input type="hidden" name="property_id" value={initial.id} /> : null}
+      {props.mode === "edit" && initial.id ? (
+        <input type="hidden" name="property_id" value={initial.id} />
+      ) : null}
 
       {state?.error ? (
         <p className="rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
@@ -203,24 +205,44 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Dados Básicos</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldLabel label="ID do Imóvel (automático)">
-            <input disabled value={initial.public_id ?? "Será gerado automaticamente"} className={inputClass} />
+            <input
+              disabled
+              value={initial.public_id ?? "Será gerado automaticamente"}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Código Interno">
-            <input name="internal_code" defaultValue={initial.internal_code ?? ""} className={inputClass} />
+            <input
+              name="internal_code"
+              defaultValue={initial.internal_code ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Tipo de Imóvel">
-            <select name="property_type" defaultValue={initial.property_type ?? ""} className={inputClass}>
+            <select
+              name="property_type"
+              defaultValue={initial.property_type ?? ""}
+              className={inputClass}
+            >
               <option value="">Não informado</option>
               {propertyTypes.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
             </select>
           </FieldLabel>
           <FieldLabel label="Subtipo de Imóvel">
-            <select name="property_subtype" defaultValue={initial.property_subtype ?? ""} className={inputClass}>
+            <select
+              name="property_subtype"
+              defaultValue={initial.property_subtype ?? ""}
+              className={inputClass}
+            >
               <option value="">Não informado</option>
               {propertySubtypes.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
             </select>
           </FieldLabel>
@@ -233,7 +255,11 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             </select>
           </FieldLabel>
           <FieldLabel label="Status do Imóvel">
-            <select name="listing_status" defaultValue={initial.listing_status ?? "draft"} className={inputClass}>
+            <select
+              name="listing_status"
+              defaultValue={initial.listing_status ?? "draft"}
+              className={inputClass}
+            >
               <option value="draft">Rascunho</option>
               <option value="published">Disponível</option>
               <option value="removed">Vendido (remover do sistema)</option>
@@ -258,10 +284,20 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input name="title" defaultValue={initial.title ?? ""} className={inputClass} />
           </FieldLabel>
           <FieldLabel label="Descrição Completa">
-            <textarea name="full_description" rows={5} defaultValue={initial.full_description ?? ""} className={inputClass} />
+            <textarea
+              name="full_description"
+              rows={5}
+              defaultValue={initial.full_description ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Diferenciais do Imóvel">
-            <textarea name="highlights" rows={3} defaultValue={initial.highlights ?? ""} className={inputClass} />
+            <textarea
+              name="highlights"
+              rows={3}
+              defaultValue={initial.highlights ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
         </div>
       </section>
@@ -270,119 +306,454 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Valores</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FieldLabel label="Preço de Venda">
-            <input name="sale_price" defaultValue={formatCurrencyFromNumber(initial.sale_price)} onInput={onCurrencyInput} className={inputClass} />
+            <input
+              name="sale_price"
+              defaultValue={formatCurrencyFromNumber(initial.sale_price)}
+              onInput={onCurrencyInput}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Valor de Aluguel/Temporada">
-            <input name="rent_price" defaultValue={formatCurrencyFromNumber(initial.rent_price)} onInput={onCurrencyInput} className={inputClass} />
+            <input
+              name="rent_price"
+              defaultValue={formatCurrencyFromNumber(initial.rent_price)}
+              onInput={onCurrencyInput}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Valor do Condomínio">
-            <input name="condo_fee" defaultValue={formatCurrencyFromNumber(initial.condo_fee)} onInput={onCurrencyInput} className={inputClass} />
+            <input
+              name="condo_fee"
+              defaultValue={formatCurrencyFromNumber(initial.condo_fee)}
+              onInput={onCurrencyInput}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Valor do IPTU">
-            <input name="iptu_amount" defaultValue={formatCurrencyFromNumber(initial.iptu_amount)} onInput={onCurrencyInput} className={inputClass} />
+            <input
+              name="iptu_amount"
+              defaultValue={formatCurrencyFromNumber(initial.iptu_amount)}
+              onInput={onCurrencyInput}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Outras Taxas">
-            <input name="other_fees" defaultValue={formatCurrencyFromNumber(initial.other_fees)} onInput={onCurrencyInput} className={inputClass} />
+            <input
+              name="other_fees"
+              defaultValue={formatCurrencyFromNumber(initial.other_fees)}
+              onInput={onCurrencyInput}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="Aceita Financiamento">
-            <select name="accepts_financing" defaultValue={boolToInput(initial.accepts_financing)} className={inputClass}>
-              <option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option>
+            <select
+              name="accepts_financing"
+              defaultValue={boolToInput(initial.accepts_financing)}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
             </select>
           </FieldLabel>
           <FieldLabel label="Aceita Permuta">
-            <select name="accepts_trade" defaultValue={boolToInput(initial.accepts_trade)} className={inputClass}>
-              <option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option>
+            <select
+              name="accepts_trade"
+              defaultValue={boolToInput(initial.accepts_trade)}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
             </select>
           </FieldLabel>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Áreas e Cômodos</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Áreas e Cômodos
+        </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FieldLabel label="Área Total (m²)"><input name="total_area_m2" defaultValue={formatAreaFromNumber(initial.total_area_m2)} onInput={onAreaInput} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Área Construída (m²)"><input name="built_area_m2" defaultValue={formatAreaFromNumber(initial.built_area_m2)} onInput={onAreaInput} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Área do Terreno (m²)"><input name="land_area_m2" defaultValue={formatAreaFromNumber(initial.land_area_m2)} onInput={onAreaInput} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Quartos"><input name="bedrooms" defaultValue={initial.bedrooms == null ? "" : String(initial.bedrooms)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Suítes"><input name="suites" defaultValue={initial.suites == null ? "" : String(initial.suites)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Banheiros"><input name="bathrooms" defaultValue={initial.bathrooms == null ? "" : String(initial.bathrooms)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Vagas de Garagem"><input name="parking_spaces" defaultValue={initial.parking_spaces == null ? "" : String(initial.parking_spaces)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Salas"><input name="living_rooms" defaultValue={initial.living_rooms == null ? "" : String(initial.living_rooms)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número de Andares"><input name="floors_count" defaultValue={initial.floors_count == null ? "" : String(initial.floors_count)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Andar do Imóvel"><input name="unit_floor" defaultValue={initial.unit_floor == null ? "" : String(initial.unit_floor)} className={inputClass} /></FieldLabel>
+          <FieldLabel label="Área Total (m²)">
+            <input
+              name="total_area_m2"
+              defaultValue={formatAreaFromNumber(initial.total_area_m2)}
+              onInput={onAreaInput}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Área Construída (m²)">
+            <input
+              name="built_area_m2"
+              defaultValue={formatAreaFromNumber(initial.built_area_m2)}
+              onInput={onAreaInput}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Área do Terreno (m²)">
+            <input
+              name="land_area_m2"
+              defaultValue={formatAreaFromNumber(initial.land_area_m2)}
+              onInput={onAreaInput}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Quartos">
+            <input
+              name="bedrooms"
+              defaultValue={initial.bedrooms == null ? "" : String(initial.bedrooms)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Suítes">
+            <input
+              name="suites"
+              defaultValue={initial.suites == null ? "" : String(initial.suites)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Banheiros">
+            <input
+              name="bathrooms"
+              defaultValue={initial.bathrooms == null ? "" : String(initial.bathrooms)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Vagas de Garagem">
+            <input
+              name="parking_spaces"
+              defaultValue={initial.parking_spaces == null ? "" : String(initial.parking_spaces)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Salas">
+            <input
+              name="living_rooms"
+              defaultValue={initial.living_rooms == null ? "" : String(initial.living_rooms)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número de Andares">
+            <input
+              name="floors_count"
+              defaultValue={initial.floors_count == null ? "" : String(initial.floors_count)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Andar do Imóvel">
+            <input
+              name="unit_floor"
+              defaultValue={initial.unit_floor == null ? "" : String(initial.unit_floor)}
+              className={inputClass}
+            />
+          </FieldLabel>
           <FieldLabel label="Mobiliado">
-            <select name="furnishing_status" defaultValue={furnishingToInput(initial.furnishing_status, initial.is_furnished)} className={inputClass}>
+            <select
+              name="furnishing_status"
+              defaultValue={furnishingToInput(initial.furnishing_status, initial.is_furnished)}
+              className={inputClass}
+            >
               <option value="">Não informado</option>
               <option value="unfurnished">Não mobiliado</option>
               <option value="semi_furnished">Semi-mobiliado</option>
               <option value="furnished">Mobiliado</option>
             </select>
           </FieldLabel>
-          <FieldLabel label="Tipo de Piso"><input name="floor_type" defaultValue={initial.floor_type ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Posição Solar"><select name="sun_position" defaultValue={initial.sun_position ?? ""} className={inputClass}><option value="">Não informado</option><option value="Nascente">Nascente</option><option value="Poente">Poente</option></select></FieldLabel>
-          <FieldLabel label="Idade do Imóvel (anos)"><input name="property_age_years" defaultValue={initial.property_age_years == null ? "" : String(initial.property_age_years)} className={inputClass} /></FieldLabel>
+          <FieldLabel label="Tipo de Piso">
+            <input
+              name="floor_type"
+              defaultValue={initial.floor_type ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Posição Solar">
+            <select
+              name="sun_position"
+              defaultValue={initial.sun_position ?? ""}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="Nascente">Nascente</option>
+              <option value="Poente">Poente</option>
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Idade do Imóvel (anos)">
+            <input
+              name="property_age_years"
+              defaultValue={
+                initial.property_age_years == null ? "" : String(initial.property_age_years)
+              }
+              className={inputClass}
+            />
+          </FieldLabel>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Endereço</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldLabel label="Endereço Completo"><input name="full_address" defaultValue={initial.full_address ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Número"><input name="street_number" defaultValue={initial.street_number ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Complemento"><input name="address_complement" defaultValue={initial.address_complement ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Bairro"><input name="neighborhood" defaultValue={initial.neighborhood ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Cidade"><input name="city" defaultValue={initial.city ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Estado (UF)"><input name="state" defaultValue={initial.state ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="CEP"><input name="postal_code" defaultValue={initial.postal_code ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Latitude"><input name="latitude" defaultValue={initial.latitude == null ? "" : String(initial.latitude)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Longitude"><input name="longitude" defaultValue={initial.longitude == null ? "" : String(initial.longitude)} className={inputClass} /></FieldLabel>
+          <FieldLabel label="Endereço Completo">
+            <input
+              name="full_address"
+              defaultValue={initial.full_address ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Número">
+            <input
+              name="street_number"
+              defaultValue={initial.street_number ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Complemento">
+            <input
+              name="address_complement"
+              defaultValue={initial.address_complement ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Bairro">
+            <input
+              name="neighborhood"
+              defaultValue={initial.neighborhood ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Cidade">
+            <input name="city" defaultValue={initial.city ?? ""} className={inputClass} />
+          </FieldLabel>
+          <FieldLabel label="Estado (UF)">
+            <input name="state" defaultValue={initial.state ?? ""} className={inputClass} />
+          </FieldLabel>
+          <FieldLabel label="CEP">
+            <input
+              name="postal_code"
+              defaultValue={initial.postal_code ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Latitude">
+            <input
+              name="latitude"
+              defaultValue={initial.latitude == null ? "" : String(initial.latitude)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Longitude">
+            <input
+              name="longitude"
+              defaultValue={initial.longitude == null ? "" : String(initial.longitude)}
+              className={inputClass}
+            />
+          </FieldLabel>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Características e Infraestrutura</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Características e Infraestrutura
+        </h2>
         <div className="mt-4 grid grid-cols-1 gap-4">
-          <FieldLabel label="Características (uma por linha ou separadas por vírgula)"><textarea name="features" rows={3} defaultValue={textListToInput(initial.features)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Infraestrutura (uma por linha ou separadas por vírgula)"><textarea name="infrastructure" rows={3} defaultValue={textListToInput(initial.infrastructure)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Segurança (uma por linha ou separadas por vírgula)"><textarea name="security_items" rows={3} defaultValue={textListToInput(initial.security_items)} className={inputClass} /></FieldLabel>
+          <FieldLabel label="Características (uma por linha ou separadas por vírgula)">
+            <textarea
+              name="features"
+              rows={3}
+              defaultValue={textListToInput(initial.features)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Infraestrutura (uma por linha ou separadas por vírgula)">
+            <textarea
+              name="infrastructure"
+              rows={3}
+              defaultValue={textListToInput(initial.infrastructure)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Segurança (uma por linha ou separadas por vírgula)">
+            <textarea
+              name="security_items"
+              rows={3}
+              defaultValue={textListToInput(initial.security_items)}
+              className={inputClass}
+            />
+          </FieldLabel>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FieldLabel label="Chave Disponível"><select name="key_available" defaultValue={boolToInput(initial.key_available)} className={inputClass}><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></FieldLabel>
-            <FieldLabel label="Imóvel Ocupado"><select name="is_occupied" defaultValue={boolToInput(initial.is_occupied)} className={inputClass}><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></FieldLabel>
+            <FieldLabel label="Chave Disponível">
+              <select
+                name="key_available"
+                defaultValue={boolToInput(initial.key_available)}
+                className={inputClass}
+              >
+                <option value="">Não informado</option>
+                <option value="true">Sim</option>
+                <option value="false">Não</option>
+              </select>
+            </FieldLabel>
+            <FieldLabel label="Imóvel Ocupado">
+              <select
+                name="is_occupied"
+                defaultValue={boolToInput(initial.is_occupied)}
+                className={inputClass}
+              >
+                <option value="">Não informado</option>
+                <option value="true">Sim</option>
+                <option value="false">Não</option>
+              </select>
+            </FieldLabel>
           </div>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Documentação e Detalhes Técnicos</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Documentação e Detalhes Técnicos
+        </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldLabel label="Documentação"><textarea name="documentation" rows={3} defaultValue={initial.documentation ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Detalhes Técnicos Avançados"><textarea name="technical_details" rows={3} defaultValue={initial.technical_details ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Tipo de Construção"><select name="construction_type" defaultValue={initial.construction_type ?? ""} className={inputClass}><option value="">Não informado</option><option value="Alvenaria">Alvenaria</option><option value="Madeira">Madeira</option><option value="Mista">Mista</option><option value="Steel Frame">Steel Frame</option><option value="Container">Container</option></select></FieldLabel>
-          <FieldLabel label="Padrão de Acabamento"><select name="finish_standard" defaultValue={initial.finish_standard ?? ""} className={inputClass}><option value="">Não informado</option><option value="Alto padrão">Alto padrão</option><option value="Médio padrão">Médio padrão</option><option value="Padrão simples">Padrão simples</option><option value="Alto luxo">Alto luxo</option></select></FieldLabel>
-          <FieldLabel label="Matrícula do Imóvel"><input name="registry_number" defaultValue={initial.registry_number ?? ""} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Situação da Documentação"><select name="documentation_status" defaultValue={initial.documentation_status ?? ""} className={inputClass}><option value="">Não informado</option><option value="Regular">Regular</option><option value="Irregular">Irregular</option><option value="Em regularização">Em regularização</option></select></FieldLabel>
-          <FieldLabel label="Possui Escritura"><select name="has_deed" defaultValue={boolToInput(initial.has_deed)} className={inputClass}><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></FieldLabel>
-          <FieldLabel label="Possui Registro"><select name="has_registration" defaultValue={boolToInput(initial.has_registration)} className={inputClass}><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></FieldLabel>
+          <FieldLabel label="Documentação">
+            <textarea
+              name="documentation"
+              rows={3}
+              defaultValue={initial.documentation ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Detalhes Técnicos Avançados">
+            <textarea
+              name="technical_details"
+              rows={3}
+              defaultValue={initial.technical_details ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Tipo de Construção">
+            <select
+              name="construction_type"
+              defaultValue={initial.construction_type ?? ""}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="Alvenaria">Alvenaria</option>
+              <option value="Madeira">Madeira</option>
+              <option value="Mista">Mista</option>
+              <option value="Steel Frame">Steel Frame</option>
+              <option value="Container">Container</option>
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Padrão de Acabamento">
+            <select
+              name="finish_standard"
+              defaultValue={initial.finish_standard ?? ""}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="Alto padrão">Alto padrão</option>
+              <option value="Médio padrão">Médio padrão</option>
+              <option value="Padrão simples">Padrão simples</option>
+              <option value="Alto luxo">Alto luxo</option>
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Matrícula do Imóvel">
+            <input
+              name="registry_number"
+              defaultValue={initial.registry_number ?? ""}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Situação da Documentação">
+            <select
+              name="documentation_status"
+              defaultValue={initial.documentation_status ?? ""}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="Regular">Regular</option>
+              <option value="Irregular">Irregular</option>
+              <option value="Em regularização">Em regularização</option>
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Possui Escritura">
+            <select
+              name="has_deed"
+              defaultValue={boolToInput(initial.has_deed)}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </FieldLabel>
+          <FieldLabel label="Possui Registro">
+            <select
+              name="has_registration"
+              defaultValue={boolToInput(initial.has_registration)}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </FieldLabel>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Localização Estratégica</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Localização Estratégica
+        </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldLabel label="Proximidades (uma por linha ou separadas por vírgula)"><textarea name="nearby_points" rows={3} defaultValue={textListToInput(initial.nearby_points)} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Distância do Centro (km)"><input name="distance_to_center_km" defaultValue={formatAreaFromNumber(initial.distance_to_center_km)} onInput={onAreaInput} className={inputClass} /></FieldLabel>
-          <FieldLabel label="Região da Cidade"><select name="city_region" defaultValue={initial.city_region ?? ""} className={inputClass}><option value="">Não informado</option><option value="Norte">Norte</option><option value="Sul">Sul</option><option value="Leste">Leste</option><option value="Oeste">Oeste</option><option value="Centro">Centro</option></select></FieldLabel>
+          <FieldLabel label="Proximidades (uma por linha ou separadas por vírgula)">
+            <textarea
+              name="nearby_points"
+              rows={3}
+              defaultValue={textListToInput(initial.nearby_points)}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Distância do Centro (km)">
+            <input
+              name="distance_to_center_km"
+              defaultValue={formatAreaFromNumber(initial.distance_to_center_km)}
+              onInput={onAreaInput}
+              className={inputClass}
+            />
+          </FieldLabel>
+          <FieldLabel label="Região da Cidade">
+            <select
+              name="city_region"
+              defaultValue={initial.city_region ?? ""}
+              className={inputClass}
+            >
+              <option value="">Não informado</option>
+              <option value="Norte">Norte</option>
+              <option value="Sul">Sul</option>
+              <option value="Leste">Leste</option>
+              <option value="Oeste">Oeste</option>
+              <option value="Centro">Centro</option>
+            </select>
+          </FieldLabel>
         </div>
       </section>
 
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Observações</h2>
-        <FieldLabel label="Observações do Corretor (campo livre)"><textarea name="broker_notes" rows={5} defaultValue={initial.broker_notes ?? ""} className={inputClass} /></FieldLabel>
+        <FieldLabel label="Observações do Corretor (campo livre)">
+          <textarea
+            name="broker_notes"
+            rows={5}
+            defaultValue={initial.broker_notes ?? ""}
+            className={inputClass}
+          />
+        </FieldLabel>
       </section>
 
       {props.mode === "create" ? (
         <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Imagens do Imóvel</h2>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            Imagens do Imóvel
+          </h2>
           <div className="mt-3">
             <ImageBatchPicker
               inputName="media_files"
@@ -396,10 +767,14 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
       <div className="flex items-center gap-4">
         <SubmitButton mode={props.mode} />
         <p className="text-sm">
-          <Link href="/properties" className="text-zinc-600 underline dark:text-zinc-400">Cancelar</Link>
+          <Link href="/properties" className="text-zinc-600 underline dark:text-zinc-400">
+            Cancelar
+          </Link>
         </p>
         <p className="text-sm">
-          <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">Voltar ao painel</Link>
+          <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">
+            Voltar ao painel
+          </Link>
         </p>
       </div>
     </form>

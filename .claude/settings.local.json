@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(supabase functions *)",
+      "Bash(./supabase.exe functions *)",
+      "Bash(./supabase.exe secrets *)",
+      "Bash(pnpm --filter web build)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:www.compass.com)",
+      "mcp__9cf98ce4-af6b-40d6-8e68-a9c39164c005__deploy_to_vercel",
+      "Bash(vercel deploy *)"
+    ]
+  }
+}

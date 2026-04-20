@@ -61,7 +61,7 @@ export function parseManagerCommand(rawText: string): ManagerCommand {
       type: "encaixar",
       time: match[1],
       customerName: match[2],
-      serviceName: match[3]
+      serviceName: match[3],
     };
   }
 
@@ -72,7 +72,7 @@ export function parseManagerCommand(rawText: string): ManagerCommand {
       name: match[1],
       category: match[2],
       price: Number(match[3].replace(",", ".")),
-      description: match[4]
+      description: match[4],
     };
   }
 

@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
-/** 
+/**
  * Notifica o corretor sobre um novo lead.
  * Esta função pode ser chamada manualmente via API ou por outras funções.
  * O trigger de banco em public.leads já enfileira a notificação básica de WhatsApp.
@@ -30,11 +30,13 @@ Deno.serve(async (req) => {
     // Busca detalhes do lead para a notificação
     const { data: lead, error: leadError } = await supabase
       .from("leads")
-      .select(`
+      .select(
+        `
         *,
         properties (public_id),
         brokers (whatsapp_number, account_id)
-      `)
+      `,
+      )
       .eq("id", lead_id)
       .maybeSingle();
 
@@ -54,12 +56,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const msg_text = `🚨 *Aviso de Lead!* 🚨\n\n` +
-                    `Você tem um novo lead interessado.\n\n` +
-                    `📱 Cliente: ${lead.client_phone}\n` +
-                    (property?.public_id ? `🏠 Imóvel: ${property.public_id}\n` : '') +
-                    `💼 Origem: ${lead.intent}\n\n` +
-                    `Atenda-o agora para não perder a venda! 🚀`;
+    const msg_text =
+      `🚨 *Aviso de Lead!* 🚨\n\n` +
+      `Você tem um novo lead interessado.\n\n` +
+      `📱 Cliente: ${lead.client_phone}\n` +
+      (property?.public_id ? `🏠 Imóvel: ${property.public_id}\n` : "") +
+      `💼 Origem: ${lead.intent}\n\n` +
+      `Atenda-o agora para não perder a venda! 🚀`;
 
     // Enfileira mensagem de WhatsApp para o corretor
     await supabase.from("whatsapp_messages").insert({
@@ -75,8 +78,8 @@ Deno.serve(async (req) => {
         kind: "lead_notify_manual",
         lead_id: lead.id,
         text: msg_text,
-        to_broker: true
-      }
+        to_broker: true,
+      },
     });
 
     return new Response(

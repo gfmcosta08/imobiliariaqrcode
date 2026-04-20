@@ -3,14 +3,20 @@ import { getServiceClient } from "../_shared/env.ts";
 import { parseManagerCommand } from "../_shared/parser.ts";
 import { sendUazapiMessage, verifyWebhookSignature } from "../_shared/uazapi.ts";
 
-const DEFAULT_COMPANY_ID = Deno.env.get("DEFAULT_COMPANY_ID") ?? "11111111-1111-1111-1111-111111111111";
+const DEFAULT_COMPANY_ID =
+  Deno.env.get("DEFAULT_COMPANY_ID") ?? "11111111-1111-1111-1111-111111111111";
 const DEFAULT_MANAGER_FALLBACK = Deno.env.get("UAZAPI_INSTANCE_ID") ?? "";
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 const CANCEL_KEYWORDS = ["cancelar", "sair", "parar", "encerrar", "0", "cancel", "stop"];
 
 const FULL_DAY_NAMES = [
-  "Domingo", "Segunda-Feira", "Terca-Feira",
-  "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sabado",
+  "Domingo",
+  "Segunda-Feira",
+  "Terca-Feira",
+  "Quarta-Feira",
+  "Quinta-Feira",
+  "Sexta-Feira",
+  "Sabado",
 ];
 
 // day_of_week → aliases normalizados (sem acento, lowercase)
@@ -24,7 +30,15 @@ const DAY_ALIASES: Array<{ aliases: string[]; dow: number }> = [
   { aliases: ["sab", "sabado"], dow: 6 },
 ];
 
-type SessionState = "idle" | "selecting_service" | "selecting_slot" | "confirming_slot" | "confirming_suggestion" | "manager_pending" | "manager_suggesting" | "manager_encaixar";
+type SessionState =
+  | "idle"
+  | "selecting_service"
+  | "selecting_slot"
+  | "confirming_slot"
+  | "confirming_suggestion"
+  | "manager_pending"
+  | "manager_suggesting"
+  | "manager_encaixar";
 type DaySlots = { dow: number; date: string; dayName: string; ddMm: string; times: string[] };
 type SessionData = {
   service_id?: string;
@@ -56,7 +70,8 @@ Deno.serve(async (req) => {
     const isValid = await verifyWebhookSignature(rawBody, req.headers.get("x-uazapi-signature"));
     if (!isValid) {
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -74,7 +89,12 @@ Deno.serve(async (req) => {
           message_id: origin.messageId || null,
         },
       });
-      return jsonResponse({ ok: true, ignored: true, reason: "group_origin_blocked", mode: "ignored_group" });
+      return jsonResponse({
+        ok: true,
+        ignored: true,
+        reason: "group_origin_blocked",
+        mode: "ignored_group",
+      });
     }
 
     const from = origin.from;
@@ -82,7 +102,8 @@ Deno.serve(async (req) => {
     const text = origin.text;
     const messageId = origin.messageId;
 
-    if (!from || !text) return jsonResponse({ ok: true, ignored: true, reason: "missing_from_or_text" });
+    if (!from || !text)
+      return jsonResponse({ ok: true, ignored: true, reason: "missing_from_or_text" });
 
     // Anti-loop: mensagens fromMe que são respostas do bot sempre contêm "*" (bold), "\n", ou são longas.
     // Entradas do gestor (atalhos, horários, nomes de dia) são curtas e sem formatação.
@@ -94,13 +115,17 @@ Deno.serve(async (req) => {
 
     const { error: insertError } = await supabase.from("whatsapp_messages").insert({
       company_id: DEFAULT_COMPANY_ID,
-      from_number: from, to_number: to, message: text,
-      type: "inbound", raw_payload: payload,
+      from_number: from,
+      to_number: to,
+      message: text,
+      type: "inbound",
+      raw_payload: payload,
       external_id: messageId || null,
     });
 
     if (insertError) {
-      if (insertError.code === "23505") return jsonResponse({ ok: true, ignored: true, reason: "duplicate" });
+      if (insertError.code === "23505")
+        return jsonResponse({ ok: true, ignored: true, reason: "duplicate" });
       return jsonResponse({ error: insertError.message }, 500);
     }
 
@@ -110,8 +135,13 @@ Deno.serve(async (req) => {
       .eq("company_id", DEFAULT_COMPANY_ID)
       .single();
 
-    const managerPhone = (botSettings?.manager_phone?.trim() || botSettings?.bot_phone?.trim() || normalizePhone(to) || DEFAULT_MANAGER_FALLBACK);
-    const isManager = managerPhone.length > 0 && normalizePhone(managerPhone) === normalizePhone(from);
+    const managerPhone =
+      botSettings?.manager_phone?.trim() ||
+      botSettings?.bot_phone?.trim() ||
+      normalizePhone(to) ||
+      DEFAULT_MANAGER_FALLBACK;
+    const isManager =
+      managerPhone.length > 0 && normalizePhone(managerPhone) === normalizePhone(from);
     const normalizedText = normalizeText(text);
 
     if (isManager) {
@@ -122,13 +152,21 @@ Deno.serve(async (req) => {
       if (mgrSession.state === "manager_suggesting") {
         const days = mgrData.mgr_available_days ?? [];
         const parsed = parseSlotInput(normalizedText, days);
-        if (parsed && mgrData.mgr_appointment_id && mgrData.mgr_customer_phone && mgrData.mgr_customer_name) {
+        if (
+          parsed &&
+          mgrData.mgr_appointment_id &&
+          mgrData.mgr_customer_phone &&
+          mgrData.mgr_customer_name
+        ) {
           const [, mm, dd] = parsed.date.split("-");
           await sendUazapiMessage({
             to: mgrData.mgr_customer_phone,
             message: `Ola! Temos uma sugestao de horario para *${mgrData.mgr_service_name ?? "seu servico"}*:\n*${dd}/${mm} as ${parsed.time}*\n\nResponda *sim* para aceitar ou *nao* para escolher outro horario.`,
           });
-          await supabase.from("appointments").update({ status: "pending" }).eq("id", mgrData.mgr_appointment_id);
+          await supabase
+            .from("appointments")
+            .update({ status: "pending" })
+            .eq("id", mgrData.mgr_appointment_id);
           // Setar sessão do CLIENTE para aguardar "sim/nao" à sugestão
           await setSession(supabase, mgrData.mgr_customer_phone, "confirming_suggestion", {
             appointment_id: mgrData.mgr_appointment_id,
@@ -137,9 +175,21 @@ Deno.serve(async (req) => {
             pending_time: parsed.time,
           });
           await clearSession(supabase, from);
-          await logOutbound(supabase, `Sugestao *${dd}/${mm} ${parsed.time}* enviada para ${mgrData.mgr_customer_name}.`, from, to, payload);
+          await logOutbound(
+            supabase,
+            `Sugestao *${dd}/${mm} ${parsed.time}* enviada para ${mgrData.mgr_customer_name}.`,
+            from,
+            to,
+            payload,
+          );
         } else {
-          await logOutbound(supabase, "Horario invalido. Envie no formato *dd/mm HH:MM* ou nome do dia + hora.\nOu *cancelar* para sair.", from, to, payload);
+          await logOutbound(
+            supabase,
+            "Horario invalido. Envie no formato *dd/mm HH:MM* ou nome do dia + hora.\nOu *cancelar* para sair.",
+            from,
+            to,
+            payload,
+          );
         }
         return jsonResponse({ ok: true, mode: "manager_suggesting" });
       }
@@ -148,7 +198,12 @@ Deno.serve(async (req) => {
       if (mgrSession.state === "manager_encaixar") {
         const days = mgrData.mgr_available_days ?? [];
         const parsed = parseFreeSlotInput(normalizedText, days);
-        if (parsed && mgrData.mgr_appointment_id && mgrData.mgr_customer_phone && mgrData.mgr_customer_name) {
+        if (
+          parsed &&
+          mgrData.mgr_appointment_id &&
+          mgrData.mgr_customer_phone &&
+          mgrData.mgr_customer_name
+        ) {
           const [, mm, dd] = parsed.date.split("-");
           // Envia proposta ao cliente — ele confirma antes de ser efetivado
           await sendUazapiMessage({
@@ -163,9 +218,21 @@ Deno.serve(async (req) => {
             is_encaixe: true,
           });
           await clearSession(supabase, from);
-          await logOutbound(supabase, `Encaixe *${dd}/${mm} ${parsed.time}* enviado para ${mgrData.mgr_customer_name} confirmar.`, from, to, payload);
+          await logOutbound(
+            supabase,
+            `Encaixe *${dd}/${mm} ${parsed.time}* enviado para ${mgrData.mgr_customer_name} confirmar.`,
+            from,
+            to,
+            payload,
+          );
         } else {
-          await logOutbound(supabase, "Horario invalido. Informe o dia e horario.\nEx: _quinta 14h30_, _10/04 15:00_\nOu *cancelar* para sair.", from, to, payload);
+          await logOutbound(
+            supabase,
+            "Horario invalido. Informe o dia e horario.\nEx: _quinta 14h30_, _10/04 15:00_\nOu *cancelar* para sair.",
+            from,
+            to,
+            payload,
+          );
         }
         return jsonResponse({ ok: true, mode: "manager_encaixar" });
       }
@@ -198,41 +265,59 @@ Deno.serve(async (req) => {
                 to: custPhone,
                 message: `Seu agendamento das *${mgrTime}* do dia *${dd}/${mm}* foi *confirmado!* Ate breve.`,
               });
-            } catch { /* nao falhar */ }
+            } catch {
+              /* nao falhar */
+            }
           }
           await clearSession(supabase, from);
-          await logOutbound(supabase, `Agendamento de *${custName}* confirmado.`, from, to, payload);
-
+          await logOutbound(
+            supabase,
+            `Agendamento de *${custName}* confirmado.`,
+            from,
+            to,
+            payload,
+          );
         } else if (normalizedText === "6" && appId) {
           // Sugerir - mostrar slots
           const days = await getAvailableDays(supabase);
           if (!days.length) {
             await logOutbound(supabase, "Nenhum horario disponivel no momento.", from, to, payload);
           } else {
-            await setSession(supabase, from, "manager_suggesting", { ...mgrData, mgr_available_days: days });
+            await setSession(supabase, from, "manager_suggesting", {
+              ...mgrData,
+              mgr_available_days: days,
+            });
             const slotsMsg = `Escolha um horario para sugerir a *${custName}*:\n\n${buildSlotsMessage(mgrData.mgr_service_name ?? "Servico", days)}`;
             await logOutbound(supabase, slotsMsg, from, to, payload);
           }
-
         } else if (normalizedText === "7" && appId) {
           // Cancelar
           await supabase.from("appointments").update({ status: "canceled" }).eq("id", appId);
           if (custPhone) {
             try {
-              await sendUazapiMessage({ to: custPhone, message: "Seu agendamento pendente foi cancelado. Aguarde contato para novo horario." });
-            } catch { /* nao falhar */ }
+              await sendUazapiMessage({
+                to: custPhone,
+                message:
+                  "Seu agendamento pendente foi cancelado. Aguarde contato para novo horario.",
+              });
+            } catch {
+              /* nao falhar */
+            }
           }
           await clearSession(supabase, from);
           await logOutbound(supabase, `Agendamento de *${custName}* cancelado.`, from, to, payload);
-
         } else if (normalizedText === "8" && appId) {
           // Encaixar - qualquer horario, inclusive fora dos disponiveis
           const days = await getAvailableDays(supabase);
-          await setSession(supabase, from, "manager_encaixar", { ...mgrData, mgr_available_days: days });
+          await setSession(supabase, from, "manager_encaixar", {
+            ...mgrData,
+            mgr_available_days: days,
+          });
           const encaixeHeader = `Encaixe para *${custName}*. Informe o dia e horario (qualquer horario, inclusive ja reservado):`;
-          const slotsMsg = days.length > 0
-            ? `${encaixeHeader}\n\n${buildSlotsMessage(mgrData.mgr_service_name ?? "Servico", days)}\n_Voce pode usar qualquer horario, inclusive fora dos listados._`
-            : `${encaixeHeader}\nEx: _quinta 14h30_, _10/04 15:00_`;
+          const slotsMsg =
+            days.length > 0
+              ? `${encaixeHeader}\n\n${buildSlotsMessage(mgrData.mgr_service_name ?? "Servico", days)}\n_Voce pode usar qualquer horario, inclusive fora dos listados._`
+              : `${encaixeHeader}\nEx: _quinta 14h30_, _10/04 15:00_`;
           await logOutbound(supabase, slotsMsg, from, to, payload);
         }
 
@@ -248,7 +333,13 @@ Deno.serve(async (req) => {
 
     if (CANCEL_KEYWORDS.includes(normalizedText)) {
       await clearSession(supabase, from);
-      await logOutbound(supabase, "Atendimento encerrado. Digite *oi* para iniciar novamente.", from, to, payload);
+      await logOutbound(
+        supabase,
+        "Atendimento encerrado. Digite *oi* para iniciar novamente.",
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "cancel" });
     }
 
@@ -259,7 +350,13 @@ Deno.serve(async (req) => {
       if (elapsed > SESSION_TIMEOUT_MS) {
         await clearSession(supabase, from);
         const welcome = botSettings?.welcome_message ?? "Ola! Digite *oi* para iniciar.";
-        await logOutbound(supabase, `Sua sessao expirou por inatividade.\n\n${welcome}`, from, to, payload);
+        await logOutbound(
+          supabase,
+          `Sua sessao expirou por inatividade.\n\n${welcome}`,
+          from,
+          to,
+          payload,
+        );
         return jsonResponse({ ok: true, mode: "timeout_reset" });
       }
     }
@@ -270,7 +367,8 @@ Deno.serve(async (req) => {
 
       if (["sim", "s", "confirmar", "ok", "yes"].includes(normalizedText)) {
         // Confirma o agendamento existente com data/hora sugerida pelo gestor
-        await supabase.from("appointments")
+        await supabase
+          .from("appointments")
           .update({ status: "confirmed", date: d.pending_date!, time: d.pending_time! })
           .eq("id", d.appointment_id!);
         await supabase.from("contact_queue").insert({
@@ -285,25 +383,49 @@ Deno.serve(async (req) => {
         });
         const [, mm, dd] = d.pending_date!.split("-");
         await clearSession(supabase, from);
-        await logOutbound(supabase, `Seu agendamento das *${d.pending_time}* do dia *${dd}/${mm}* foi *confirmado!* Ate breve.`, from, to, payload);
+        await logOutbound(
+          supabase,
+          `Seu agendamento das *${d.pending_time}* do dia *${dd}/${mm}* foi *confirmado!* Ate breve.`,
+          from,
+          to,
+          payload,
+        );
         return jsonResponse({ ok: true, mode: "suggestion_confirmed" });
       }
 
       if (["nao", "n", "outro", "nao quero", "mudar"].includes(normalizedText)) {
-        await supabase.from("appointments").update({ status: "canceled" }).eq("id", d.appointment_id!);
+        await supabase
+          .from("appointments")
+          .update({ status: "canceled" })
+          .eq("id", d.appointment_id!);
         if (d.is_encaixe) {
           // Encaixe recusado: não reinicia fluxo de seleção
           await clearSession(supabase, from);
-          await logOutbound(supabase, "Entendido. Se quiser agendar, envie *oi* para iniciar novamente.", from, to, payload);
+          await logOutbound(
+            supabase,
+            "Entendido. Se quiser agendar, envie *oi* para iniciar novamente.",
+            from,
+            to,
+            payload,
+          );
           return jsonResponse({ ok: true, mode: "encaixe_rejected" });
         }
         // Sugestão recusada: reinicia seleção de horário
         const { data: appt } = await supabase
-          .from("appointments").select("service_id").eq("id", d.appointment_id!).single();
+          .from("appointments")
+          .select("service_id")
+          .eq("id", d.appointment_id!)
+          .single();
         const availableDays = await getAvailableDays(supabase);
         if (!availableDays.length) {
           await clearSession(supabase, from);
-          await logOutbound(supabase, "Sem horarios disponiveis no momento. Entre em contato para agendar.", from, to, payload);
+          await logOutbound(
+            supabase,
+            "Sem horarios disponiveis no momento. Entre em contato para agendar.",
+            from,
+            to,
+            payload,
+          );
           return jsonResponse({ ok: true, mode: "no_slots_after_rejection" });
         }
         await setSession(supabase, from, "selecting_slot", {
@@ -311,12 +433,24 @@ Deno.serve(async (req) => {
           service_name: d.service_name,
           available_days: availableDays,
         });
-        await logOutbound(supabase, buildSlotsMessage(d.service_name ?? "Servico", availableDays), from, to, payload);
+        await logOutbound(
+          supabase,
+          buildSlotsMessage(d.service_name ?? "Servico", availableDays),
+          from,
+          to,
+          payload,
+        );
         return jsonResponse({ ok: true, mode: "suggestion_rejected_reselect" });
       }
 
       const [, mm2, dd2] = (d.pending_date ?? "2000-01-01").split("-");
-      await logOutbound(supabase, `Responda *sim* para confirmar *${dd2}/${mm2} as ${d.pending_time}* ou *nao* para escolher outro horario.`, from, to, payload);
+      await logOutbound(
+        supabase,
+        `Responda *sim* para confirmar *${dd2}/${mm2} as ${d.pending_time}* ou *nao* para escolher outro horario.`,
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "confirming_suggestion_prompt" });
     }
 
@@ -351,7 +485,7 @@ Deno.serve(async (req) => {
             `${bookingResult.message}\n\nNo momento nao ha mais horarios disponiveis. Digite *oi* para reiniciar.`,
             from,
             to,
-            payload
+            payload,
           );
           return jsonResponse({ ok: true, mode: "booking_failed_no_slots" });
         }
@@ -378,7 +512,13 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, mode: "back_to_slots" });
       }
 
-      await logOutbound(supabase, "Responda *sim* para confirmar ou *nao* para escolher outro horario.", from, to, payload);
+      await logOutbound(
+        supabase,
+        "Responda *sim* para confirmar ou *nao* para escolher outro horario.",
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "confirm_prompt" });
     }
 
@@ -389,7 +529,8 @@ Deno.serve(async (req) => {
       const parsed = parseSlotInput(normalizedText, availableDays);
 
       if (!parsed) {
-        const msg = "Nao entendi o horario. Tente ex: *seg as 8*, *terca 9h*, *06/04 08:00*\nOu *cancelar* para sair.";
+        const msg =
+          "Nao entendi o horario. Tente ex: *seg as 8*, *terca 9h*, *06/04 08:00*\nOu *cancelar* para sair.";
         await logOutbound(supabase, msg, from, to, payload);
         return jsonResponse({ ok: true, mode: "invalid_slot" });
       }
@@ -430,7 +571,13 @@ Deno.serve(async (req) => {
 
           if (availableDays.length === 0) {
             await clearSession(supabase, from);
-            await logOutbound(supabase, "Nenhum horario disponivel no momento. Contate o gestor.", from, to, payload);
+            await logOutbound(
+              supabase,
+              "Nenhum horario disponivel no momento. Contate o gestor.",
+              from,
+              to,
+              payload,
+            );
             return jsonResponse({ ok: true, mode: "no_slots" });
           }
 
@@ -446,7 +593,13 @@ Deno.serve(async (req) => {
         }
       }
 
-      await logOutbound(supabase, "Opcao invalida. Digite o numero do servico ou *cancelar* para voltar.", from, to, payload);
+      await logOutbound(
+        supabase,
+        "Opcao invalida. Digite o numero do servico ou *cancelar* para voltar.",
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "invalid_service" });
     }
 
@@ -459,7 +612,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, mode: "service_list" });
     }
 
-    if (normalizedText === "2" || normalizedText === "servicos" || normalizedText === "ver servicos") {
+    if (
+      normalizedText === "2" ||
+      normalizedText === "servicos" ||
+      normalizedText === "ver servicos"
+    ) {
       const { data: services } = await supabase
         .from("services")
         .select("number, name, price, description")
@@ -500,14 +657,28 @@ Deno.serve(async (req) => {
       const rawManagerPhone = botSettings?.manager_phone?.trim() || null;
       try {
         await notifyStaff(notifyMsg, rawBotPhone, rawManagerPhone);
-      } catch { /* nao falhar */ }
-      await logOutbound(supabase, "Sua solicitacao foi encaminhada. Em breve um responsavel entrara em contato.", from, to, payload);
+      } catch {
+        /* nao falhar */
+      }
+      await logOutbound(
+        supabase,
+        "Sua solicitacao foi encaminhada. Em breve um responsavel entrara em contato.",
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "contact_request" });
     }
 
     if (normalizedText === "4") {
       await clearSession(supabase, from);
-      await logOutbound(supabase, "Atendimento encerrado. Digite *oi* para iniciar novamente.", from, to, payload);
+      await logOutbound(
+        supabase,
+        "Atendimento encerrado. Digite *oi* para iniciar novamente.",
+        from,
+        to,
+        payload,
+      );
       return jsonResponse({ ok: true, mode: "end" });
     }
 
@@ -517,7 +688,6 @@ Deno.serve(async (req) => {
     const welcome = botSettings?.welcome_message ?? "Ola! Como posso ajudar?";
     await logOutbound(supabase, welcome, from, to, payload);
     return jsonResponse({ ok: true, mode: "welcome" });
-
   } catch (error) {
     console.error(error);
     return jsonResponse({ error: String(error) }, 500);
@@ -526,7 +696,9 @@ Deno.serve(async (req) => {
 
 // ── Horários ─────────────────────────────────────────────────────────────────
 
-async function getAvailableDays(supabase: ReturnType<typeof getServiceClient>): Promise<DaySlots[]> {
+async function getAvailableDays(
+  supabase: ReturnType<typeof getServiceClient>,
+): Promise<DaySlots[]> {
   const { data: days } = await supabase
     .from("available_days")
     .select("id, day_of_week")
@@ -538,7 +710,10 @@ async function getAvailableDays(supabase: ReturnType<typeof getServiceClient>): 
   const { data: slots } = await supabase
     .from("available_time_slots")
     .select("day_id, time")
-    .in("day_id", days.map((d) => d.id))
+    .in(
+      "day_id",
+      days.map((d) => d.id),
+    )
     .eq("active", true)
     .order("time", { ascending: true });
 
@@ -622,7 +797,10 @@ function buildSlotsMessage(serviceName: string, days: DaySlots[]): string {
 
 // ── Parser de horário em linguagem natural ────────────────────────────────────
 
-function parseSlotInput(text: string, days: DaySlots[]): { date: string; time: string; label: string } | null {
+function parseSlotInput(
+  text: string,
+  days: DaySlots[],
+): { date: string; time: string; label: string } | null {
   // Tenta data no formato DD/MM
   const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})/);
   let matchedDay: DaySlots | null = null;
@@ -658,7 +836,8 @@ function parseSlotInput(text: string, days: DaySlots[]): { date: string; time: s
   const timeStr = `${hh}:${mn}`;
 
   // Busca o horário mais próximo disponível naquele dia
-  const matchedTime = matchedDay.times.find((t) => t === timeStr) ??
+  const matchedTime =
+    matchedDay.times.find((t) => t === timeStr) ??
     matchedDay.times.find((t) => t.startsWith(`${hh}:`));
 
   if (!matchedTime) return null;
@@ -675,7 +854,9 @@ function parseSlotInput(text: string, days: DaySlots[]): { date: string; time: s
 function getBrtToday(): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
-    year: "numeric", month: "2-digit", day: "2-digit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
   const y = parts.find((p) => p.type === "year")?.value ?? "2000";
   const m = parts.find((p) => p.type === "month")?.value ?? "01";
@@ -683,7 +864,10 @@ function getBrtToday(): Date {
   return new Date(`${y}-${m}-${d}T00:00:00`);
 }
 
-function parseFreeSlotInput(text: string, days: DaySlots[]): { date: string; time: string; label: string } | null {
+function parseFreeSlotInput(
+  text: string,
+  days: DaySlots[],
+): { date: string; time: string; label: string } | null {
   let matchedDate: string | null = null;
   let matchedDayName = "";
   let ddMm = "";
@@ -741,9 +925,9 @@ function parseFreeSlotInput(text: string, days: DaySlots[]): { date: string; tim
 
   // Extrai horário — aceita qualquer HH:MM, HHhMM, HHh ou número solto
   const timeMatch =
-    text.match(/(\d{1,2})[h:](\d{2})/) ??  // "14:30", "14h30"
-    text.match(/(\d{1,2})h\b/i) ??           // "14h"
-    text.match(/(\d{1,2})/);                 // "14" (número solto)
+    text.match(/(\d{1,2})[h:](\d{2})/) ?? // "14:30", "14h30"
+    text.match(/(\d{1,2})h\b/i) ?? // "14h"
+    text.match(/(\d{1,2})/); // "14" (número solto)
 
   if (!timeMatch) return null;
 
@@ -781,16 +965,29 @@ async function listServices(supabase: ReturnType<typeof getServiceClient>): Prom
 
 async function createBooking(
   supabase: ReturnType<typeof getServiceClient>,
-  params: { serviceId: string; serviceName: string; customerPhone: string; date: string; time: string; autoConfirm: boolean; companyId: string; managerPhone: string; botPhone: string }
+  params: {
+    serviceId: string;
+    serviceName: string;
+    customerPhone: string;
+    date: string;
+    time: string;
+    autoConfirm: boolean;
+    companyId: string;
+    managerPhone: string;
+    botPhone: string;
+  },
 ): Promise<{ ok: boolean; message: string }> {
   const customerName = `Cliente ${params.customerPhone.slice(-4)}`;
 
-  const { data: customerData, error: customerError } = await supabase.rpc("find_or_create_customer", {
-    p_company_id: params.companyId,
-    p_name: customerName,
-    p_phone: params.customerPhone,
-    p_email: null,
-  });
+  const { data: customerData, error: customerError } = await supabase.rpc(
+    "find_or_create_customer",
+    {
+      p_company_id: params.companyId,
+      p_name: customerName,
+      p_phone: params.customerPhone,
+      p_email: null,
+    },
+  );
 
   if (customerError) throw customerError;
 
@@ -828,7 +1025,8 @@ async function createBooking(
     if (error.code === "23505") {
       return {
         ok: false,
-        message: "Esse horario acabou de ser reservado por outra pessoa. Escolha outro horario para continuar.",
+        message:
+          "Esse horario acabou de ser reservado por outra pessoa. Escolha outro horario para continuar.",
       };
     }
 
@@ -878,7 +1076,10 @@ async function createBooking(
   } else if (!params.autoConfirm && !params.managerPhone) {
     await supabase.from("audit_logs").insert({
       action: "whatsapp.booking.no_manager_phone",
-      payload: { appointment_id: insertedAppointment?.id ?? null, customer_phone: params.customerPhone },
+      payload: {
+        appointment_id: insertedAppointment?.id ?? null,
+        customer_phone: params.customerPhone,
+      },
     });
   }
 
@@ -923,16 +1124,26 @@ async function getSession(supabase: ReturnType<typeof getServiceClient>, phone: 
   return data ?? { state: "idle" as SessionState, data: {}, updated_at: new Date().toISOString() };
 }
 
-async function setSession(supabase: ReturnType<typeof getServiceClient>, phone: string, state: SessionState, data: SessionData) {
-  await supabase.from("whatsapp_sessions").upsert(
-    { company_id: DEFAULT_COMPANY_ID, phone, state, data, updated_at: new Date().toISOString() },
-    { onConflict: "company_id,phone" }
-  );
+async function setSession(
+  supabase: ReturnType<typeof getServiceClient>,
+  phone: string,
+  state: SessionState,
+  data: SessionData,
+) {
+  await supabase
+    .from("whatsapp_sessions")
+    .upsert(
+      { company_id: DEFAULT_COMPANY_ID, phone, state, data, updated_at: new Date().toISOString() },
+      { onConflict: "company_id,phone" },
+    );
 }
 
 async function clearSession(supabase: ReturnType<typeof getServiceClient>, phone: string) {
-  await supabase.from("whatsapp_sessions").delete()
-    .eq("company_id", DEFAULT_COMPANY_ID).eq("phone", phone);
+  await supabase
+    .from("whatsapp_sessions")
+    .delete()
+    .eq("company_id", DEFAULT_COMPANY_ID)
+    .eq("phone", phone);
 }
 
 async function notifyStaff(message: string, botPhone: string, managerPhone: string | null) {
@@ -944,7 +1155,11 @@ async function notifyStaff(message: string, botPhone: string, managerPhone: stri
 
 // ── Gestor ────────────────────────────────────────────────────────────────────
 
-async function processManagerCommand(supabase: ReturnType<typeof getServiceClient>, command: ReturnType<typeof parseManagerCommand>, managerPhone: string): Promise<string> {
+async function processManagerCommand(
+  supabase: ReturnType<typeof getServiceClient>,
+  command: ReturnType<typeof parseManagerCommand>,
+  managerPhone: string,
+): Promise<string> {
   const { data, error } = await supabase.functions.invoke("process_commands", {
     body: { companyId: DEFAULT_COMPANY_ID, managerPhone, command },
   });
@@ -954,31 +1169,56 @@ async function processManagerCommand(supabase: ReturnType<typeof getServiceClien
 
 // ── Utilitários ───────────────────────────────────────────────────────────────
 
-async function logOutbound(supabase: ReturnType<typeof getServiceClient>, message: string, to: string, from: string, payload: unknown) {
+async function logOutbound(
+  supabase: ReturnType<typeof getServiceClient>,
+  message: string,
+  to: string,
+  from: string,
+  payload: unknown,
+) {
   await supabase.from("whatsapp_messages").insert({
-    company_id: DEFAULT_COMPANY_ID, from_number: from, to_number: to,
-    message, type: "outbound", raw_payload: payload,
+    company_id: DEFAULT_COMPANY_ID,
+    from_number: from,
+    to_number: to,
+    message,
+    type: "outbound",
+    raw_payload: payload,
   });
   try {
     await sendUazapiMessage({ to, message });
   } catch (error) {
-    await supabase.from("audit_logs").insert({ action: "whatsapp.send.error", payload: { to, message, error: String(error) } });
+    await supabase
+      .from("audit_logs")
+      .insert({ action: "whatsapp.send.error", payload: { to, message, error: String(error) } });
   }
 }
 
-function normalizePhone(v: string) { return v.replace(/\D/g, ""); }
+function normalizePhone(v: string) {
+  return v.replace(/\D/g, "");
+}
 function normalizeWhatsappId(v: string) {
   if (isGroupLikeIdentifier(v)) return "";
   return normalizePhone(v.split("@")[0] ?? "");
 }
 function normalizeText(v: string) {
-  return v.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return v
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
-function extractMessageId(payload: Record<string, unknown>) { return (payload as any)?.message?.messageid ?? ""; }
+function extractMessageId(payload: Record<string, unknown>) {
+  return (payload as any)?.message?.messageid ?? "";
+}
 function isGroupLikeIdentifier(v: string) {
   const s = String(v).trim().toLowerCase();
   if (!s) return false;
-  return s.endsWith("@g.us") || s.includes("status@broadcast") || s.endsWith("@broadcast") || s.includes("broadcast");
+  return (
+    s.endsWith("@g.us") ||
+    s.includes("status@broadcast") ||
+    s.endsWith("@broadcast") ||
+    s.includes("broadcast")
+  );
 }
 function detectOriginContext(payload: Record<string, unknown>) {
   const msg = (payload as any)?.message;
@@ -990,11 +1230,15 @@ function detectOriginContext(payload: Record<string, unknown>) {
     (payload as any)?.data?.key?.remoteJid,
     (payload as any)?.event?.from,
   ];
-  const rawJid = rawCandidates.find((x) => typeof x === "string" && x.length > 0) as string | undefined;
+  const rawJid = rawCandidates.find((x) => typeof x === "string" && x.length > 0) as
+    | string
+    | undefined;
   const rawFrom = msg?.sender_pn ?? rawJid ?? "";
   const hasGroupFlag = msg?.isGroup === true;
   const hasFromMeFlag = msg?.fromMe === true;
-  const looksLikeGroup = rawCandidates.some((x) => typeof x === "string" && isGroupLikeIdentifier(x));
+  const looksLikeGroup = rawCandidates.some(
+    (x) => typeof x === "string" && isGroupLikeIdentifier(x),
+  );
   const isGroupLike = hasGroupFlag || looksLikeGroup;
 
   return {
@@ -1013,35 +1257,57 @@ function extractFrom(payload: Record<string, unknown>) {
   if (msg?.isGroup === true) return "";
   if (msg?.fromMe === true) {
     // gestor usando o próprio bot_phone: remetente = owner da instância
-    const selfCandidates = [
-      (payload as any)?.owner,
-      msg?.owner,
-      (payload as any)?.instance_phone,
-    ];
-    const v = selfCandidates.find((x) => typeof x === "string" && x.length > 0) as string | undefined;
+    const selfCandidates = [(payload as any)?.owner, msg?.owner, (payload as any)?.instance_phone];
+    const v = selfCandidates.find((x) => typeof x === "string" && x.length > 0) as
+      | string
+      | undefined;
     return v ? normalizeWhatsappId(v) : "";
   }
-  const c = [msg?.sender_pn, msg?.chatid, payload?.from, payload?.phone,
-    (payload as any)?.data?.from, (payload as any)?.data?.key?.remoteJid,
-    (payload as any)?.event?.from, (payload as any)?.sender];
+  const c = [
+    msg?.sender_pn,
+    msg?.chatid,
+    payload?.from,
+    payload?.phone,
+    (payload as any)?.data?.from,
+    (payload as any)?.data?.key?.remoteJid,
+    (payload as any)?.event?.from,
+    (payload as any)?.sender,
+  ];
   const v = c.find((x) => typeof x === "string" && x.length > 0) as string | undefined;
   return v ? normalizeWhatsappId(v) : "";
 }
 function extractTo(payload: Record<string, unknown>) {
   const msg = (payload as any)?.message;
-  const c = [(payload as any)?.owner, msg?.owner, payload?.to, payload?.instance_phone,
-    (payload as any)?.data?.to, (payload as any)?.recipient];
+  const c = [
+    (payload as any)?.owner,
+    msg?.owner,
+    payload?.to,
+    payload?.instance_phone,
+    (payload as any)?.data?.to,
+    (payload as any)?.recipient,
+  ];
   const v = c.find((x) => typeof x === "string" && x.length > 0) as string | undefined;
   return v ? normalizeWhatsappId(v) : "";
 }
 function extractText(payload: Record<string, unknown>) {
   const msg = (payload as any)?.message;
-  const c = [msg?.text, msg?.content, payload?.body, (payload as any)?.data?.body,
-    (payload as any)?.data?.message?.conversation, (payload as any)?.data?.message?.extendedTextMessage?.text,
-    (payload as any)?.data?.text];
-  const v = c.find((x) => typeof x === "string" && String(x).trim().length > 0) as string | undefined;
+  const c = [
+    msg?.text,
+    msg?.content,
+    payload?.body,
+    (payload as any)?.data?.body,
+    (payload as any)?.data?.message?.conversation,
+    (payload as any)?.data?.message?.extendedTextMessage?.text,
+    (payload as any)?.data?.text,
+  ];
+  const v = c.find((x) => typeof x === "string" && String(x).trim().length > 0) as
+    | string
+    | undefined;
   return v?.trim() ?? "";
 }
 function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }

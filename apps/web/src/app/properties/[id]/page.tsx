@@ -89,8 +89,11 @@ export default async function PropertyDetailPage(props: PageProps) {
       <AppHeader active="/properties" />
       <main className="mx-auto max-w-6xl px-8 py-12">
         <p className="text-sm text-gray-400">
-          <Link href="/properties" className="transition hover:text-gray-700">Imóveis</Link>
-          {" / "}{property.public_id}
+          <Link href="/properties" className="transition hover:text-gray-700">
+            Imóveis
+          </Link>
+          {" / "}
+          {property.public_id}
         </p>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">
           {property.title ?? property.public_id}

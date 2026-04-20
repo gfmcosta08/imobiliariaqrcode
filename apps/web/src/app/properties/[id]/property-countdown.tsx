@@ -51,15 +51,21 @@ export function PropertyCountdown({ expiresAt }: CountdownProps) {
           <p className="text-xs text-zinc-500">dias</p>
         </div>
         <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.hours)}</p>
+          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            {pad(tick.hours)}
+          </p>
           <p className="text-xs text-zinc-500">horas</p>
         </div>
         <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.minutes)}</p>
+          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            {pad(tick.minutes)}
+          </p>
           <p className="text-xs text-zinc-500">min</p>
         </div>
         <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.seconds)}</p>
+          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            {pad(tick.seconds)}
+          </p>
           <p className="text-xs text-zinc-500">seg</p>
         </div>
       </div>

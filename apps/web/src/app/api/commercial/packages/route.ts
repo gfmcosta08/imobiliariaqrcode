@@ -8,7 +8,9 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("commercial_packages")
-    .select("id, code, name, package_type, price_cents, currency, active, metadata, created_at, updated_at")
+    .select(
+      "id, code, name, package_type, price_cents, currency, active, metadata, created_at, updated_at",
+    )
     .order("created_at", { ascending: false });
 
   if (!includeInactive) {

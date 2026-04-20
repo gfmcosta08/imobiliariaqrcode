@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_BATCH = 12;
@@ -160,9 +160,7 @@ async function sendImageViaMultipart(
   return {
     ok: true,
     provider_message_id:
-      (parsed && (parsed.id as string)) ||
-      (parsed && (parsed.messageId as string)) ||
-      null,
+      (parsed && (parsed.id as string)) || (parsed && (parsed.messageId as string)) || null,
     response: parsed ?? raw,
   };
 }
@@ -209,11 +207,7 @@ function getPayloadDelayMs(row: QueueRow): number | null {
   return Math.max(0, Math.floor(parsed));
 }
 
-function getWaitMs(
-  row: QueueRow,
-  defaultDelayMinMs: number,
-  defaultDelayMaxMs: number,
-): number {
+function getWaitMs(row: QueueRow, defaultDelayMinMs: number, defaultDelayMaxMs: number): number {
   const payloadDelay = getPayloadDelayMs(row);
   if (payloadDelay != null) return payloadDelay;
 
@@ -319,8 +313,8 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
 
   const isImage = row.message_type === "image";
   const endpoint = isImage
-    ? Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/media"
-    : Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text";
+    ? (Deno.env.get("UAZAPI_IMAGE_ENDPOINT") ?? "/send/media")
+    : (Deno.env.get("UAZAPI_TEXT_ENDPOINT") ?? "/send/text");
 
   const caption = "";
   const imageUrl = row.payload?.image_url ?? null;
@@ -356,9 +350,7 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
   return {
     ok: true,
     provider_message_id:
-      (parsed && (parsed.id as string)) ||
-      (parsed && (parsed.messageId as string)) ||
-      null,
+      (parsed && (parsed.id as string)) || (parsed && (parsed.messageId as string)) || null,
     response: parsed ?? raw,
   };
 }
@@ -415,7 +407,10 @@ Deno.serve(async (req) => {
   const typingEndpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT");
   const typingHeartbeatMs = toInt(Deno.env.get("UAZAPI_TYPING_HEARTBEAT_MS"), 3500);
   const defaultDelayMinMs = Math.max(0, toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MIN_MS"), 2000));
-  const defaultDelayMaxMs = Math.max(defaultDelayMinMs, toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MAX_MS"), 5000));
+  const defaultDelayMaxMs = Math.max(
+    defaultDelayMinMs,
+    toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MAX_MS"), 5000),
+  );
 
   const sent: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
@@ -447,12 +442,18 @@ Deno.serve(async (req) => {
     for (const row of orderedRows) {
       // Skip unsendable system records.
       if (row.message_type === "system" || row.message_type === "menu") {
-        await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+        await supabase
+          .from("whatsapp_messages")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", row.id);
         sent.push(row.id);
         continue;
       }
       if (row.message_type === "text" && !row.payload?.text) {
-        await supabase.from("whatsapp_messages").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+        await supabase
+          .from("whatsapp_messages")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", row.id);
         sent.push(row.id);
         continue;
       }
@@ -546,7 +547,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const okResult = result as { ok: true; provider_message_id: string | null; response: unknown };
+        const okResult = result as {
+          ok: true;
+          provider_message_id: string | null;
+          response: unknown;
+        };
         sent.push(row.id);
         await supabase
           .from("whatsapp_messages")
@@ -567,7 +572,11 @@ Deno.serve(async (req) => {
           .from("whatsapp_messages")
           .update({
             status: "failed",
-            payload: { ...(row.payload ?? {}), dispatch_error: errMsg, dispatch_failed_at: new Date().toISOString() },
+            payload: {
+              ...(row.payload ?? {}),
+              dispatch_error: errMsg,
+              dispatch_failed_at: new Date().toISOString(),
+            },
           })
           .eq("id", row.id);
       }
@@ -576,7 +585,10 @@ Deno.serve(async (req) => {
     if (batch.length < MAX_BATCH) break;
   }
 
-  return new Response(JSON.stringify({ ok: true, processed: sent.length + failed.length, sent, failed }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ ok: true, processed: sent.length + failed.length, sent, failed }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });

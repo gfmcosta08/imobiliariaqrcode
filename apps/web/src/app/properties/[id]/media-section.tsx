@@ -38,7 +38,9 @@ export function MediaSection(props: {
     setError(null);
     setNotice(null);
     const formData = new FormData(e.currentTarget);
-    const selectedCount = formData.getAll("files").filter((v) => v instanceof File && v.size > 0).length;
+    const selectedCount = formData
+      .getAll("files")
+      .filter((v) => v instanceof File && v.size > 0).length;
     if (!selectedCount) {
       setError("Selecione pelo menos uma imagem.");
       return;
@@ -57,7 +59,9 @@ export function MediaSection(props: {
     if (res && "uploaded" in res) {
       const failedCount = Array.isArray(res.failed) ? res.failed.length : 0;
       if (failedCount > 0) {
-        setNotice(`Upload finalizado com ressalvas: ${res.uploaded} enviada(s), ${failedCount} falha(s).`);
+        setNotice(
+          `Upload finalizado com ressalvas: ${res.uploaded} enviada(s), ${failedCount} falha(s).`,
+        );
       } else {
         setNotice(`Upload concluido: ${res.uploaded} imagem(ns).`);
       }
@@ -150,7 +154,9 @@ export function MediaSection(props: {
             >
               {loading ? "Enviando..." : "Enviar"}
             </button>
-            {loading ? <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span> : null}
+            {loading ? (
+              <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span>
+            ) : null}
           </div>
         </form>
       ) : (

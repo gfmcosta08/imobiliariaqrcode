@@ -30,10 +30,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} antialiased`}
+      >
         {children}
       </body>
     </html>
   );
 }
-

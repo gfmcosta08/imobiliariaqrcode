@@ -45,7 +45,6 @@ function matchChoice2(text: string): boolean {
   return /\b(mais\s+imoveis|imoveis\s+(parecidos|similares)|outros\s+imoveis|ver\s+mais)\b/.test(t);
 }
 
-
 function matchNo(text: string): boolean {
   const t = text.toLowerCase().trim();
   return /^(nao|não|n|no|0)$/.test(t) || /^nao\b/.test(t) || /^não\b/.test(t);
@@ -180,10 +179,19 @@ function summarizeProperty(row: Record<string, unknown>): string {
   const local = [fmt(row.neighborhood), fmt(row.city), fmt(row.state)].filter(Boolean).join(" / ");
   if (local) lines.push(`Local: ${local}`);
 
-  const addressParts = [fmt(row.full_address), fmt(row.street_number), fmt(row.address_complement)].filter(Boolean);
+  const addressParts = [
+    fmt(row.full_address),
+    fmt(row.street_number),
+    fmt(row.address_complement),
+  ].filter(Boolean);
   if (addressParts.length) lines.push(`Endereco: ${addressParts.join(", ")}`);
 
-  const purpose = fmt(row.purpose) === "sale" ? "Venda" : fmt(row.purpose) === "rent" ? "Aluguel" : fmt(row.purpose);
+  const purpose =
+    fmt(row.purpose) === "sale"
+      ? "Venda"
+      : fmt(row.purpose) === "rent"
+        ? "Aluguel"
+        : fmt(row.purpose);
   if (purpose) lines.push(`Finalidade: ${purpose}`);
 
   const value = fmtBRL(row.price ?? row.sale_price ?? row.rent_price);
@@ -615,7 +623,9 @@ async function handleShowSimilarProperties(
     Deno.env.get("PUBLIC_APP_URL") ??
     "";
 
-  const tokenById = new Map((qrs ?? []).map((q: { property_id: string; qr_token: string }) => [q.property_id, q.qr_token]));
+  const tokenById = new Map(
+    (qrs ?? []).map((q: { property_id: string; qr_token: string }) => [q.property_id, q.qr_token]),
+  );
   const byId = new Map((props ?? []).map((p: Record<string, unknown>) => [p.id, p]));
 
   const flowGroup = crypto.randomUUID();
@@ -754,10 +764,7 @@ async function doRegisterVisit(
       .update({ state: "awaiting_recommendation_choice", last_menu: "similar_question" })
       .eq("id", sessionId);
   } else {
-    await supabase
-      .from("conversation_sessions")
-      .update({ state: "closed" })
-      .eq("id", sessionId);
+    await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", sessionId);
   }
 }
 
@@ -765,7 +772,14 @@ async function sendTypingNow(leadPhone: string): Promise<void> {
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL") ?? "";
   const token = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
   const endpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT") ?? "";
-  console.log("[typing] baseUrl:", baseUrl ? "set" : "MISSING", "endpoint:", endpoint || "MISSING", "phone:", leadPhone);
+  console.log(
+    "[typing] baseUrl:",
+    baseUrl ? "set" : "MISSING",
+    "endpoint:",
+    endpoint || "MISSING",
+    "phone:",
+    leadPhone,
+  );
   if (!baseUrl || !endpoint) return;
 
   const url = endpoint.startsWith("http")
@@ -817,7 +831,9 @@ Deno.serve(async (req) => {
 
     const { data: session } = await supabase
       .from("conversation_sessions")
-      .select("id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, target_property_id")
+      .select(
+        "id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, target_property_id",
+      )
       .eq("lead_phone", leadPhone)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -937,7 +953,8 @@ Deno.serve(async (req) => {
     if (session.state === "awaiting_main_choice") {
       if (matchChoice1(text)) {
         if (!lead?.nome_validado) {
-          const confirmName = profileName ??
+          const confirmName =
+            profileName ??
             (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
 
           if (confirmName) {
@@ -978,8 +995,15 @@ Deno.serve(async (req) => {
         }
 
         await doRegisterVisit(
-          supabase, property, lead, leadPhone, brokerPhone,
-          firstName, session.id, session.last_menu, profileName,
+          supabase,
+          property,
+          lead,
+          leadPhone,
+          brokerPhone,
+          firstName,
+          session.id,
+          session.last_menu,
+          profileName,
           `Interesse em visita: ${text}`,
         );
         return json({ ok: true, state: "visit_registered" });
@@ -987,7 +1011,15 @@ Deno.serve(async (req) => {
 
       if (matchChoice2(text)) {
         return await handleShowSimilarProperties(
-          supabase, property, lead, leadPhone, brokerPhone, firstName, profileName, informedName, session.id,
+          supabase,
+          property,
+          lead,
+          leadPhone,
+          brokerPhone,
+          firstName,
+          profileName,
+          informedName,
+          session.id,
         );
       }
     }
@@ -1026,7 +1058,10 @@ Deno.serve(async (req) => {
           });
 
           await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
-          await supabase.from("conversation_sessions").update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar" }).eq("id", session.id);
+          await supabase
+            .from("conversation_sessions")
+            .update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar" })
+            .eq("id", session.id);
           return json({ ok: true, state: "no_similar_back_to_menu" });
         }
 
@@ -1091,7 +1126,11 @@ Deno.serve(async (req) => {
 
         await supabase
           .from("conversation_sessions")
-          .update({ state: "awaiting_main_choice", last_menu: "main_menu_post_similar", last_recommended_properties: ids })
+          .update({
+            state: "awaiting_main_choice",
+            last_menu: "main_menu_post_similar",
+            last_recommended_properties: ids,
+          })
           .eq("id", session.id);
         await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
         return json({ ok: true, state: "recommendations_sent_back_to_menu", count: ids.length });
@@ -1110,7 +1149,10 @@ Deno.serve(async (req) => {
           },
         });
 
-        await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "closed" })
+          .eq("id", session.id);
         return json({ ok: true, state: "closed" });
       }
     }
@@ -1128,9 +1170,10 @@ Deno.serve(async (req) => {
           message_type: "text",
           payload: {
             kind: "ask_property_id",
-            text: count > 0
-              ? `Qual o numero do imovel que deseja visitar? (1 a ${count})`
-              : `Qual o numero do imovel que deseja visitar?`,
+            text:
+              count > 0
+                ? `Qual o numero do imovel que deseja visitar? (1 a ${count})`
+                : `Qual o numero do imovel que deseja visitar?`,
           },
         });
         await supabase
@@ -1142,7 +1185,15 @@ Deno.serve(async (req) => {
 
       if (matchChoice2(text)) {
         return await handleShowSimilarProperties(
-          supabase, property, lead, leadPhone, brokerPhone, firstName, profileName, informedName, session.id,
+          supabase,
+          property,
+          lead,
+          leadPhone,
+          brokerPhone,
+          firstName,
+          profileName,
+          informedName,
+          session.id,
         );
       }
 
@@ -1158,7 +1209,10 @@ Deno.serve(async (req) => {
             text: `${firstName}, tudo bem! Quando quiser, e so me chamar por aqui.`,
           },
         });
-        await supabase.from("conversation_sessions").update({ state: "closed" }).eq("id", session.id);
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "closed" })
+          .eq("id", session.id);
         return json({ ok: true, state: "closed" });
       }
 
@@ -1192,7 +1246,8 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (targetProp) {
-          const hasName = lead?.nome_validado ||
+          const hasName =
+            lead?.nome_validado ||
             profileName != null ||
             (lead?.nome_completo && !isGenericName(lead.nome_completo));
 
@@ -1202,13 +1257,23 @@ Deno.serve(async (req) => {
               .update({ target_property_id: targetId, last_menu: "main_menu_post_similar" })
               .eq("id", session.id);
             await doRegisterVisit(
-              supabase, targetProp, lead, leadPhone, brokerPhone,
-              firstName, session.id, "main_menu_post_similar", profileName,
+              supabase,
+              targetProp,
+              lead,
+              leadPhone,
+              brokerPhone,
+              firstName,
+              session.id,
+              "main_menu_post_similar",
+              profileName,
               `Interesse em visita ao imovel ${targetProp.public_id}`,
             );
           } else {
-            const confirmName = profileName ??
-              (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
+            const confirmName =
+              profileName ??
+              (lead?.nome_completo && !isGenericName(lead.nome_completo)
+                ? lead.nome_completo
+                : null);
             if (confirmName) {
               await queueOutbound(supabase, {
                 account_id: property.account_id,
@@ -1223,7 +1288,11 @@ Deno.serve(async (req) => {
               });
               await supabase
                 .from("conversation_sessions")
-                .update({ state: "awaiting_name_confirmation", last_menu: "main_menu_post_similar", target_property_id: targetId })
+                .update({
+                  state: "awaiting_name_confirmation",
+                  last_menu: "main_menu_post_similar",
+                  target_property_id: targetId,
+                })
                 .eq("id", session.id);
               return json({ ok: true, state: "awaiting_name_confirmation" });
             } else {
@@ -1240,7 +1309,11 @@ Deno.serve(async (req) => {
               });
               await supabase
                 .from("conversation_sessions")
-                .update({ state: "awaiting_name_input", last_menu: "main_menu_post_similar", target_property_id: targetId })
+                .update({
+                  state: "awaiting_name_input",
+                  last_menu: "main_menu_post_similar",
+                  target_property_id: targetId,
+                })
                 .eq("id", session.id);
               return json({ ok: true, state: "awaiting_name_input" });
             }
@@ -1258,9 +1331,10 @@ Deno.serve(async (req) => {
         message_type: "text",
         payload: {
           kind: "ask_property_id_retry",
-          text: count > 0
-            ? `Numero invalido. Responda com um numero de 1 a ${count}.`
-            : `Numero invalido. Responda com o numero do imovel desejado.`,
+          text:
+            count > 0
+              ? `Numero invalido. Responda com um numero de 1 a ${count}.`
+              : `Numero invalido. Responda com o numero do imovel desejado.`,
         },
       });
       return json({ ok: true, state: "awaiting_visit_property_id" });
@@ -1268,10 +1342,19 @@ Deno.serve(async (req) => {
 
     if (session.state === "awaiting_name_confirmation") {
       const visitProperty = session.target_property_id
-        ? ((await supabase.from("properties").select("id, public_id, broker_id, account_id").eq("id", session.target_property_id).maybeSingle()).data ?? property)
+        ? ((
+            await supabase
+              .from("properties")
+              .select("id, public_id, broker_id, account_id")
+              .eq("id", session.target_property_id)
+              .maybeSingle()
+          ).data ?? property)
         : property;
-      const visitLastMenu = session.target_property_id ? "main_menu_post_similar" : session.last_menu;
-      const confirmName = profileName ??
+      const visitLastMenu = session.target_property_id
+        ? "main_menu_post_similar"
+        : session.last_menu;
+      const confirmName =
+        profileName ??
         (lead?.nome_completo && !isGenericName(lead.nome_completo) ? lead.nome_completo : null);
 
       if (matchChoice1(text)) {
@@ -1289,14 +1372,28 @@ Deno.serve(async (req) => {
           });
           const confirmedFirstName = pickGreetingName(updatedLead, profileName) ?? firstName;
           await doRegisterVisit(
-            supabase, visitProperty, updatedLead ?? lead, leadPhone, brokerPhone,
-            confirmedFirstName, session.id, visitLastMenu, profileName,
+            supabase,
+            visitProperty,
+            updatedLead ?? lead,
+            leadPhone,
+            brokerPhone,
+            confirmedFirstName,
+            session.id,
+            visitLastMenu,
+            profileName,
             `Visita apos confirmacao de nome`,
           );
         } else {
           await doRegisterVisit(
-            supabase, visitProperty, lead, leadPhone, brokerPhone,
-            firstName, session.id, visitLastMenu, profileName,
+            supabase,
+            visitProperty,
+            lead,
+            leadPhone,
+            brokerPhone,
+            firstName,
+            session.id,
+            visitLastMenu,
+            profileName,
             `Visita apos confirmacao de nome`,
           );
         }
@@ -1338,9 +1435,17 @@ Deno.serve(async (req) => {
 
     if (session.state === "awaiting_name_input") {
       const visitProperty = session.target_property_id
-        ? ((await supabase.from("properties").select("id, public_id, broker_id, account_id").eq("id", session.target_property_id).maybeSingle()).data ?? property)
+        ? ((
+            await supabase
+              .from("properties")
+              .select("id, public_id, broker_id, account_id")
+              .eq("id", session.target_property_id)
+              .maybeSingle()
+          ).data ?? property)
         : property;
-      const visitLastMenu = session.target_property_id ? "main_menu_post_similar" : session.last_menu;
+      const visitLastMenu = session.target_property_id
+        ? "main_menu_post_similar"
+        : session.last_menu;
       const rawName = text.trim();
       if (rawName.length < 2 || matchChoice1(rawName) || matchChoice2(rawName)) {
         await queueOutbound(supabase, {
@@ -1370,8 +1475,15 @@ Deno.serve(async (req) => {
       });
       const newFirstName = normalizedName.split(" ")[0] || firstName;
       await doRegisterVisit(
-        supabase, visitProperty, updatedLead ?? lead, leadPhone, brokerPhone,
-        newFirstName, session.id, visitLastMenu, profileName,
+        supabase,
+        visitProperty,
+        updatedLead ?? lead,
+        leadPhone,
+        brokerPhone,
+        newFirstName,
+        session.id,
+        visitLastMenu,
+        profileName,
         `Visita apos coleta de nome`,
       );
       return json({ ok: true, state: "visit_registered_after_name_input" });

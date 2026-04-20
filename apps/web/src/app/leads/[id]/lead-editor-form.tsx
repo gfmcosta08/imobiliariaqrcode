@@ -53,10 +53,14 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
       }}
     >
       {error ? (
-        <p className="rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
       ) : null}
       {success ? (
-        <p className="rounded-none border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
+        <p className="rounded-none border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {success}
+        </p>
       ) : null}
 
       <label className="flex flex-col gap-1 text-sm">
@@ -106,7 +110,9 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-zinc-800 dark:text-zinc-200">Interesses (linha ou virgula)</span>
+        <span className="font-medium text-zinc-800 dark:text-zinc-200">
+          Interesses (linha ou virgula)
+        </span>
         <textarea
           name="interesses"
           rows={3}

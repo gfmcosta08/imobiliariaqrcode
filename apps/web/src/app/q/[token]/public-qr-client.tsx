@@ -14,17 +14,14 @@ type Props = {
 function toActiveBody(b: Record<string, unknown>): QrResolveActive | null {
   if (b.ok !== true) return null;
 
-  const brokerRaw = b.broker && typeof b.broker === "object" ? (b.broker as Record<string, unknown>) : null;
+  const brokerRaw =
+    b.broker && typeof b.broker === "object" ? (b.broker as Record<string, unknown>) : null;
   const legacyPropertyRaw =
     b.property && typeof b.property === "object" ? (b.property as Record<string, unknown>) : null;
 
   if (b.state === "active") {
     const propertyId =
-      typeof b.property_id === "string"
-        ? b.property_id
-        : typeof b.id === "string"
-          ? b.id
-          : null;
+      typeof b.property_id === "string" ? b.property_id : typeof b.id === "string" ? b.id : null;
     if (!propertyId) return null;
 
     const listingRaw = b.listing;
@@ -70,9 +67,12 @@ function toActiveBody(b: Record<string, unknown>): QrResolveActive | null {
       state: "active",
       property_id: legacyPropertyRaw.id,
       public_id:
-        typeof legacyPropertyRaw.public_id === "string" ? legacyPropertyRaw.public_id : legacyPropertyRaw.id,
+        typeof legacyPropertyRaw.public_id === "string"
+          ? legacyPropertyRaw.public_id
+          : legacyPropertyRaw.id,
       broker_id: typeof legacyPropertyRaw.broker_id === "string" ? legacyPropertyRaw.broker_id : "",
-      broker_whatsapp: typeof brokerRaw?.whatsapp_number === "string" ? brokerRaw.whatsapp_number : null,
+      broker_whatsapp:
+        typeof brokerRaw?.whatsapp_number === "string" ? brokerRaw.whatsapp_number : null,
       whatsapp_link: typeof b.whatsapp_link === "string" ? b.whatsapp_link : null,
       listing: {
         title: typeof legacyPropertyRaw.title === "string" ? legacyPropertyRaw.title : null,
@@ -122,7 +122,9 @@ export function PublicQrClient({ token, initial, fetchError }: Props) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 text-center dark:bg-zinc-950">
         <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR invalido</p>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Nao encontramos este anuncio.</p>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Nao encontramos este anuncio.
+        </p>
       </div>
     );
   }
@@ -139,7 +141,9 @@ export function PublicQrClient({ token, initial, fetchError }: Props) {
   if (!activeBody) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 text-center dark:bg-zinc-950">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Nao foi possivel exibir o anuncio.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Nao foi possivel exibir o anuncio.
+        </p>
       </div>
     );
   }

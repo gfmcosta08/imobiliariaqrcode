@@ -32,7 +32,8 @@ export async function updateLead(input: LeadUpdateInput) {
     return { error: "Nome completo e obrigatorio." };
   }
 
-  const primeiroNome = String(input.primeiro_nome ?? "").trim() || nomeCompleto.split(" ")[0] || "Cliente";
+  const primeiroNome =
+    String(input.primeiro_nome ?? "").trim() || nomeCompleto.split(" ")[0] || "Cliente";
   const observacoes = String(input.observacoes ?? "").trim();
   const interesses = parseInteresses(String(input.interesses ?? ""));
 

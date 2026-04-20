@@ -8,7 +8,9 @@ export default function NewPropertyPage() {
       <AppHeader active="/properties" />
       <main className="mx-auto max-w-6xl px-8 py-12">
         <p className="text-sm text-gray-400">
-          <Link href="/properties" className="transition hover:text-gray-700">Imóveis</Link>
+          <Link href="/properties" className="transition hover:text-gray-700">
+            Imóveis
+          </Link>
           {" / "}Novo imóvel
         </p>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">Novo imóvel</h1>

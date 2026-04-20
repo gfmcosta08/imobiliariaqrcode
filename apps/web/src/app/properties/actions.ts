@@ -67,7 +67,10 @@ export async function updatePropertyDetails(
 
 export async function updatePropertyStatus(propertyId: string, listing_status: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("properties").update({ listing_status }).eq("id", propertyId);
+  const { error } = await supabase
+    .from("properties")
+    .update({ listing_status })
+    .eq("id", propertyId);
   if (error) {
     return { error: error.message };
   }
@@ -79,7 +82,11 @@ export async function updatePropertyStatus(propertyId: string, listing_status: s
 function parseCurrencyBRL(input: string | null | undefined): number | null {
   const raw = String(input ?? "").trim();
   if (!raw) return null;
-  const normalized = raw.replace(/\s/g, "").replace(/[R$]/g, "").replace(/\./g, "").replace(",", ".");
+  const normalized = raw
+    .replace(/\s/g, "")
+    .replace(/[R$]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
   const value = Number.parseFloat(normalized);
   return Number.isFinite(value) ? value : null;
 }
@@ -103,7 +110,9 @@ export async function markPropertyAsSold(params: {
   soldCommission: string;
   soldNotes?: string;
 }) {
-  const confirm = String(params.confirmText ?? "").trim().toUpperCase();
+  const confirm = String(params.confirmText ?? "")
+    .trim()
+    .toUpperCase();
   if (confirm !== "VENDIDO") {
     return { error: "Digite VENDIDO para confirmar." };
   }

@@ -25,18 +25,18 @@ Deno.serve(async (req) => {
       p_payload: {
         command: payload.command,
         company_id: payload.companyId,
-        manager_phone: payload.managerPhone
-      }
+        manager_phone: payload.managerPhone,
+      },
     });
 
     return new Response(JSON.stringify({ ok: true, message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error(error);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
@@ -57,21 +57,42 @@ function getBrtTodayIso(): string {
 
 async function routeCommand(
   supabase: ReturnType<typeof getServiceClient>,
-  payload: ProcessPayload
+  payload: ProcessPayload,
 ): Promise<string> {
   switch (payload.command.type) {
     case "confirmar":
-      return confirmByCustomerAndTime(supabase, payload.companyId, payload.command.customerName, payload.command.time);
+      return confirmByCustomerAndTime(
+        supabase,
+        payload.companyId,
+        payload.command.customerName,
+        payload.command.time,
+      );
     case "sugerir":
-      return suggestSlot(supabase, payload.companyId, payload.command.customerName, payload.command.time);
+      return suggestSlot(
+        supabase,
+        payload.companyId,
+        payload.command.customerName,
+        payload.command.time,
+      );
     case "cancelar":
-      return cancelByCustomerAndTime(supabase, payload.companyId, payload.command.customerName, payload.command.time);
+      return cancelByCustomerAndTime(
+        supabase,
+        payload.companyId,
+        payload.command.customerName,
+        payload.command.time,
+      );
     case "agenda_hoje":
       return agendaHoje(supabase, payload.companyId);
     case "agenda_semana":
       return agendaSemana(supabase, payload.companyId);
     case "encaixar":
-      return encaixar(supabase, payload.companyId, payload.command.time, payload.command.customerName, payload.command.serviceName);
+      return encaixar(
+        supabase,
+        payload.companyId,
+        payload.command.time,
+        payload.command.customerName,
+        payload.command.serviceName,
+      );
     case "add_servico":
       return addServico(
         supabase,
@@ -79,7 +100,7 @@ async function routeCommand(
         payload.command.name,
         payload.command.category,
         payload.command.price,
-        payload.command.description
+        payload.command.description,
       );
     case "servicos":
       return listarServicos(supabase, payload.companyId);
@@ -138,7 +159,7 @@ async function confirmByCustomerAndTime(
   supabase: ReturnType<typeof getServiceClient>,
   companyId: string,
   customerName: string,
-  time: string
+  time: string,
 ): Promise<string> {
   const today = getBrtTodayIso();
 
@@ -159,16 +180,25 @@ async function confirmByCustomerAndTime(
   const match = data?.find((item) =>
     String((item as unknown as { customers: { name: string } }).customers?.name ?? "")
       .toLowerCase()
-      .includes(customerName.toLowerCase())
+      .includes(customerName.toLowerCase()),
   );
 
   if (!match) {
     return `Nenhum agendamento pendente encontrado para ${customerName} as ${time}.`;
   }
 
-  const row = match as unknown as { id: string; date: string; time: string; customers: { name: string; phone: string }; services: { name: string } };
+  const row = match as unknown as {
+    id: string;
+    date: string;
+    time: string;
+    customers: { name: string; phone: string };
+    services: { name: string };
+  };
 
-  const { error: updateError } = await supabase.from("appointments").update({ status: "confirmed" }).eq("id", row.id);
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ status: "confirmed" })
+    .eq("id", row.id);
   if (updateError) throw updateError;
 
   // Criar entrada na fila unificada
@@ -203,7 +233,7 @@ async function suggestSlot(
   supabase: ReturnType<typeof getServiceClient>,
   companyId: string,
   customerName: string,
-  time: string
+  time: string,
 ): Promise<string> {
   const { data } = await supabase
     .from("appointments")
@@ -216,10 +246,11 @@ async function suggestSlot(
   const match = data?.find((item) =>
     String((item as unknown as { customers: { name: string } }).customers?.name ?? "")
       .toLowerCase()
-      .includes(customerName.toLowerCase())
+      .includes(customerName.toLowerCase()),
   );
 
-  const customerPhone = (match as unknown as { customers: { phone: string } } | undefined)?.customers?.phone;
+  const customerPhone = (match as unknown as { customers: { phone: string } } | undefined)
+    ?.customers?.phone;
   if (!customerPhone) {
     return `Cliente ${customerName} nao encontrado em agendamentos pendentes.`;
   }
@@ -240,7 +271,7 @@ async function cancelByCustomerAndTime(
   supabase: ReturnType<typeof getServiceClient>,
   companyId: string,
   customerName: string,
-  time: string
+  time: string,
 ): Promise<string> {
   const today = getBrtTodayIso();
 
@@ -261,14 +292,17 @@ async function cancelByCustomerAndTime(
   const match = data?.find((item) =>
     String((item as unknown as { customers: { name: string } }).customers?.name ?? "")
       .toLowerCase()
-      .includes(customerName.toLowerCase())
+      .includes(customerName.toLowerCase()),
   );
 
   if (!match) {
     return `Nenhum agendamento pendente encontrado para ${customerName} as ${time}.`;
   }
 
-  const { error: updateError } = await supabase.from("appointments").update({ status: "canceled" }).eq("id", match.id);
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ status: "canceled" })
+    .eq("id", match.id);
   if (updateError) {
     throw updateError;
   }
@@ -290,7 +324,10 @@ async function cancelByCustomerAndTime(
   return `Agendamento pendente de ${customerName} as ${time} cancelado.`;
 }
 
-async function agendaHoje(supabase: ReturnType<typeof getServiceClient>, companyId: string): Promise<string> {
+async function agendaHoje(
+  supabase: ReturnType<typeof getServiceClient>,
+  companyId: string,
+): Promise<string> {
   const today = getBrtTodayIso();
 
   const { data, error } = await supabase
@@ -321,7 +358,10 @@ async function agendaHoje(supabase: ReturnType<typeof getServiceClient>, company
   return `Agenda de hoje:\n${lines.join("\n")}`;
 }
 
-async function agendaSemana(supabase: ReturnType<typeof getServiceClient>, companyId: string): Promise<string> {
+async function agendaSemana(
+  supabase: ReturnType<typeof getServiceClient>,
+  companyId: string,
+): Promise<string> {
   const todayIso = getBrtTodayIso();
   const end = new Date();
   end.setDate(end.getDate() + 7);
@@ -358,7 +398,7 @@ async function encaixar(
   companyId: string,
   time: string,
   customerName: string,
-  serviceName: string
+  serviceName: string,
 ): Promise<string> {
   const today = getBrtTodayIso();
 
@@ -381,7 +421,7 @@ async function encaixar(
     p_company_id: companyId,
     p_name: customerName,
     p_phone: customerPhone,
-    p_email: null
+    p_email: null,
   });
 
   if (customerError) {
@@ -397,7 +437,7 @@ async function encaixar(
     status: "confirmed",
     source: "whatsapp",
     auto_confirmed: true,
-    notes: "Encaixe via comando WhatsApp"
+    notes: "Encaixe via comando WhatsApp",
   });
 
   if (appointmentError) {
@@ -413,7 +453,7 @@ async function addServico(
   name: string,
   category: string,
   price: number,
-  description: string
+  description: string,
 ): Promise<string> {
   const { data, error } = await supabase
     .from("services")
@@ -424,7 +464,7 @@ async function addServico(
       category,
       price,
       description,
-      active: true
+      active: true,
     })
     .select("number")
     .single();
@@ -436,7 +476,10 @@ async function addServico(
   return `Servico criado com sucesso. Numero: ${data.number}.`;
 }
 
-async function listarServicos(supabase: ReturnType<typeof getServiceClient>, companyId: string): Promise<string> {
+async function listarServicos(
+  supabase: ReturnType<typeof getServiceClient>,
+  companyId: string,
+): Promise<string> {
   const { data, error } = await supabase
     .from("services")
     .select("number, name, price")
@@ -452,10 +495,15 @@ async function listarServicos(supabase: ReturnType<typeof getServiceClient>, com
     return "Nenhum servico ativo.";
   }
 
-  return data.map((item) => `${item.number} - ${item.name} (R$ ${Number(item.price).toFixed(2)})`).join("\n");
+  return data
+    .map((item) => `${item.number} - ${item.name} (R$ ${Number(item.price).toFixed(2)})`)
+    .join("\n");
 }
 
-async function listarPendentes(supabase: ReturnType<typeof getServiceClient>, companyId: string): Promise<string> {
+async function listarPendentes(
+  supabase: ReturnType<typeof getServiceClient>,
+  companyId: string,
+): Promise<string> {
   const { data, error } = await supabase
     .from("appointments")
     .select("date, time, customers(name), services(name)")

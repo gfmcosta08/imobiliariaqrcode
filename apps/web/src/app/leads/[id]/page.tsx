@@ -24,15 +24,23 @@ export default async function LeadDetailPage(props: PageProps) {
 
   if (error || !lead) notFound();
 
-const property = lead.property as { id?: string; public_id?: string; city?: string; state?: string } | null;
+  const property = lead.property as {
+    id?: string;
+    public_id?: string;
+    city?: string;
+    state?: string;
+  } | null;
 
   return (
     <div className="min-h-screen bg-white">
       <AppHeader active="/leads" />
       <main className="mx-auto max-w-5xl px-8 py-12">
         <p className="text-sm text-gray-400">
-          <Link href="/leads" className="transition hover:text-gray-700">Leads</Link>
-          {" / "}{lead.nome_completo || lead.primeiro_nome || "Lead"}
+          <Link href="/leads" className="transition hover:text-gray-700">
+            Leads
+          </Link>
+          {" / "}
+          {lead.nome_completo || lead.primeiro_nome || "Lead"}
         </p>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">
           {lead.nome_completo || lead.primeiro_nome || "Lead sem nome"}
@@ -61,7 +69,6 @@ const property = lead.property as { id?: string; public_id?: string; city?: stri
             />
           </div>
         </div>
-
       </main>
     </div>
   );

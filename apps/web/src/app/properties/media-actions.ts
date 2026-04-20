@@ -40,7 +40,10 @@ export async function uploadMediaFilesForProperty(
   if (base.error || !base.accountId) {
     return {
       uploaded: 0,
-      failed: files.map((f) => ({ name: f.name || "arquivo", error: base.error ?? "Erro de sessao." })),
+      failed: files.map((f) => ({
+        name: f.name || "arquivo",
+        error: base.error ?? "Erro de sessao.",
+      })),
     };
   }
 
@@ -82,10 +85,12 @@ export async function uploadMediaFilesForProperty(
     const objectPath = `account/${accountId}/property/${propertyId}/original/${Date.now()}-${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const { error: upError } = await supabase.storage.from("property-media").upload(objectPath, buffer, {
-      contentType: mime,
-      upsert: false,
-    });
+    const { error: upError } = await supabase.storage
+      .from("property-media")
+      .upload(objectPath, buffer, {
+        contentType: mime,
+        upsert: false,
+      });
 
     if (upError) {
       failed.push({ name: file.name, error: upError.message });
@@ -120,9 +125,7 @@ export async function uploadPropertyMedia(formData: FormData) {
     return { error: "Imovel invalido." };
   }
 
-  const files = formData
-    .getAll("files")
-    .filter((v): v is File => v instanceof File && v.size > 0);
+  const files = formData.getAll("files").filter((v): v is File => v instanceof File && v.size > 0);
 
   if (!files.length) {
     return { error: "Selecione ao menos uma imagem." };

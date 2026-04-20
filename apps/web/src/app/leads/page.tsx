@@ -23,7 +23,9 @@ export default async function LeadsPage() {
         </p>
 
         {error ? (
-          <p className="mt-4 text-sm text-red-600" role="alert">{error.message}</p>
+          <p className="mt-4 text-sm text-red-600" role="alert">
+            {error.message}
+          </p>
         ) : null}
 
         <ul className="mt-8 space-y-3">
@@ -33,7 +35,11 @@ export default async function LeadsPage() {
             </li>
           ) : (
             leads?.map((lead) => {
-              const property = lead.property as { public_id?: string; city?: string; state?: string } | null;
+              const property = lead.property as {
+                public_id?: string;
+                city?: string;
+                state?: string;
+              } | null;
               const phone = lead.telefone || lead.client_phone;
               const interests = Array.isArray(lead.interesses) ? lead.interesses.join(", ") : "";
 
@@ -61,9 +67,7 @@ export default async function LeadsPage() {
                         {interests ? ` · ${interests}` : ""}
                       </p>
                     </div>
-                    <span className="mt-2 text-sm font-medium text-black sm:mt-0">
-                      Ver lead →
-                    </span>
+                    <span className="mt-2 text-sm font-medium text-black sm:mt-0">Ver lead →</span>
                   </Link>
                 </li>
               );

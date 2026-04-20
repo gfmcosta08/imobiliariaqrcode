@@ -309,9 +309,7 @@ export default async function Home() {
             </ul>
           </div>
           <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">
-              Acesso
-            </p>
+            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">Acesso</p>
             <ul className="space-y-2">
               <li>
                 <Link href="/login" className="text-sm text-white/80 transition hover:text-white">

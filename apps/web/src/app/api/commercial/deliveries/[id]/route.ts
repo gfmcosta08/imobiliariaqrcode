@@ -80,7 +80,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .update(patch)
     .eq("id", id)
     .eq("account_id", ctx.accountId)
-    .select("id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at")
+    .select(
+      "id, account_id, contract_id, property_id, delivery_model, layout_mode, status, scheduled_at, completed_at, notes, created_at, updated_at",
+    )
     .maybeSingle();
 
   if (error) {

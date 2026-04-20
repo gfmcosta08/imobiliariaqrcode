@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     if (!payload.companyId || !payload.to || !payload.message) {
       return new Response(JSON.stringify({ error: "companyId, to, message are required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -36,18 +36,18 @@ Deno.serve(async (req) => {
       type: "outbound",
       raw_payload: {
         provider_response: response,
-        metadata: payload.metadata ?? {}
-      }
+        metadata: payload.metadata ?? {},
+      },
     });
 
     return new Response(JSON.stringify({ ok: true, provider: response }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error(error);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
