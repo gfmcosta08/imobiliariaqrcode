@@ -458,61 +458,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const payloadKind = typeof row.payload?.kind === "string" ? row.payload.kind : "";
-      if (payloadKind === "menu_option_3") {
-        await supabase
-          .from("whatsapp_messages")
-          .update({
-            status: "abandoned",
-            sent_at: new Date().toISOString(),
-            payload: {
-              ...(row.payload ?? {}),
-              text: "",
-              dispatch_suppressed: true,
-              dispatch_suppressed_reason: "option3_removed",
-            },
-          })
-          .eq("id", row.id);
-        sent.push(row.id);
-        continue;
-      }
-
       try {
         let rowToSend = row;
         if (row.message_type === "text") {
           const rawText = normalizeOutgoingText(row.payload?.text ?? "");
-          const filtered = rawText
-            .split(/\r?\n/)
-            .filter((line) => {
-              const t = line.trim().toLowerCase();
-              if (!t) return true;
-              if (!/^\s*3\s*-/.test(line)) return true;
-              return !t.includes("anunciar");
-            })
-            .join("\n")
-            .trim();
-
-          if (!filtered) {
-            await supabase
-              .from("whatsapp_messages")
-              .update({
-                status: "abandoned",
-                sent_at: new Date().toISOString(),
-                payload: {
-                  ...(row.payload ?? {}),
-                  text: "",
-                  dispatch_suppressed: true,
-                  dispatch_suppressed_reason: "option3_removed",
-                },
-              })
-              .eq("id", row.id);
-            sent.push(row.id);
-            continue;
-          }
-
-          if (filtered !== rawText.trim()) {
-            rowToSend = { ...row, payload: { ...(row.payload ?? {}), text: filtered } };
-          }
+          rowToSend = { ...row, payload: { ...(row.payload ?? {}), text: rawText } };
         }
         await supabase
           .from("whatsapp_messages")
