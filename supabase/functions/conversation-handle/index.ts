@@ -1071,10 +1071,8 @@ Deno.serve(async (req) => {
             text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
           },
         });
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "closed" })
-          .eq("id", session.id);
+        // Mantém sessão aberta para o cliente ainda poder escolher 1 ou 2
+        await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
         return json({ ok: true, state: "broker_contact_sent" });
       }
     }
@@ -1285,10 +1283,7 @@ Deno.serve(async (req) => {
             text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
           },
         });
-        await supabase
-          .from("conversation_sessions")
-          .update({ state: "closed" })
-          .eq("id", session.id);
+        await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
         return json({ ok: true, state: "broker_contact_sent" });
       }
 
@@ -1563,6 +1558,10 @@ Deno.serve(async (req) => {
         `Visita apos coleta de nome`,
       );
       return json({ ok: true, state: "visit_registered_after_name_input" });
+    }
+
+    if (session.state === "closed") {
+      return json({ ok: true, state: "ignored_closed_session" });
     }
 
     await queueOutbound(supabase, {
