@@ -1,24 +1,83 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 
 export default function PlansPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Planos</h1>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Upgrade para PRO via Stripe ou Mercado Pago: webhooks em{" "}
-        <code className="text-xs">billing-stripe-webhook</code> e{" "}
-        <code className="text-xs">billing-mercadopago-webhook</code> (stubs no repositório). Estado
-        canônico: tabela <code className="text-xs">subscriptions</code>.
-      </p>
-      <ul className="mt-6 list-inside list-disc space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
-        <li>FREE: 1 imóvel ativo, 10 imagens, expira 30 dias após primeira impressão.</li>
-        <li>PRO: vários imóveis, 15 imagens, sem expiração automática.</li>
-      </ul>
-      <p className="mt-8 text-sm">
-        <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">
-          Voltar ao painel
-        </Link>
-      </p>
+    <div className="min-h-screen bg-white">
+      <AppHeader active="/plans" />
+      <main className="mx-auto max-w-4xl px-8 py-12">
+        <h1 className="text-3xl font-bold text-gray-900">Planos</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Escolha o plano que melhor se adapta às suas necessidades.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {/* FREE */}
+          <div className="border border-gray-200 p-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Plano</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-900">FREE</h2>
+            <p className="mt-1 text-3xl font-bold text-gray-900">
+              R$ 0<span className="text-base font-normal text-gray-400">/mês</span>
+            </p>
+            <ul className="mt-6 space-y-3 text-sm text-gray-600">
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> 1 imóvel ativo
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Até 10 imagens por imóvel
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> QR Code automático
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-gray-300">✗</span> Expira 30 dias após impressão
+              </li>
+            </ul>
+            <Link
+              href="/dashboard"
+              className="mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500"
+            >
+              Plano atual
+            </Link>
+          </div>
+
+          {/* PRO */}
+          <div className="border-2 border-[#0055d2] p-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#0055d2]">Plano</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-900">PRO</h2>
+            <p className="mt-1 text-3xl font-bold text-gray-900">
+              R$ 197<span className="text-base font-normal text-gray-400">/mês</span>
+            </p>
+            <ul className="mt-6 space-y-3 text-sm text-gray-600">
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Imóveis ilimitados
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Até 15 imagens por imóvel
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Sem expiração automática
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Dashboard de métricas completo
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#0055d2]">✓</span> Leads ilimitados
+              </li>
+            </ul>
+            <Link
+              href="/dashboard"
+              className="mt-8 inline-block bg-[#0055d2] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0044b0]"
+            >
+              Assinar PRO →
+            </Link>
+          </div>
+        </div>
+
+        <p className="mt-10 text-xs text-gray-400">
+          Pagamentos via Stripe ou Mercado Pago. Em implantação.
+        </p>
+      </main>
     </div>
   );
 }

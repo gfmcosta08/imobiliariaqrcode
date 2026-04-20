@@ -1,8 +1,9 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { AppHeader } from "@/components/app-header";
 
 import { updatePropertyDetails } from "../actions";
 import { PropertyEditorForm } from "../property-editor-form";
@@ -30,9 +31,7 @@ export default async function PropertyDetailPage(props: PageProps) {
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !property) {
-    notFound();
-  }
+  if (error || !property) notFound();
 
   const { data: planRow } = await supabase
     .from("plans")
@@ -53,9 +52,7 @@ export default async function PropertyDetailPage(props: PageProps) {
     const { data: signed, error: signError } = await supabase.storage
       .from("property-media")
       .createSignedUrl(media.storage_path, 3600);
-    if (!signError && signed?.signedUrl) {
-      signedUrls[media.id] = signed.signedUrl;
-    }
+    if (!signError && signed?.signedUrl) signedUrls[media.id] = signed.signedUrl;
   }
 
   const { data: qr } = await supabase
@@ -85,105 +82,121 @@ export default async function PropertyDetailPage(props: PageProps) {
     (host ? `${proto}://${host}` : "");
   const publicQrUrl = qr?.qr_token ? `${appBase}/q/${encodeURIComponent(qr.qr_token)}` : null;
 
-  const description = property.full_description ?? property.description ?? "Sem descricao.";
+  const description = property.full_description ?? property.description ?? "Sem descrição.";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <p className="text-sm text-zinc-500">
-        <Link href="/properties" className="underline">
-          Imoveis
-        </Link>{" "}
-        / {property.public_id}
-      </p>
-      <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-        {property.title ?? property.public_id}
-      </h1>
-      {mediaError ? (
-        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Upload parcial de imagens no cadastro: {mediaError}
+    <div className="min-h-screen bg-white">
+      <AppHeader active="/properties" />
+      <main className="mx-auto max-w-6xl px-8 py-12">
+        <p className="text-sm text-gray-400">
+          <Link href="/properties" className="transition hover:text-gray-700">Imóveis</Link>
+          {" / "}{property.public_id}
         </p>
-      ) : null}
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {(property.city ?? "Cidade nao informada")} / {(property.state ?? "UF")} ·{" "}
-        {property.property_type ?? "Tipo nao informado"}
-      </p>
+        <h1 className="mt-2 text-3xl font-bold text-gray-900">
+          {property.title ?? property.public_id}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          {property.city ?? "Cidade não informada"} / {property.state ?? "UF"} ·{" "}
+          {property.property_type ?? "Tipo não informado"}
+        </p>
 
-      <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">{description}</p>
-        <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-zinc-500">Status</dt>
-            <dd className="font-medium">{property.listing_status}</dd>
-          </div>
-          <div>
-            <dt className="text-zinc-500">Plano origem</dt>
-            <dd className="font-medium">{property.origin_plan_code}</dd>
-          </div>
-          {property.printed_at ? (
-            <div>
-              <dt className="text-zinc-500">Primeira impressao</dt>
-              <dd className="font-medium">{new Date(property.printed_at).toLocaleString("pt-BR")}</dd>
-            </div>
-          ) : null}
-          {property.expires_at ? (
-            <div>
-              <dt className="text-zinc-500">Expira em</dt>
-              <dd className="font-medium">{new Date(property.expires_at).toLocaleString("pt-BR")}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {property.expires_at ? <PropertyCountdown expiresAt={property.expires_at} /> : null}
-      </div>
-
-      <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Edicao completa do imovel</h2>
-        <PropertyEditorForm mode="edit" initial={property} action={updatePropertyDetails} />
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Publicacao</h2>
-        <StatusForm propertyId={property.id} currentStatus={property.listing_status} />
-      </div>
-
-      <MediaSection propertyId={property.id} media={mediaRows ?? []} signedUrls={signedUrls} maxImages={maxImages} />
-
-      {publicQrUrl ? (
-        <div className="mt-10">
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">QR Code (ativo)</h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Escaneie para abrir a pagina publica do anuncio.
+        {mediaError ? (
+          <p className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Upload parcial de imagens: {mediaError}
           </p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Leituras acumuladas do QR ativo: <span className="font-medium">{qrReads}</span>
-          </p>
-          <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row">
-            <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicQrUrl)}`}
-                alt="QR Code do imovel"
-                width={200}
-                height={200}
-              />
+        ) : null}
+
+        {/* Descrição e detalhes */}
+        <div className="mt-8 border border-gray-200 p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Descrição</h2>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{description}</p>
+          <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+            <div>
+              <dt className="text-xs text-gray-400">Status</dt>
+              <dd className="mt-0.5 font-medium text-gray-900">{property.listing_status}</dd>
             </div>
-            <div className="max-w-full break-all text-xs text-zinc-500">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">Payload:</span> {publicQrUrl}
+            <div>
+              <dt className="text-xs text-gray-400">Plano origem</dt>
+              <dd className="mt-0.5 font-medium text-gray-900">{property.origin_plan_code}</dd>
             </div>
+            {property.printed_at ? (
+              <div>
+                <dt className="text-xs text-gray-400">Primeira impressão</dt>
+                <dd className="mt-0.5 font-medium text-gray-900">
+                  {new Date(property.printed_at).toLocaleString("pt-BR")}
+                </dd>
+              </div>
+            ) : null}
+            {property.expires_at ? (
+              <div>
+                <dt className="text-xs text-gray-400">Expira em</dt>
+                <dd className="mt-0.5 font-medium text-gray-900">
+                  {new Date(property.expires_at).toLocaleString("pt-BR")}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          {property.expires_at ? <PropertyCountdown expiresAt={property.expires_at} /> : null}
+        </div>
+
+        {/* Editor completo */}
+        <div className="mt-6 border border-gray-200 p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Edição completa do imóvel
+          </h2>
+          <div className="mt-5">
+            <PropertyEditorForm mode="edit" initial={property} action={updatePropertyDetails} />
           </div>
         </div>
-      ) : (
-        <p className="mt-8 text-sm text-amber-700 dark:text-amber-300">
-          Nenhum QR ativo encontrado para este imovel.
-        </p>
-      )}
 
-      <PropertySimilarSection propertyId={property.id} />
+        {/* Publicação */}
+        <div className="mt-6 border border-gray-200 p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Publicação</h2>
+          <div className="mt-5">
+            <StatusForm propertyId={property.id} currentStatus={property.listing_status} />
+          </div>
+        </div>
 
-      <p className="mt-10 text-sm">
-        <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">
-          Painel
-        </Link>
-      </p>
+        {/* Mídia */}
+        <div className="mt-6">
+          <MediaSection
+            propertyId={property.id}
+            media={mediaRows ?? []}
+            signedUrls={signedUrls}
+            maxImages={maxImages}
+          />
+        </div>
+
+        {/* QR Code */}
+        {publicQrUrl ? (
+          <div className="mt-6 border border-gray-200 p-6">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              QR Code ativo
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Leituras acumuladas: <span className="font-semibold text-gray-900">{qrReads}</span>
+            </p>
+            <div className="mt-5 flex flex-col items-start gap-4 sm:flex-row">
+              <div className="border border-gray-200 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicQrUrl)}`}
+                  alt="QR Code do imóvel"
+                  width={200}
+                  height={200}
+                />
+              </div>
+              <p className="max-w-full break-all text-xs text-gray-400">{publicQrUrl}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-6 text-sm text-amber-700">
+            Nenhum QR ativo encontrado para este imóvel.
+          </p>
+        )}
+
+        <PropertySimilarSection propertyId={property.id} />
+      </main>
     </div>
   );
 }

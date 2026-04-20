@@ -1,7 +1,6 @@
 import Link from "next/link";
-
+import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "./actions";
 
 type MyMetrics = {
   total_properties: number;
@@ -56,53 +55,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
-          <Link href="/">
-            <span className="text-sm font-bold uppercase tracking-widest text-gray-900">
-              IMOBQR
-            </span>
-          </Link>
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/properties"
-              className="text-sm text-gray-600 transition hover:text-gray-900"
-            >
-              Imóveis
-            </Link>
-            <Link href="/leads" className="text-sm text-gray-600 transition hover:text-gray-900">
-              Leads
-            </Link>
-            <Link href="/plans" className="text-sm text-gray-600 transition hover:text-gray-900">
-              Planos
-            </Link>
-            <Link href="/partner" className="text-sm text-gray-600 transition hover:text-gray-900">
-              Parceiros
-            </Link>
-            <Link href="/profile" className="text-sm text-gray-600 transition hover:text-gray-900">
-              Perfil
-            </Link>
-          </nav>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:border-gray-500 hover:text-gray-900"
-            >
-              Sair
-            </button>
-          </form>
-        </div>
-      </header>
-
+      <AppHeader />
       <main className="mx-auto max-w-6xl px-8 py-12">
-        {/* Saudação */}
         <h1 className="text-3xl font-bold text-gray-900">
           {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
         </h1>
         <p className="mt-1 text-sm text-gray-500">Bem-vindo ao seu painel de corretagem.</p>
 
-        {/* Acesso rápido */}
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/properties"
@@ -130,11 +89,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* Info da conta */}
         <div className="mt-10 border border-gray-200 p-6">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
-            Minha conta
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Minha conta</h2>
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs text-gray-400">E-mail</p>
@@ -142,22 +98,17 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-xs text-gray-400">Nome</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">
-                {profile?.full_name ?? "—"}
-              </p>
+              <p className="mt-1 text-sm font-medium text-gray-800">{profile?.full_name ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">WhatsApp</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">
-                {profile?.whatsapp_number ?? "—"}
-              </p>
+              <p className="mt-1 text-sm font-medium text-gray-800">{profile?.whatsapp_number ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Plano</p>
               <p className="mt-1 text-sm font-medium text-gray-800">
-                {subscription?.plan_code?.toUpperCase() ?? "FREE"}
-                {" · "}
-                <span className="text-gray-400">{subscription?.status ?? "—"}</span>
+                {subscription?.plan_code?.toUpperCase() ?? "FREE"}{" "}
+                <span className="text-gray-400">({subscription?.status ?? "—"})</span>
               </p>
             </div>
           </div>
@@ -169,10 +120,9 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* Métricas */}
         {isPro ? (
           <div className="mt-8">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Métricas</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Métricas</h2>
             <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
               <div className="border border-gray-200 p-5">
                 <p className="text-3xl font-bold text-gray-900">{metrics.total_properties}</p>
@@ -187,18 +137,14 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-xs text-gray-500">Clientes atendidos</p>
               </div>
               <div className="border border-gray-200 p-5">
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatBRL(metrics.total_commission)}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{formatBRL(metrics.total_commission)}</p>
                 <p className="mt-1 text-xs text-gray-500">Comissão acumulada</p>
               </div>
             </div>
           </div>
         ) : (
           <div className="mt-8 border border-gray-200 bg-gray-50 p-6">
-            <p className="text-sm text-gray-600">
-              Métricas detalhadas disponíveis no plano PRO.
-            </p>
+            <p className="text-sm text-gray-600">Métricas detalhadas disponíveis no plano PRO.</p>
             <Link
               href="/plans"
               className="mt-4 inline-block bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"

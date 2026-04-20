@@ -1,5 +1,5 @@
 import Link from "next/link";
-
+import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PropertiesPage() {
@@ -10,61 +10,64 @@ export default async function PropertiesPage() {
     .order("updated_at", { ascending: false });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Imóveis</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Limites do plano são aplicados no banco (FREE: 1 ativo).
-          </p>
+    <div className="min-h-screen bg-white">
+      <AppHeader active="/properties" />
+      <main className="mx-auto max-w-6xl px-8 py-12">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Imóveis</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Gerencie seus imóveis e QR Codes.
+            </p>
+          </div>
+          <Link
+            href="/properties/new"
+            className="bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+          >
+            + Novo imóvel
+          </Link>
         </div>
-        <Link
-          href="/properties/new"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Novo imóvel
-        </Link>
-      </div>
 
-      {error ? (
-        <p className="mt-6 text-sm text-red-600" role="alert">
-          {error.message}
-        </p>
-      ) : null}
+        {error ? (
+          <p className="mt-6 text-sm text-red-600" role="alert">{error.message}</p>
+        ) : null}
 
-      <ul className="mt-8 space-y-3">
-        {(props ?? []).length === 0 ? (
-          <li className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-            Nenhum imóvel ainda. <Link href="/properties/new" className="font-medium underline">Cadastrar o primeiro</Link>.
-          </li>
-        ) : (
-          props?.map((p) => (
-            <li key={p.id}>
+        <ul className="mt-8 space-y-3">
+          {(props ?? []).length === 0 ? (
+            <li className="border border-dashed border-gray-300 p-12 text-center">
+              <p className="text-sm text-gray-500">Nenhum imóvel ainda.</p>
               <Link
-                href={`/properties/${p.id}`}
-                className="flex flex-col rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600 sm:flex-row sm:items-center sm:justify-between"
+                href="/properties/new"
+                className="mt-4 inline-block bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
               >
-                <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                    {p.title ?? p.public_id}{" "}
-                    <span className="text-xs font-normal text-zinc-500">({p.public_id})</span>
-                  </p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {p.city ?? "Cidade não informada"} / {p.state ?? "UF"} · {p.listing_status} · plano origem: {p.origin_plan_code}
-                  </p>
-                </div>
-                <span className="mt-2 text-sm text-zinc-500 sm:mt-0">Abrir →</span>
+                Cadastrar o primeiro
               </Link>
             </li>
-          ))
-        )}
-      </ul>
-
-      <p className="mt-10 text-sm">
-        <Link href="/dashboard" className="text-zinc-600 underline dark:text-zinc-400">
-          Voltar ao painel
-        </Link>
-      </p>
+          ) : (
+            props?.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/properties/${p.id}`}
+                  className="flex flex-col border border-gray-200 bg-white p-5 transition hover:border-gray-400 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {p.title ?? p.public_id}{" "}
+                      <span className="text-xs font-normal text-gray-400">({p.public_id})</span>
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {p.city ?? "Cidade não informada"} / {p.state ?? "UF"} ·{" "}
+                      <span className="text-gray-400">{p.listing_status}</span> ·{" "}
+                      <span className="text-gray-400">plano: {p.origin_plan_code}</span>
+                    </p>
+                  </div>
+                  <span className="mt-2 text-sm font-medium text-[#0055d2] sm:mt-0">Abrir →</span>
+                </Link>
+              </li>
+            ))
+          )}
+        </ul>
+      </main>
     </div>
   );
 }
