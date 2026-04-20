@@ -866,9 +866,7 @@ Deno.serve(async (req) => {
       if (session.state === "closed") {
         return json({ ok: true, state: "ignored_closed_session" });
       }
-      const lastUpdate = session.updated_at
-        ? new Date(String(session.updated_at)).getTime()
-        : 0;
+      const lastUpdate = session.updated_at ? new Date(String(session.updated_at)).getTime() : 0;
       if (Date.now() - lastUpdate > 5 * 60 * 1000) {
         return json({ ok: true, state: "session_expired" });
       }
