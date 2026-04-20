@@ -867,6 +867,19 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Guard: skip if pack was already queued in the last 30s (duplicate webhook)
+      const { count: alreadyQueued } = await supabase
+        .from("whatsapp_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("lead_phone", leadPhone)
+        .eq("property_id", propertyId)
+        .eq("direction", "outbound")
+        .gte("created_at", new Date(Date.now() - 30_000).toISOString());
+
+      if ((alreadyQueued ?? 0) > 0) {
+        return json({ ok: true, state: "pack_already_queued" });
+      }
+
       await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
       return json({ ok: true, state: "started", property_id: propertyId });
     }
