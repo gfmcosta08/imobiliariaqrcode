@@ -393,12 +393,12 @@ async function sendPropertyPack(
 
   const { data: broker } = await supabase
     .from("brokers")
-    .select("whatsapp_number, full_name")
+    .select("whatsapp_number, display_name")
     .eq("id", brokerId)
     .maybeSingle();
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
-  const brokerName = broker?.full_name ? String(broker.full_name) : null;
+  const brokerName = broker?.display_name ? String(broker.full_name) : null;
   const firstName = pickGreetingName(lead, profileName);
   const introText = firstName
     ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
@@ -949,12 +949,12 @@ Deno.serve(async (req) => {
 
     const { data: broker } = await supabase
       .from("brokers")
-      .select("whatsapp_number, full_name")
+      .select("whatsapp_number, display_name")
       .eq("id", property.broker_id)
       .maybeSingle();
 
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
-    const brokerName = broker?.full_name ? String(broker.full_name) : null;
+    const brokerName = broker?.display_name ? String(broker.full_name) : null;
 
     const lead = await upsertLead(supabase, {
       propertyId: String(property.id),
