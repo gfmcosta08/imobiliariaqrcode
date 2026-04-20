@@ -398,7 +398,7 @@ async function sendPropertyPack(
     .maybeSingle();
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
-  const brokerName = broker?.display_name ? String(broker.full_name) : null;
+  const brokerName = broker?.display_name ? String(broker.display_name) : null;
   const firstName = pickGreetingName(lead, profileName);
   const introText = firstName
     ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
@@ -954,7 +954,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
-    const brokerName = broker?.display_name ? String(broker.full_name) : null;
+    const brokerName = broker?.display_name ? String(broker.display_name) : null;
 
     const lead = await upsertLead(supabase, {
       propertyId: String(property.id),
