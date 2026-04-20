@@ -36,8 +36,14 @@ supabase/.temp
 
 # Vercel
 .vercel
+.env.vercel.*
+
+# Binaries
+*.exe
+*.tar.gz
+
+# Embedded repos
+imobiliariaqrcode/
 
 # Test
 coverage
-
-.vercel
