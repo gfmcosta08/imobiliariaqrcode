@@ -45,6 +45,14 @@ function matchChoice2(text: string): boolean {
   return /\b(mais\s+imoveis|imoveis\s+(parecidos|similares)|outros\s+imoveis|ver\s+mais)\b/.test(t);
 }
 
+function matchChoice3(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (/^3$/.test(t)) return true;
+  return /\b(contato\s+do\s+corretor|contato|numero\s+do\s+corretor|telefone\s+do\s+corretor)\b/.test(
+    t,
+  );
+}
+
 function matchNo(text: string): boolean {
   const t = text.toLowerCase().trim();
   return /^(nao|não|n|no|0)$/.test(t) || /^nao\b/.test(t) || /^não\b/.test(t);
@@ -385,11 +393,12 @@ async function sendPropertyPack(
 
   const { data: broker } = await supabase
     .from("brokers")
-    .select("whatsapp_number")
+    .select("whatsapp_number, full_name")
     .eq("id", brokerId)
     .maybeSingle();
 
   const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+  const brokerName = broker?.full_name ? String(broker.full_name) : null;
   const firstName = pickGreetingName(lead, profileName);
   const introText = firstName
     ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
@@ -510,6 +519,20 @@ async function sendPropertyPack(
     flow_group: flowGroup,
     flow_step: flowStep++,
   });
+
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "menu_option_3",
+      text: "3 - Quero o contato do corretor",
+    },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
 }
 
 async function sendMainMenu(
@@ -551,6 +574,16 @@ async function sendMainMenu(
     broker_phone: brokerPhone,
     message_type: "text",
     payload: { kind: "menu_option_2", text: "2 - Ver imoveis semelhantes" },
+    flow_group: flowGroup,
+    flow_step: flowStep++,
+  });
+  await queueOutbound(supabase, {
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: { kind: "menu_option_3", text: "3 - Quero o contato do corretor" },
     flow_group: flowGroup,
     flow_step: flowStep++,
   });
@@ -677,7 +710,7 @@ async function handleShowSimilarProperties(
     message_type: "text",
     payload: {
       kind: "similar_next_action",
-      text: `O que deseja fazer?\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis`,
+      text: `O que deseja fazer?\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis\n3 - Quero o contato do corretor`,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -916,11 +949,12 @@ Deno.serve(async (req) => {
 
     const { data: broker } = await supabase
       .from("brokers")
-      .select("whatsapp_number")
+      .select("whatsapp_number, full_name")
       .eq("id", property.broker_id)
       .maybeSingle();
 
     const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+    const brokerName = broker?.full_name ? String(broker.full_name) : null;
 
     const lead = await upsertLead(supabase, {
       propertyId: String(property.id),
@@ -1021,6 +1055,27 @@ Deno.serve(async (req) => {
           informedName,
           session.id,
         );
+      }
+
+      if (matchChoice3(text)) {
+        const contact = brokerPhone ?? "nao informado";
+        const name = brokerName ?? "Corretor";
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "broker_contact",
+            text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
+          },
+        });
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "closed" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "broker_contact_sent" });
       }
     }
 
@@ -1216,6 +1271,27 @@ Deno.serve(async (req) => {
         return json({ ok: true, state: "closed" });
       }
 
+      if (matchChoice3(text)) {
+        const contact = brokerPhone ?? "nao informado";
+        const name = brokerName ?? "Corretor";
+        await queueOutbound(supabase, {
+          account_id: property.account_id,
+          property_id: property.id,
+          lead_phone: leadPhone,
+          broker_phone: brokerPhone,
+          message_type: "text",
+          payload: {
+            kind: "broker_contact",
+            text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
+          },
+        });
+        await supabase
+          .from("conversation_sessions")
+          .update({ state: "closed" })
+          .eq("id", session.id);
+        return json({ ok: true, state: "broker_contact_sent" });
+      }
+
       await queueOutbound(supabase, {
         account_id: property.account_id,
         property_id: property.id,
@@ -1224,7 +1300,7 @@ Deno.serve(async (req) => {
         message_type: "text",
         payload: {
           kind: "similar_next_action_retry",
-          text: `Responda:\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis`,
+          text: `Responda:\n1 - Falar com o corretor sobre esse imóvel\n2 - Ver mais imoveis\n3 - Quero o contato do corretor`,
         },
       });
       return json({ ok: true, state: "awaiting_post_similar_choice" });
@@ -1497,7 +1573,7 @@ Deno.serve(async (req) => {
       message_type: "text",
       payload: {
         kind: "help",
-        text: `${firstName}, para te ajudar melhor, responda com 1 ou 2.`,
+        text: `${firstName}, para te ajudar melhor, responda com 1, 2 ou 3.`,
       },
     });
 
