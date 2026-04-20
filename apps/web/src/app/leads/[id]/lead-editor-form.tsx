@@ -53,10 +53,10 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
       }}
     >
       {error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       ) : null}
       {success ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
+        <p className="rounded-none border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
       ) : null}
 
       <label className="flex flex-col gap-1 text-sm">
@@ -64,7 +64,7 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
         <input
           name="nome_completo"
           defaultValue={initial.nome_completo}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
           required
         />
       </label>
@@ -74,7 +74,7 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
         <input
           name="primeiro_nome"
           defaultValue={initial.primeiro_nome}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
         />
       </label>
 
@@ -83,7 +83,7 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
         <select
           name="status"
           defaultValue={initial.status}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
         >
           <option value="new">new</option>
           <option value="contacted">contacted</option>
@@ -98,7 +98,7 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
         <select
           name="nome_validado"
           defaultValue={initial.nome_validado ? "true" : "false"}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
         >
           <option value="true">Sim</option>
           <option value="false">Nao</option>
@@ -111,7 +111,7 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
           name="interesses"
           rows={3}
           defaultValue={(initial.interesses ?? []).join("\n")}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
         />
       </label>
 
@@ -121,14 +121,14 @@ export function LeadEditorForm({ leadId, initial }: LeadEditorProps) {
           name="observacoes"
           rows={8}
           defaultValue={initial.observacoes}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
         />
       </label>
 
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+        className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
       >
         {pending ? "Salvando..." : "Salvar lead"}
       </button>

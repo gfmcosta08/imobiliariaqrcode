@@ -43,22 +43,22 @@ export function PropertyCountdown({ expiresAt }: CountdownProps) {
   }, [tick.isExpired]);
 
   return (
-    <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950">
+    <div className="mt-4 rounded-none border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950">
       <p className="text-xs uppercase tracking-wide text-zinc-500">Contagem regressiva</p>
       <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-        <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{tick.days}</p>
           <p className="text-xs text-zinc-500">dias</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.hours)}</p>
           <p className="text-xs text-zinc-500">horas</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.minutes)}</p>
           <p className="text-xs text-zinc-500">min</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="rounded-none border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900">
           <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{pad(tick.seconds)}</p>
           <p className="text-xs text-zinc-500">seg</p>
         </div>

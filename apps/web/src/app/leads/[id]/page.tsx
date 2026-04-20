@@ -24,14 +24,7 @@ export default async function LeadDetailPage(props: PageProps) {
 
   if (error || !lead) notFound();
 
-  const { data: interactions } = await supabase
-    .from("lead_interactions")
-    .select("id, interaction_type, payload, created_at")
-    .eq("lead_id", id)
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  const property = lead.property as { id?: string; public_id?: string; city?: string; state?: string } | null;
+const property = lead.property as { id?: string; public_id?: string; city?: string; state?: string } | null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -69,29 +62,6 @@ export default async function LeadDetailPage(props: PageProps) {
           </div>
         </div>
 
-        {/* Timeline */}
-        <div className="mt-6 border border-gray-200 p-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
-            Timeline de interações
-          </h2>
-          <ul className="mt-5 space-y-3">
-            {(interactions ?? []).length === 0 ? (
-              <li className="text-sm text-gray-500">Sem interações registradas.</li>
-            ) : (
-              interactions?.map((item) => (
-                <li key={item.id} className="border border-gray-200 p-4">
-                  <p className="text-sm font-semibold text-gray-900">{item.interaction_type}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {new Date(item.created_at).toLocaleString("pt-BR")}
-                  </p>
-                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-gray-600">
-                    {JSON.stringify(item.payload ?? {}, null, 2)}
-                  </pre>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
       </main>
     </div>
   );

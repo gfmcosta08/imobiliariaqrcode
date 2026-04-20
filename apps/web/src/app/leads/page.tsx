@@ -47,7 +47,7 @@ export default async function LeadsPage() {
                       <p className="font-semibold text-gray-900">
                         {lead.nome_completo || lead.primeiro_nome || "Lead sem nome"}
                         {lead.nome_validado ? (
-                          <span className="ml-2 bg-[#0055d2] px-1.5 py-0.5 text-xs font-medium text-white">
+                          <span className="ml-2 bg-black px-1.5 py-0.5 text-xs font-medium text-white">
                             Validado
                           </span>
                         ) : null}
@@ -61,7 +61,7 @@ export default async function LeadsPage() {
                         {interests ? ` · ${interests}` : ""}
                       </p>
                     </div>
-                    <span className="mt-2 text-sm font-medium text-[#0055d2] sm:mt-0">
+                    <span className="mt-2 text-sm font-medium text-black sm:mt-0">
                       Ver lead →
                     </span>
                   </Link>

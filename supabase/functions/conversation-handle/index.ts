@@ -330,7 +330,7 @@ async function upsertLead(
     p_client_phone: input.leadPhone,
     p_nome_informado: input.informedName,
     p_nome_perfil: input.profileName,
-    p_observacao: input.text,
+    p_observacao: null,
     p_origem: "qr_code_anuncio",
     p_interaction_type: input.interactionType,
     p_intent: input.intent,

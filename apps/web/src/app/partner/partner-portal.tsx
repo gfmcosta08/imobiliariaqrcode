@@ -89,14 +89,14 @@ export function PartnerPortal() {
             value={publicId}
             onChange={(e) => setPublicId(e.target.value)}
             placeholder="IMV-2026-XXXXXX"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+            className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
             required
           />
         </label>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-none bg-zinc-900 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
         >
           {loading ? "Buscando…" : "Buscar"}
         </button>
@@ -109,7 +109,7 @@ export function PartnerPortal() {
       ) : null}
 
       {result ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-none border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
           <p className="font-medium text-zinc-900 dark:text-zinc-50">
             {result.title ?? result.public_id}
           </p>
@@ -120,7 +120,7 @@ export function PartnerPortal() {
             type="button"
             onClick={onRegisterPrint}
             disabled={loading}
-            className="mt-4 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-600"
+            className="mt-4 rounded-none border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-600"
           >
             Registrar impressão
           </button>

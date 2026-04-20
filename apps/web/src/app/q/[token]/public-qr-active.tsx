@@ -53,7 +53,7 @@ export function PublicQrActive({ body }: Props) {
 
       <div className="mx-auto max-w-lg px-6 py-10">
         {/* Badge finalidade */}
-        <span className="inline-block bg-[#0055d2] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+        <span className="inline-block bg-black px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
           {purposeLabel(listing.purpose)}
         </span>
 
@@ -81,7 +81,7 @@ export function PublicQrActive({ body }: Props) {
             href={targetLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 flex w-full items-center justify-center bg-[#0055d2] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#0044b0]"
+            className="mt-5 flex w-full items-center justify-center bg-black px-4 py-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
             Abrir WhatsApp
           </a>

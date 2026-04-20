@@ -91,7 +91,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+            className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
           >
             {statuses.map((s) => (
               <option key={s.value} value={s.value}>
@@ -104,7 +104,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
           type="button"
           onClick={onSave}
           disabled={loading || status === props.currentStatus}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           {loading ? "Salvando..." : "Atualizar status"}
         </button>
@@ -119,7 +119,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <form
             onSubmit={onConfirmSold}
-            className="w-full max-w-lg rounded-xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+            className="w-full max-w-lg rounded-none border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
           >
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Confirmar venda</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -133,7 +133,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
                   placeholder="Digite VENDIDO"
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
                   required
                 />
               </label>
@@ -144,7 +144,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
                   value={soldDate}
                   onChange={(e) => setSoldDate(applyDateMask(e.target.value))}
                   placeholder="dd/mm/aaaa"
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
                   required
                 />
               </label>
@@ -155,7 +155,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
                   value={soldCommission}
                   onChange={(e) => setSoldCommission(formatCurrencyInput(e.target.value))}
                   placeholder="R$ 0,00"
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
                   required
                 />
               </label>
@@ -166,7 +166,7 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
                   value={soldNotes}
                   onChange={(e) => setSoldNotes(e.target.value)}
                   rows={3}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
                 />
               </label>
             </div>
@@ -175,14 +175,14 @@ export function StatusForm(props: { propertyId: string; currentStatus: string })
               <button
                 type="button"
                 onClick={() => setShowSoldModal(false)}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-600"
+                className="rounded-none border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-600"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+                className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
               >
                 {loading ? "Confirmando..." : "Confirmar venda"}
               </button>

@@ -65,9 +65,6 @@ export default async function Home() {
             <Link href="/plans" className="text-sm text-white/90 transition hover:text-white">
               Planos
             </Link>
-            <Link href="/partner" className="text-sm text-white/90 transition hover:text-white">
-              Parceiros
-            </Link>
           </div>
           <Link
             href="/login"
@@ -79,7 +76,7 @@ export default async function Home() {
 
         {/* Conteúdo hero */}
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16 text-center">
-          <h1 className="text-5xl font-bold text-white drop-shadow-sm lg:text-6xl">
+          <h1 className="font-display text-5xl font-semibold text-white drop-shadow-sm lg:text-6xl">
             Encontre seu lugar
           </h1>
 
@@ -88,19 +85,19 @@ export default async function Home() {
             <div className="flex overflow-hidden rounded-none">
               <button
                 type="button"
-                className="bg-white px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                className="bg-white px-6 py-3 text-sm font-semibold text-gray-900"
               >
                 Comprar
               </button>
               <button
                 type="button"
-                className="bg-[#0055d2] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0044b0]"
+                className="bg-white px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-900"
               >
                 Alugar
               </button>
               <button
                 type="button"
-                className="bg-[#0055d2] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0044b0]"
+                className="bg-white px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-900"
               >
                 Anunciar
               </button>
@@ -113,7 +110,7 @@ export default async function Home() {
               />
               <Link
                 href="/login"
-                className="flex items-center bg-[#0055d2] px-5 text-white transition hover:bg-[#0044b0]"
+                className="flex items-center bg-black px-5 text-white transition hover:bg-zinc-800"
                 aria-label="Buscar"
               >
                 <svg
@@ -204,7 +201,7 @@ export default async function Home() {
 
         <Link
           href="/login"
-          className="mt-8 inline-flex items-center bg-[#0055d2] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+          className="mt-8 inline-flex items-center bg-black px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
         >
           Ver todos os imóveis &rarr;
         </Link>
@@ -271,14 +268,6 @@ export default async function Home() {
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/partner"
-                  className="text-sm text-white/80 transition hover:text-white"
-                >
-                  Parceiros
-                </Link>
-              </li>
-              <li>
                 <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
                   Carreiras
                 </Link>
@@ -298,14 +287,6 @@ export default async function Home() {
               <li>
                 <Link href="/plans" className="text-sm text-white/80 transition hover:text-white">
                   Planos e preços
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/partner"
-                  className="text-sm text-white/80 transition hover:text-white"
-                >
-                  Portal parceiro
                 </Link>
               </li>
             </ul>

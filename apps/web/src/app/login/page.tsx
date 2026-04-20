@@ -103,7 +103,7 @@ export default function LoginPage() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                   />
                 </div>
                 <div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
                     placeholder="+55 11 99999-0000"
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
-                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                    className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                   />
                 </div>
               </>
@@ -131,7 +131,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
               />
             </div>
 
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#0055d2] focus:ring-1 focus:ring-[#0055d2]"
+                className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
               />
             </div>
 
@@ -157,7 +157,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0055d2] py-3.5 text-sm font-semibold text-white transition hover:bg-[#0044b0] disabled:opacity-50"
+              className="w-full bg-black py-3.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
             >
               {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
             </button>
@@ -167,7 +167,7 @@ export default function LoginPage() {
             {mode === "login" ? "Não tem conta? " : "Já tem conta? "}
             <button
               type="button"
-              className="font-medium text-[#0055d2] transition hover:underline"
+              className="font-medium text-black transition hover:underline"
               onClick={() => setMode(mode === "login" ? "signup" : "login")}
             >
               {mode === "login" ? "Cadastre-se" : "Entrar"}

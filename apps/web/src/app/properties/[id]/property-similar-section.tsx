@@ -39,7 +39,7 @@ export async function PropertySimilarSection({ propertyId }: { propertyId: strin
           return (
             <li
               key={s.property_id}
-              className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+              className="rounded-none border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
             >
               <Link
                 href={`/properties/${s.property_id}`}

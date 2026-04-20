@@ -91,7 +91,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
           type="button"
           disabled={props.disabled}
           onClick={() => inputRef.current?.click()}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
         >
           Escolher arquivos
         </button>
@@ -124,7 +124,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
           {previews.map((p) => (
             <div
               key={p.id}
-              className="relative overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+              className="relative overflow-hidden rounded-none border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
             >
               {!p.broken ? (
                 // eslint-disable-next-line @next/next/no-img-element

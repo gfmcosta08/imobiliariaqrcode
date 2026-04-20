@@ -14,7 +14,6 @@ export function AppHeader({ active }: { active?: string }) {
     { href: "/properties", label: "Imóveis" },
     { href: "/leads", label: "Leads" },
     { href: "/plans", label: "Planos" },
-    { href: "/partner", label: "Parceiros" },
     { href: "/profile", label: "Perfil" },
   ];
 

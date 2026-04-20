@@ -22,7 +22,7 @@ export default async function PropertiesPage() {
           </div>
           <Link
             href="/properties/new"
-            className="bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
             + Novo imóvel
           </Link>
@@ -38,7 +38,7 @@ export default async function PropertiesPage() {
               <p className="text-sm text-gray-500">Nenhum imóvel ainda.</p>
               <Link
                 href="/properties/new"
-                className="mt-4 inline-block bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+                className="mt-4 inline-block bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
               >
                 Cadastrar o primeiro
               </Link>
@@ -61,7 +61,7 @@ export default async function PropertiesPage() {
                       <span className="text-gray-400">plano: {p.origin_plan_code}</span>
                     </p>
                   </div>
-                  <span className="mt-2 text-sm font-medium text-[#0055d2] sm:mt-0">Abrir →</span>
+                  <span className="mt-2 text-sm font-medium text-black sm:mt-0">Abrir →</span>
                 </Link>
               </li>
             ))

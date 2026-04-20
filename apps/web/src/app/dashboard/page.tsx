@@ -65,7 +65,7 @@ export default async function DashboardPage() {
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/properties"
-            className="bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
             Meus Imóveis
           </Link>
@@ -80,12 +80,6 @@ export default async function DashboardPage() {
             className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
           >
             Planos
-          </Link>
-          <Link
-            href="/partner"
-            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
-          >
-            Portal parceiro
           </Link>
         </div>
 
@@ -114,7 +108,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/profile"
-            className="mt-5 inline-block text-sm font-medium text-[#0055d2] transition hover:underline"
+            className="mt-5 inline-block text-sm font-medium text-black transition hover:underline"
           >
             Editar perfil
           </Link>
@@ -147,7 +141,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-gray-600">Métricas detalhadas disponíveis no plano PRO.</p>
             <Link
               href="/plans"
-              className="mt-4 inline-block bg-[#0055d2] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0044b0]"
+              className="mt-4 inline-block bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
             >
               Ver planos
             </Link>

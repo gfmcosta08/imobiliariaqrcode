@@ -21,13 +21,13 @@ export default function PlansPage() {
             </p>
             <ul className="mt-6 space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> 1 imóvel ativo
+                <span className="text-black">✓</span> 1 imóvel ativo
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Até 10 imagens por imóvel
+                <span className="text-black">✓</span> Até 10 imagens por imóvel
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> QR Code automático
+                <span className="text-black">✓</span> QR Code automático
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-gray-300">✗</span> Expira 30 dias após impressão
@@ -42,32 +42,32 @@ export default function PlansPage() {
           </div>
 
           {/* PRO */}
-          <div className="border-2 border-[#0055d2] p-8">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#0055d2]">Plano</p>
+          <div className="border-2 border-black p-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-black">Plano</p>
             <h2 className="mt-2 text-2xl font-bold text-gray-900">PRO</h2>
             <p className="mt-1 text-3xl font-bold text-gray-900">
               R$ 197<span className="text-base font-normal text-gray-400">/mês</span>
             </p>
             <ul className="mt-6 space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Imóveis ilimitados
+                <span className="text-black">✓</span> Imóveis ilimitados
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Até 15 imagens por imóvel
+                <span className="text-black">✓</span> Até 15 imagens por imóvel
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Sem expiração automática
+                <span className="text-black">✓</span> Sem expiração automática
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Dashboard de métricas completo
+                <span className="text-black">✓</span> Dashboard de métricas completo
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-[#0055d2]">✓</span> Leads ilimitados
+                <span className="text-black">✓</span> Leads ilimitados
               </li>
             </ul>
             <Link
               href="/dashboard"
-              className="mt-8 inline-block bg-[#0055d2] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0044b0]"
+              className="mt-8 inline-block bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
               Assinar PRO →
             </Link>
