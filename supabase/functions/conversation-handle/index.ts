@@ -57,10 +57,16 @@ function normalizePhone(v: string): string {
 
 function parseQrToken(text: string): string | null {
   const t = text.trim();
+  // Hash longo após "imovel" (mensagens legadas)
   const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,100})/i);
   if (m?.[1]) return m[1];
+  // Hash longo após "Ref:" (mensagens legadas)
   const mRef = t.match(/Ref:\s*([a-z0-9_-]{16,100})/i);
   if (mRef?.[1]) return mRef[1];
+  // public_id formato curto: IMV-2026-BD5699 (mensagens novas)
+  const mPub = t.match(/\b([A-Z]{2,5}-\d{4}-[A-Z0-9]{4,})\b/);
+  if (mPub?.[1]) return mPub[1];
+  // Fallback genérico: qualquer sequência 16+ chars
   const uuidLike = t.match(/[a-z0-9][a-z0-9_-]{15,99}/i);
   return uuidLike?.[0] ?? null;
 }
@@ -279,6 +285,29 @@ async function loadPropertyByQr(supabase: ReturnType<typeof createClient>, qrTok
   }
 
   return p as Record<string, unknown>;
+}
+
+async function loadPropertyByPublicId(supabase: ReturnType<typeof createClient>, publicId: string) {
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id, public_id, broker_id, account_id, listing_status, expires_at, title, description, full_description, highlights, property_type, property_subtype, purpose, city, state, neighborhood, city_region, full_address, street_number, address_complement, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, area_m2, built_area_m2, total_area_m2, land_area_m2, price, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, is_furnished, furnishing_status, floor_type, sun_position, construction_type, finish_standard, property_age_years, features, infrastructure, security_items, nearby_points, distance_to_center_km, documentation_status, has_deed, has_registration, technical_details, documentation",
+    )
+    .eq("public_id", publicId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  if (
+    data.listing_status === "removed" ||
+    data.listing_status === "blocked" ||
+    data.listing_status === "expired" ||
+    (data.expires_at && new Date(String(data.expires_at)) < new Date())
+  ) {
+    return null;
+  }
+
+  return data as Record<string, unknown>;
 }
 
 async function upsertLead(
@@ -796,7 +825,9 @@ Deno.serve(async (req) => {
 
     const qrToken = parseQrToken(text);
     if (qrToken) {
-      const property = await loadPropertyByQr(supabase, qrToken);
+      const property =
+        (await loadPropertyByQr(supabase, qrToken)) ??
+        (await loadPropertyByPublicId(supabase, qrToken));
       if (!property) {
         return json({ ok: false, error: "invalid_or_unavailable_qr" }, 400);
       }
