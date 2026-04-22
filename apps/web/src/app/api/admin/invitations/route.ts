@@ -22,7 +22,7 @@ async function generateUniqueLoginCode(
   throw new Error("Nao foi possivel gerar um login_code unico");
 }
 
-export async function POST(request: Request) {
+export async function POST() {
   // Verificar autenticação e role admin
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
