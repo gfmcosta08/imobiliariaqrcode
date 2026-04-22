@@ -10,6 +10,8 @@ type InvitationResult = {
   property_id: string;
 };
 
+type ApiError = { ok: false; error: string; detail?: string };
+
 function qrImageUrl(data: string): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}`;
 }
@@ -25,9 +27,10 @@ export function InvitationGenerator() {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/invitations", { method: "POST" });
-      const data = (await res.json()) as InvitationResult & { ok: boolean; error?: string };
+      const data = (await res.json()) as InvitationResult & ApiError & { ok: boolean };
       if (!data.ok) {
-        setError(data.error ?? "Erro ao gerar convite.");
+        const err = data as ApiError;
+        setError(`${err.error}${err.detail ? `: ${err.detail}` : ""}`);
         return;
       }
       setResult(data);

@@ -102,14 +102,15 @@ export async function POST() {
     );
   }
 
-  // Criar imóvel fantasma com status 'reserved'
+  // Criar imóvel fantasma — usa 'draft' para compatibilidade com constraint original.
+  // Quando a migration 20260422010000 for aplicada em prod, trocar para 'reserved'.
   const { data: property, error: propError } = await supabase
     .from("properties")
     .insert({
       account_id: broker.account_id,
       broker_id: broker.id,
       origin_plan_code: "free",
-      listing_status: "reserved",
+      listing_status: "draft",
       property_type: "residential",
       property_subtype: "apartment",
       purpose: "sale",
