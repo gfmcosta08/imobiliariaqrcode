@@ -246,28 +246,64 @@ Deno.serve(async (req) => {
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`conversation-handle failed: ${response.status} - ${errorText}`);
+      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
+
+      let convResult: Record<string, unknown> = {};
+      try {
+        convResult = (await response.json()) as Record<string, unknown>;
+      } catch {
+        // resposta não é JSON — tratar como falha
+      }
+
+      const isQrNotFound = convResult.state === "qr_not_found";
+      const isHandlerFailure = !response.ok;
+
+      if (isHandlerFailure) {
+        console.error(`conversation-handle failed: ${response.status}`);
+      }
+
+      if (isHandlerFailure || isQrNotFound) {
+        // Regra inegociável: o bot nunca fica calado. Enfileirar mensagem de segurança.
+        const fallbackText = isQrNotFound
+          ? "Ola! Nao identifiquei o imovel nessa mensagem. Tente escanear o QR Code novamente ou entre em contato conosco."
+          : "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
 
         await supabase
-          .from("webhook_events")
-          .update({
-            processing_status: "failed",
-            processed_at: new Date().toISOString(),
+          .from("whatsapp_messages")
+          .insert({
+            direction: "outbound",
+            provider: "uazapi",
+            lead_phone: leadPhone,
+            message_type: "text",
+            payload: { kind: "error_fallback", text: fallbackText },
+            status: "queued",
           })
+          .catch((e: unknown) =>
+            console.error("fallback enqueue failed", e instanceof Error ? e.message : e),
+          );
+
+        // Disparar dispatch para entregar o fallback
+        await fetch(dispatchUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}` },
+        }).catch((err: unknown) => console.error("dispatch trigger after fallback failed:", err));
+
+        const eventStatus = isHandlerFailure ? "failed" : "processed";
+        await supabase
+          .from("webhook_events")
+          .update({ processing_status: eventStatus, processed_at: new Date().toISOString() })
           .eq("id", insertedEvent?.id ?? "");
+
         return new Response(
-          JSON.stringify({ ok: false, error: "conversation_handle_failed", detail: errorText }),
+          JSON.stringify({ ok: !isHandlerFailure, state: convResult.state ?? "error" }),
           {
-            status: 500,
+            status: isHandlerFailure ? 500 : 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );
       }
 
-      // NOVO: Disparar o dispatch automaticamente após processar a conversa para resposta rápida
-      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
+      // Disparar o dispatch automaticamente após processar a conversa para resposta rápida
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
 
       // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)

@@ -485,50 +485,8 @@ async function sendPropertyPack(
     broker_phone: brokerPhone,
     message_type: "text",
     payload: {
-      kind: "menu_prompt",
-      text: firstName ? `${firstName}, como posso te ajudar agora:` : `Como posso te ajudar agora:`,
-    },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: {
-      kind: "menu_option_1",
-      text: "1 - Falar com o corretor sobre esse imóvel",
-    },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: {
-      kind: "menu_option_2",
-      text: "2 - Ver imoveis semelhantes",
-    },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: {
-      kind: "menu_option_3",
-      text: "3 - Quero o contato do corretor",
+      kind: "main_menu",
+      text: `${firstName ? `${firstName}, como` : "Como"} posso te ajudar agora:\n\n1 - Falar com o corretor sobre esse imovel\n2 - Ver imoveis semelhantes\n3 - Quero o contato do corretor`,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -553,37 +511,10 @@ async function sendMainMenu(
     lead_phone: leadPhone,
     broker_phone: brokerPhone,
     message_type: "text",
-    payload: { kind: "menu_prompt", text: `${firstName}, como posso te ajudar agora:` },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: { kind: "menu_option_1", text: "1 - Falar com o corretor sobre esse imóvel" },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: { kind: "menu_option_2", text: "2 - Ver imoveis semelhantes" },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: { kind: "menu_option_3", text: "3 - Quero o contato do corretor" },
+    payload: {
+      kind: "main_menu",
+      text: `${firstName}, como posso te ajudar agora:\n\n1 - Falar com o corretor sobre esse imovel\n2 - Ver imoveis semelhantes\n3 - Quero o contato do corretor`,
+    },
     flow_group: flowGroup,
     flow_step: flowStep++,
   });
@@ -879,7 +810,7 @@ Deno.serve(async (req) => {
         (await loadPropertyByQr(supabase, qrToken)) ??
         (await loadPropertyByPublicId(supabase, qrToken));
       if (!property) {
-        return json({ ok: false, error: "invalid_or_unavailable_qr" }, 400);
+        return json({ ok: true, state: "qr_not_found" });
       }
 
       const propertyId = String(property.id);

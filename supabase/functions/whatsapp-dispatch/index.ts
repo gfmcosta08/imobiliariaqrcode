@@ -280,18 +280,22 @@ async function waitWithTyping(
   const heartbeatMs = Math.max(250, config.typingHeartbeatMs);
   const deadline = Date.now() + waitMs;
 
-  await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
+  try {
+    await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
 
-  while (true) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
-    await sleep(Math.min(heartbeatMs, remaining));
-    if (deadline - Date.now() > 0) {
-      await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
+    while (true) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await sleep(Math.min(heartbeatMs, remaining));
+      if (deadline - Date.now() > 0) {
+        await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "composing");
+      }
     }
+  } finally {
+    await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "paused").catch(
+      () => {},
+    );
   }
-
-  await sendTypingPresence(config.baseUrl, config.token, endpoint, target, "paused");
 }
 
 async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRow) {
@@ -334,6 +338,7 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
     method: "POST",
     headers,
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
   });
   const raw = await res.text();
   let parsed: Record<string, unknown> | null = null;
@@ -414,6 +419,14 @@ Deno.serve(async (req) => {
 
   const sent: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
+
+  // Resetar mensagens travadas em "processing" há mais de 60s (edge function morreu no meio)
+  await supabase
+    .from("whatsapp_messages")
+    .update({ status: "queued" })
+    .eq("direction", "outbound")
+    .eq("status", "processing")
+    .lt("updated_at", new Date(Date.now() - 60_000).toISOString());
 
   let cycles = 0;
   while (cycles < MAX_CYCLES) {
@@ -517,6 +530,13 @@ Deno.serve(async (req) => {
           .eq("id", row.id);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
+        // Garantir que o "digitando" seja removido mesmo em caso de exceção
+        const { to: errTo, toBroker: errToBroker } = resolveTargetPhone(row);
+        if (!errToBroker && errTo && typingEndpoint) {
+          await sendTypingPresence(baseUrl, apiToken, typingEndpoint, String(errTo), "paused").catch(
+            () => {},
+          );
+        }
         failed.push({ id: row.id, error: errMsg });
         await supabase
           .from("whatsapp_messages")

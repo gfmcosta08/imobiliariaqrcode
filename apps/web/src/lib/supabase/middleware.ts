@@ -54,5 +54,19 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Usuários com onboarding pendente (conta criada por convite) só podem acessar /onboarding e /api
+  const mustComplete = user?.user_metadata?.must_complete_profile === true;
+  const isOnboardingPath =
+    path.startsWith("/onboarding") ||
+    path.startsWith("/api") ||
+    path.startsWith("/convite") ||
+    path === "/auth/callback";
+
+  if (mustComplete && !isOnboardingPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/onboarding/complete-profile";
+    return NextResponse.redirect(redirectUrl);
+  }
+
   return supabaseResponse;
 }
