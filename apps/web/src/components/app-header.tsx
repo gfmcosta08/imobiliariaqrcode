@@ -9,12 +9,13 @@ async function signOut() {
   redirect("/");
 }
 
-export function AppHeader({ active }: { active?: string }) {
+export function AppHeader({ active, isAdmin }: { active?: string; isAdmin?: boolean }) {
   const navLinks = [
     { href: "/properties", label: "Imóveis" },
     { href: "/leads", label: "Leads" },
     { href: "/plans", label: "Planos" },
     { href: "/profile", label: "Perfil" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   return (

@@ -55,7 +55,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <AppHeader />
+      <AppHeader isAdmin={profile?.role === "admin"} />
       <main className="mx-auto max-w-6xl px-8 py-12">
         <h1 className="text-3xl font-bold text-gray-900">
           {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
