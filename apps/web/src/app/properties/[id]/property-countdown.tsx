@@ -37,7 +37,8 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
     return () => window.clearInterval(timer);
   }, [expiresAt]);
 
-  const isFree = !planCode || planCode === "free";
+  // Planos que exigem pagamento para reativar (não reativam por edição)
+  const requiresPayment = !planCode || planCode === "free" || planCode === "solo";
 
   const bottomContent = useMemo(() => {
     if (!tick.isExpired) {
@@ -46,20 +47,21 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
       );
     }
 
-    if (isFree) {
+    if (requiresPayment) {
+      const message =
+        planCode === "solo"
+          ? "Seu plano Solo expirou. Renove para continuar anunciando."
+          : "Sua cortesia expirou. Assine um plano para continuar anunciando.";
+      const buttonLabel = planCode === "solo" ? "Renovar plano" : "Ver planos e assinar";
+
       return (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-medium text-red-600 dark:text-red-400">
-            Sua cortesia expirou.
-          </p>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Assine um plano para continuar anunciando e ter acesso ao QR Code.
-          </p>
+          <p className="text-xs font-medium text-red-600 dark:text-red-400">{message}</p>
           <Link
             href="/plans"
             className="inline-block rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
-            Ver planos e assinar
+            {buttonLabel}
           </Link>
         </div>
       );
@@ -75,7 +77,7 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
         </p>
       </div>
     );
-  }, [tick.isExpired, isFree]);
+  }, [tick.isExpired, requiresPayment, planCode]);
 
   return (
     <div className="mt-4 rounded-none border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950">
