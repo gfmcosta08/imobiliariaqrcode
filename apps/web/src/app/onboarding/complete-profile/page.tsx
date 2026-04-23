@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -39,42 +38,21 @@ export default function CompleteProfilePage() {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-
-      // Atualizar email, senha e metadados no Supabase Auth
-      const { error: updateError } = await supabase.auth.updateUser({
-        email: form.email.trim(),
-        password: form.password,
-        data: {
-          full_name: form.fullName.trim(),
-          whatsapp_number: form.whatsapp.replace(/\D/g, "") || undefined,
-          must_complete_profile: false,
-        },
+      const res = await fetch("/api/onboarding/complete-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          whatsapp: form.whatsapp,
+          password: form.password,
+        }),
       });
 
-      if (updateError) {
-        setError(updateError.message);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Erro ao salvar perfil.");
         return;
-      }
-
-      // Atualizar o profile no banco
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({
-            full_name: form.fullName.trim(),
-            email: form.email.trim(),
-            whatsapp_number: form.whatsapp.replace(/\D/g, "") || undefined,
-          })
-          .eq("id", user.id);
-
-        await supabase
-          .from("brokers")
-          .update({ display_name: form.fullName.trim() })
-          .eq("profile_id", user.id);
       }
 
       router.push("/onboarding/complete-listing");
