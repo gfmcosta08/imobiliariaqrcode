@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { CheckoutButton } from "./checkout-button";
 
 export default function PlansPage() {
   return (
@@ -34,12 +34,11 @@ export default function PlansPage() {
                 <span className="text-black">✓</span> Captura de leads
               </li>
             </ul>
-            <Link
-              href="/dashboard"
-              className="mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500"
-            >
-              Contratar Solo
-            </Link>
+            <CheckoutButton
+              planCode="solo"
+              label="Contratar Solo"
+              className="mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500 disabled:opacity-50"
+            />
           </div>
 
           {/* PRO */}
@@ -49,7 +48,7 @@ export default function PlansPage() {
             <p className="mt-1 text-3xl font-bold text-gray-900">
               R$&nbsp;500<span className="text-base font-normal text-gray-400">/mês</span>
             </p>
-            <p className="mt-2 text-xs text-gray-400">Renovação mensal</p>
+            <p className="mt-2 text-xs text-gray-400">Renovação mensal automática</p>
             <ul className="mt-6 space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
                 <span className="text-black">✓</span> Múltiplos imóveis
@@ -67,12 +66,11 @@ export default function PlansPage() {
                 <span className="text-black">✓</span> Dashboard de métricas
               </li>
             </ul>
-            <Link
-              href="/dashboard"
-              className="mt-8 inline-block bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Assinar Pro →
-            </Link>
+            <CheckoutButton
+              planCode="pro"
+              label="Assinar Pro →"
+              className="mt-8 inline-block bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+            />
           </div>
 
           {/* PREMIUM */}
@@ -82,7 +80,7 @@ export default function PlansPage() {
             <p className="mt-1 text-3xl font-bold text-gray-900">
               R$&nbsp;1.000<span className="text-base font-normal text-gray-400">/mês</span>
             </p>
-            <p className="mt-2 text-xs text-gray-400">Renovação mensal</p>
+            <p className="mt-2 text-xs text-gray-400">Renovação mensal automática</p>
             <ul className="mt-6 space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
                 <span className="text-black">✓</span> Múltiplos imóveis
@@ -103,17 +101,16 @@ export default function PlansPage() {
                 <span className="text-black">✓</span> Dashboard de métricas completo
               </li>
             </ul>
-            <Link
-              href="/dashboard"
-              className="mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500"
-            >
-              Assinar Premium
-            </Link>
+            <CheckoutButton
+              planCode="premium"
+              label="Assinar Premium"
+              className="mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500 disabled:opacity-50"
+            />
           </div>
         </div>
 
         <p className="mt-10 text-xs text-gray-400">
-          Pagamentos via Stripe ou Mercado Pago. Em implantação.
+          Pagamentos processados com segurança via Stripe.
         </p>
       </main>
     </div>
