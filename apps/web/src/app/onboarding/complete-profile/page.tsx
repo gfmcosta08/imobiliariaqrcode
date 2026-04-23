@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -54,6 +55,13 @@ export default function CompleteProfilePage() {
         setError(data.error ?? "Erro ao salvar perfil.");
         return;
       }
+
+      // Mudar senha invalida a sessão atual — reautenticar antes de prosseguir
+      const supabase = createClient();
+      await supabase.auth.signInWithPassword({
+        email: form.email.trim(),
+        password: form.password,
+      });
 
       router.push("/onboarding/complete-listing");
     } finally {
