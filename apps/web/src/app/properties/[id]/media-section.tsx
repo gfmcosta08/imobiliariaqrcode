@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -13,6 +14,13 @@ type MediaRow = {
   status: string;
 };
 
+type UploadResult =
+  | { kind: "sending"; count: number }
+  | { kind: "success"; uploaded: number }
+  | { kind: "partial"; uploaded: number; failed: string[] }
+  | { kind: "error"; message: string }
+  | null;
+
 export function MediaSection(props: {
   propertyId: string;
   media: MediaRow[];
@@ -20,10 +28,10 @@ export function MediaSection(props: {
   maxImages: number;
 }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [result, setResult] = useState<UploadResult>(null);
   const [loading, setLoading] = useState(false);
   const [brokenIds, setBrokenIds] = useState<Record<string, boolean>>({});
+  const noticeRef = useRef<HTMLDivElement>(null);
   const count = props.media.filter((m) => m.status !== "deleted").length;
   const availableSlots = Math.max(0, props.maxImages - count);
   const canAdd = availableSlots > 0;
@@ -33,42 +41,43 @@ export function MediaSection(props: {
     [props.media],
   );
 
+  function scrollToNotice() {
+    setTimeout(() => noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setNotice(null);
+    setResult(null);
     const formData = new FormData(e.currentTarget);
-    const selectedCount = formData
-      .getAll("files")
-      .filter((v) => v instanceof File && v.size > 0).length;
-    if (!selectedCount) {
-      setError("Selecione pelo menos uma imagem.");
+    const files = formData.getAll("files").filter((v) => v instanceof File && v.size > 0);
+    if (!files.length) {
+      setResult({ kind: "error", message: "Selecione pelo menos uma imagem." });
       return;
     }
     setLoading(true);
-    setNotice(`Enviando ${selectedCount} imagem(ns)...`);
+    setResult({ kind: "sending", count: files.length });
     formData.set("propertyId", props.propertyId);
 
     const res = await uploadPropertyMedia(formData);
     setLoading(false);
+
     if (res && "error" in res && res.error) {
-      setError(res.error);
+      setResult({ kind: "error", message: res.error });
+      scrollToNotice();
       return;
     }
 
     if (res && "uploaded" in res) {
-      const failedCount = Array.isArray(res.failed) ? res.failed.length : 0;
-      if (failedCount > 0) {
-        setNotice(
-          `Upload finalizado com ressalvas: ${res.uploaded} enviada(s), ${failedCount} falha(s).`,
-        );
+      const failedNames = Array.isArray(res.failed) ? res.failed : [];
+      if (failedNames.length > 0) {
+        setResult({ kind: "partial", uploaded: res.uploaded, failed: failedNames });
       } else {
-        setNotice(`Upload concluido: ${res.uploaded} imagem(ns).`);
+        setResult({ kind: "success", uploaded: res.uploaded });
       }
+      e.currentTarget.reset();
+      scrollToNotice();
+      router.refresh();
     }
-
-    e.currentTarget.reset();
-    router.refresh();
   }
 
   async function onDelete(media: MediaRow) {
@@ -91,16 +100,36 @@ export function MediaSection(props: {
         {count}/{props.maxImages} imagens (limite do plano de origem do imovel).
       </p>
 
-      {error ? (
-        <p className="mt-2 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {notice ? (
-        <p className="mt-2 text-sm text-emerald-700" role="status">
-          {notice}
-        </p>
-      ) : null}
+      <div ref={noticeRef}>
+        {result?.kind === "error" && (
+          <div className="mt-3 flex items-start gap-2 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            <span className="mt-0.5 shrink-0 text-base">✗</span>
+            <span>{result.message}</span>
+          </div>
+        )}
+        {result?.kind === "sending" && (
+          <p className="mt-3 text-sm text-zinc-500" role="status">
+            Enviando {result.count} imagem(ns)...
+          </p>
+        )}
+        {result?.kind === "success" && (
+          <div className="mt-3 flex items-start gap-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+            <span className="mt-0.5 shrink-0 text-base">✓</span>
+            <span>Upload concluído: {result.uploaded} imagem(ns) enviada(s) com sucesso.</span>
+          </div>
+        )}
+        {result?.kind === "partial" && (
+          <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+            <p className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-base">⚠</span>
+              <span>{result.uploaded} imagem(ns) enviada(s). {result.failed.length} falha(s):</span>
+            </p>
+            <ul className="mt-1 list-disc pl-8 text-xs">
+              {result.failed.map((name) => <li key={name}>{name}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {mediaVisible.map((m) => {
@@ -152,11 +181,11 @@ export function MediaSection(props: {
               disabled={loading}
               className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
             >
-              {loading ? "Enviando..." : "Enviar"}
+              {loading ? "Enviando..." : "Enviar imagens"}
             </button>
-            {loading ? (
+            {loading && (
               <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span>
-            ) : null}
+            )}
           </div>
         </form>
       ) : (

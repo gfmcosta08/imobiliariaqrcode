@@ -128,7 +128,7 @@ async function sendImageViaMultipart(
     return { ok: false, detail: "missing_image_url" };
   }
 
-  const imgRes = await fetch(imageUrl);
+  const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20_000) });
   if (!imgRes.ok) {
     const imageError = await imgRes.text();
     return { ok: false, detail: `image_fetch_failed:${imgRes.status}:${imageError}` };
@@ -427,6 +427,7 @@ Deno.serve(async (req) => {
     .eq("direction", "outbound")
     .eq("status", "processing")
     .lt("updated_at", new Date(Date.now() - 60_000).toISOString());
+
 
   let cycles = 0;
   while (cycles < MAX_CYCLES) {

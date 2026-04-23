@@ -861,7 +861,39 @@ Deno.serve(async (req) => {
         return json({ ok: true, state: "pack_already_queued" });
       }
 
-      await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
+      try {
+        await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
+      } catch (packErr) {
+        const packMsg = packErr instanceof Error ? packErr.message : String(packErr);
+        console.error("sendPropertyPack failed", { propertyId, leadPhone, error: packMsg });
+        const { data: broker } = await supabase
+          .from("brokers")
+          .select("whatsapp_number")
+          .eq("id", String(property.broker_id))
+          .maybeSingle();
+        await supabase.from("whatsapp_messages").insert({
+          direction: "outbound",
+          provider: "uazapi",
+          account_id: String(property.account_id),
+          property_id: propertyId,
+          lead_phone: leadPhone,
+          broker_phone: broker?.whatsapp_number ? String(broker.whatsapp_number) : null,
+          message_type: "text",
+          status: "queued",
+          payload: {
+            kind: "error_fallback",
+            text: "Desculpe, tivemos um problema ao carregar os detalhes do imovel. Tente novamente em instantes.",
+          },
+        });
+      }
+      // Dispara o dispatch imediatamente após enfileirar as mensagens (fire-and-forget)
+      // Sem await — não bloqueia a resposta ao webhook
+      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
+      fetch(dispatchUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${Deno.env.get("CRON_SECRET") ?? ""}` },
+      }).catch(() => {});
+
       return json({ ok: true, state: "started", property_id: propertyId });
     }
 
