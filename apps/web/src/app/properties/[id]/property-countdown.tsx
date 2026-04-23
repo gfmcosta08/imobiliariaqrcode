@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 function pad(value: number): string {
@@ -22,9 +23,10 @@ function diff(targetIso: string) {
 
 type CountdownProps = {
   expiresAt: string;
+  planCode?: string | null;
 };
 
-export function PropertyCountdown({ expiresAt }: CountdownProps) {
+export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
   const [tick, setTick] = useState(() => diff(expiresAt));
 
   useEffect(() => {
@@ -35,12 +37,45 @@ export function PropertyCountdown({ expiresAt }: CountdownProps) {
     return () => window.clearInterval(timer);
   }, [expiresAt]);
 
-  const label = useMemo(() => {
-    if (tick.isExpired) {
-      return "Expirado. Salve uma edicao para gerar novo QR e reiniciar 30 dias.";
+  const isFree = !planCode || planCode === "free";
+
+  const bottomContent = useMemo(() => {
+    if (!tick.isExpired) {
+      return (
+        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">Validade ativa do anúncio</p>
+      );
     }
-    return "Validade ativa do anuncio";
-  }, [tick.isExpired]);
+
+    if (isFree) {
+      return (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-medium text-red-600 dark:text-red-400">
+            Sua cortesia expirou.
+          </p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            Assine um plano para continuar anunciando e ter acesso ao QR Code.
+          </p>
+          <Link
+            href="/plans"
+            className="inline-block rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          >
+            Ver planos e assinar
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-3 space-y-1">
+        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+          Anúncio expirado.
+        </p>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+          Salve uma edição para reativar por mais 120 dias.
+        </p>
+      </div>
+    );
+  }, [tick.isExpired, isFree]);
 
   return (
     <div className="mt-4 rounded-none border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950">
@@ -69,7 +104,7 @@ export function PropertyCountdown({ expiresAt }: CountdownProps) {
           <p className="text-xs text-zinc-500">seg</p>
         </div>
       </div>
-      <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">{label}</p>
+      {bottomContent}
     </div>
   );
 }

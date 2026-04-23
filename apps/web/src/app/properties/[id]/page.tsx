@@ -139,7 +139,12 @@ export default async function PropertyDetailPage(props: PageProps) {
               </div>
             ) : null}
           </dl>
-          {property.expires_at ? <PropertyCountdown expiresAt={property.expires_at} /> : null}
+          {property.expires_at ? (
+            <PropertyCountdown
+              expiresAt={property.expires_at}
+              planCode={property.origin_plan_code}
+            />
+          ) : null}
         </div>
 
         {/* Editor completo */}
