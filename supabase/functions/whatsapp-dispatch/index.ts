@@ -386,23 +386,37 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  const auth = req.headers.get("authorization");
-  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const authHeader = req.headers.get("authorization") ?? "";
+  const authToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+
+  const validByCron = cronSecret.length > 0 && authToken === cronSecret;
+  const validByServiceKey = serviceRoleKey.length > 0 && authToken === serviceRoleKey;
+
+  if (!validByCron && !validByServiceKey) {
+    console.error("[dispatch] unauthorized – token mismatch", {
+      hasCronSecret: cronSecret.length > 0,
+      hasServiceKey: serviceRoleKey.length > 0,
+      tokenPrefix: authToken.slice(0, 12) || "(empty)",
+    });
     return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  console.log("[dispatch] authorized, starting run");
 
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL");
   const apiToken = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
   if (!baseUrl) {
+    console.error("[dispatch] UAZAPI_BASE_URL not set");
     return new Response(JSON.stringify({ ok: false, error: "missing_uazapi_base_url" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  console.log("[dispatch] uazapi config", { baseUrl, hasToken: Boolean(apiToken) });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -493,9 +507,11 @@ Deno.serve(async (req) => {
           typingHeartbeatMs,
         });
 
+        console.log("[dispatch] sending message", { id: row.id, type: row.message_type, phone: row.lead_phone });
         const result = await sendViaUazapi(baseUrl, apiToken, rowToSend);
         if (!result.ok) {
           const errDetail = (result as { ok: false; detail: string }).detail;
+          console.error("[dispatch] send failed", { id: row.id, error: errDetail });
           failed.push({ id: row.id, error: errDetail });
           await supabase
             .from("whatsapp_messages")
@@ -516,6 +532,7 @@ Deno.serve(async (req) => {
           provider_message_id: string | null;
           response: unknown;
         };
+        console.log("[dispatch] message sent", { id: row.id, providerId: okResult.provider_message_id });
         sent.push(row.id);
         await supabase
           .from("whatsapp_messages")
@@ -556,6 +573,7 @@ Deno.serve(async (req) => {
     if (batch.length < MAX_BATCH) break;
   }
 
+  console.log("[dispatch] run complete", { sent: sent.length, failed: failed.length, cycles });
   return new Response(
     JSON.stringify({ ok: true, processed: sent.length + failed.length, sent, failed }),
     {

@@ -719,19 +719,14 @@ async function doRegisterVisit(
     .eq("id", sessionId);
 }
 
-async function sendTypingNow(leadPhone: string): Promise<void> {
+async function sendTypingPresenceNow(leadPhone: string, presence: "composing" | "paused"): Promise<void> {
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL") ?? "";
   const token = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
   const endpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT") ?? "";
-  console.log(
-    "[typing] baseUrl:",
-    baseUrl ? "set" : "MISSING",
-    "endpoint:",
-    endpoint || "MISSING",
-    "phone:",
-    leadPhone,
-  );
-  if (!baseUrl || !endpoint) return;
+  if (!baseUrl || !endpoint) {
+    console.warn("[typing] skipped – baseUrl or endpoint not configured", { presence });
+    return;
+  }
 
   const url = endpoint.startsWith("http")
     ? endpoint
@@ -744,19 +739,48 @@ async function sendTypingNow(leadPhone: string): Promise<void> {
     const res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ number: leadPhone, presence: "composing" }),
+      body: JSON.stringify({ number: leadPhone, presence }),
     });
     const body = await res.text();
-    console.log("[typing] url:", url, "status:", res.status, "response:", body);
+    console.log("[typing]", presence, { phone: leadPhone, status: res.status, body: body.slice(0, 80) });
   } catch (err) {
-    console.error("[typing] error:", err);
+    console.error("[typing] error", { presence, phone: leadPhone, err: err instanceof Error ? err.message : String(err) });
   }
+}
+
+async function sendTypingNow(leadPhone: string): Promise<void> {
+  return sendTypingPresenceNow(leadPhone, "composing");
+}
+
+async function cancelTypingNow(leadPhone: string): Promise<void> {
+  return sendTypingPresenceNow(leadPhone, "paused");
+}
+
+function triggerDispatch(): void {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!supabaseUrl || !serviceKey) {
+    console.error("[dispatch] cannot trigger – SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
+    return;
+  }
+  console.log("[dispatch] triggering whatsapp-dispatch");
+  fetch(`${supabaseUrl}/functions/v1/whatsapp-dispatch`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${serviceKey}` },
+  }).catch((err) => {
+    console.error("[dispatch] fire-and-forget error:", err instanceof Error ? err.message : String(err));
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Tracks whether "composing" was sent so we can cancel on errors
+  let _typingPhone: string | null = null;
+  // Tracks whether messages were queued, triggering dispatch in finally
+  let _shouldDispatch = false;
 
   try {
     const body = (await req.json()) as InboundInput;
@@ -804,12 +828,18 @@ Deno.serve(async (req) => {
     }
 
     // Dispara "digitando" apenas para sessões ativas ou novo scan de QR
+    console.log("[bot] processing message", { leadPhone, hasQrToken: Boolean(qrToken) });
     await sendTypingNow(leadPhone);
+    _typingPhone = leadPhone;
+    _shouldDispatch = true; // dispatch será acionado no finally para qualquer path que chegue aqui
     if (qrToken) {
       const property =
         (await loadPropertyByQr(supabase, qrToken)) ??
         (await loadPropertyByPublicId(supabase, qrToken));
       if (!property) {
+        console.log("[bot] qr_not_found – canceling typing", { qrToken });
+        await cancelTypingNow(leadPhone);
+        _shouldDispatch = false; // nenhuma mensagem enfileirada
         return json({ ok: true, state: "qr_not_found" });
       }
 
@@ -858,14 +888,18 @@ Deno.serve(async (req) => {
         .gte("created_at", new Date(Date.now() - 30_000).toISOString());
 
       if ((alreadyQueued ?? 0) > 0) {
+        console.log("[bot] pack_already_queued – dispatch will handle existing messages", { leadPhone, propertyId });
+        // _shouldDispatch remains true: dispatch processes existing queued messages and sends "paused"
         return json({ ok: true, state: "pack_already_queued" });
       }
 
       try {
+        console.log("[bot] queuing property pack", { propertyId, leadPhone });
         await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
+        console.log("[bot] property pack queued OK", { propertyId, leadPhone });
       } catch (packErr) {
         const packMsg = packErr instanceof Error ? packErr.message : String(packErr);
-        console.error("sendPropertyPack failed", { propertyId, leadPhone, error: packMsg });
+        console.error("[bot] sendPropertyPack failed – queuing fallback", { propertyId, leadPhone, error: packMsg });
         const { data: broker } = await supabase
           .from("brokers")
           .select("whatsapp_number")
@@ -886,14 +920,7 @@ Deno.serve(async (req) => {
           },
         });
       }
-      // Dispara o dispatch imediatamente após enfileirar as mensagens (fire-and-forget)
-      // Sem await — não bloqueia a resposta ao webhook
-      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
-      fetch(dispatchUrl, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${Deno.env.get("CRON_SECRET") ?? ""}` },
-      }).catch(() => {});
-
+      // dispatch acionado pelo bloco finally (usa service role key – mais confiável)
       return json({ ok: true, state: "started", property_id: propertyId });
     }
 
@@ -908,8 +935,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!property) {
+      console.error("[bot] property_not_found for session", { sessionId: session.id, propertyId: session.origin_property_id });
       return json({ ok: false, error: "property_not_found" }, 400);
     }
+    console.log("[bot] processing follow-up", { leadPhone, sessionState: session.state, propertyId: property.id });
 
     const { data: broker } = await supabase
       .from("brokers")
@@ -1543,7 +1572,18 @@ Deno.serve(async (req) => {
     return json({ ok: true, state: "awaiting_valid_reply" });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    console.error("[bot] unexpected error", { message, typingPhone: _typingPhone });
+    if (_typingPhone) {
+      await cancelTypingNow(_typingPhone).catch(() => {});
+      _shouldDispatch = false; // typing cancelado manualmente, dispatch desnecessário
+    }
     return json({ ok: false, error: "unexpected", detail: message }, 500);
+  } finally {
+    // Garante que o dispatch é acionado para QUALQUER path que enfileirou mensagens.
+    // Usa SUPABASE_SERVICE_ROLE_KEY (sempre disponível em Edge Functions).
+    if (_shouldDispatch) {
+      triggerDispatch();
+    }
   }
 });
 
