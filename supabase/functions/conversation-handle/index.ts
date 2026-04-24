@@ -846,6 +846,28 @@ Deno.serve(async (req) => {
       const propertyId = String(property.id);
       const brokerId = String(property.broker_id);
 
+      // Fix A — Session dedup: se a sessão já está em awaiting_main_choice para este imóvel
+      // e foi atualizada nos últimos 5 min, o pack já foi enviado — evita duplicatas por webhook retry
+      if (
+        session?.id &&
+        session.state === "awaiting_main_choice" &&
+        String(session.current_property_id) === propertyId
+      ) {
+        const sessionAgeMs = session.updated_at
+          ? Date.now() - new Date(String(session.updated_at)).getTime()
+          : Infinity;
+        if (sessionAgeMs < 5 * 60_000) {
+          console.log("[bot] session dedup – pack já enviado recentemente", {
+            leadPhone,
+            propertyId,
+            sessionAgeMs: Math.round(sessionAgeMs / 1000) + "s",
+          });
+          await cancelTypingNow(leadPhone);
+          _shouldDispatch = false;
+          return json({ ok: true, state: "pack_already_sent_session_dedup" });
+        }
+      }
+
       const lead = await upsertLead(supabase, {
         propertyId,
         brokerId,
@@ -878,14 +900,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Guard: skip if pack was already queued in the last 30s (duplicate webhook)
+      // Fix B — Guard de timestamp: skip se já existem mensagens outbound nos últimos 5 min
+      // (belt-and-suspenders em relação ao session dedup acima)
       const { count: alreadyQueued } = await supabase
         .from("whatsapp_messages")
         .select("id", { count: "exact", head: true })
         .eq("lead_phone", leadPhone)
         .eq("property_id", propertyId)
         .eq("direction", "outbound")
-        .gte("created_at", new Date(Date.now() - 30_000).toISOString());
+        .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString());
 
       if ((alreadyQueued ?? 0) > 0) {
         console.log("[bot] pack_already_queued – dispatch will handle existing messages", { leadPhone, propertyId });

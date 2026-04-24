@@ -453,6 +453,7 @@ Deno.serve(async (req) => {
       .eq("direction", "outbound")
       .eq("status", "queued")
       .order("created_at", { ascending: true })
+      .order("payload->flow_step", { ascending: true })
       .limit(MAX_BATCH);
 
     if (error) {
@@ -492,11 +493,19 @@ Deno.serve(async (req) => {
           const rawText = normalizeOutgoingText(row.payload?.text ?? "");
           rowToSend = { ...row, payload: { ...(row.payload ?? {}), text: rawText } };
         }
-        await supabase
+        // Fix C — claim atômico: só prossegue se este worker realmente atualizou a linha
+        // Previne race condition quando fire-and-forget e cron executam simultaneamente
+        const { data: claimed } = await supabase
           .from("whatsapp_messages")
           .update({ status: "processing" })
           .eq("id", row.id)
-          .eq("status", "queued");
+          .eq("status", "queued")
+          .select("id");
+
+        if (!claimed || claimed.length === 0) {
+          console.log("[dispatch] message already claimed by another worker, skipping", { id: row.id });
+          continue;
+        }
 
         const { toBroker } = resolveTargetPhone(row);
         const waitMs = toBroker ? 0 : getWaitMs(row, defaultDelayMinMs, defaultDelayMaxMs);
