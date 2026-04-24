@@ -62,6 +62,14 @@ function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
 }
 
+function sanitizeBrokerPhone(v: string | null | undefined): string | null {
+  if (!v) return null;
+  // Rejeita placeholders do tipo "pending-{uuid}" gerados pelo trigger de onboarding
+  if (v.startsWith("pending-")) return null;
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 8 ? digits : null;
+}
+
 function parseQrToken(text: string): string | null {
   const t = text.trim();
   // Hash longo após "imovel" (mensagens legadas)
@@ -397,7 +405,7 @@ async function sendPropertyPack(
     .eq("id", brokerId)
     .maybeSingle();
 
-  const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+  const brokerPhone = sanitizeBrokerPhone(broker?.whatsapp_number ? String(broker.whatsapp_number) : null);
   const brokerName = broker?.display_name ? String(broker.display_name) : null;
   const firstName = pickGreetingName(lead, profileName);
   const introText = firstName
@@ -934,7 +942,7 @@ Deno.serve(async (req) => {
           account_id: String(property.account_id),
           property_id: propertyId,
           lead_phone: leadPhone,
-          broker_phone: broker?.whatsapp_number ? String(broker.whatsapp_number) : null,
+          broker_phone: sanitizeBrokerPhone(broker?.whatsapp_number ? String(broker.whatsapp_number) : null),
           message_type: "text",
           status: "queued",
           payload: {
@@ -969,7 +977,7 @@ Deno.serve(async (req) => {
       .eq("id", property.broker_id)
       .maybeSingle();
 
-    const brokerPhone = broker?.whatsapp_number ? String(broker.whatsapp_number) : null;
+    const brokerPhone = sanitizeBrokerPhone(broker?.whatsapp_number ? String(broker.whatsapp_number) : null);
     const brokerName = broker?.display_name ? String(broker.display_name) : null;
 
     const lead = await upsertLead(supabase, {
@@ -1074,7 +1082,7 @@ Deno.serve(async (req) => {
       }
 
       if (matchChoice3(text)) {
-        const contact = brokerPhone ?? "nao informado";
+        const contact = brokerPhone ?? "Numero nao cadastrado ainda";
         const name = brokerName ?? "Corretor";
         await queueOutbound(supabase, {
           account_id: property.account_id,
@@ -1286,7 +1294,7 @@ Deno.serve(async (req) => {
       }
 
       if (matchChoice3(text)) {
-        const contact = brokerPhone ?? "nao informado";
+        const contact = brokerPhone ?? "Numero nao cadastrado ainda";
         const name = brokerName ?? "Corretor";
         await queueOutbound(supabase, {
           account_id: property.account_id,

@@ -55,9 +55,13 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", user.id);
 
+  const cleanPhone = whatsapp?.replace(/\D/g, "") || null;
   await admin
     .from("brokers")
-    .update({ display_name: fullName.trim() })
+    .update({
+      display_name: fullName.trim(),
+      whatsapp_number: cleanPhone,
+    })
     .eq("profile_id", user.id);
 
   return NextResponse.json({ ok: true });
