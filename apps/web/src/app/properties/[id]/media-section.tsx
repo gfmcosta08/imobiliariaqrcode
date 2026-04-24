@@ -17,7 +17,7 @@ type MediaRow = {
 type UploadResult =
   | { kind: "sending"; count: number }
   | { kind: "success"; uploaded: number }
-  | { kind: "partial"; uploaded: number; failed: string[] }
+  | { kind: "partial"; uploaded: number; failed: { name: string; error: string }[] }
   | { kind: "error"; message: string }
   | null;
 
@@ -68,11 +68,12 @@ export function MediaSection(props: {
     }
 
     if (res && "uploaded" in res) {
-      const failedNames = Array.isArray(res.failed) ? res.failed : [];
-      if (failedNames.length > 0) {
-        setResult({ kind: "partial", uploaded: res.uploaded, failed: failedNames });
+      const failedItems = Array.isArray(res.failed) ? res.failed : [];
+      const uploadedCount = res.uploaded ?? 0;
+      if (failedItems.length > 0) {
+        setResult({ kind: "partial", uploaded: uploadedCount, failed: failedItems });
       } else {
-        setResult({ kind: "success", uploaded: res.uploaded });
+        setResult({ kind: "success", uploaded: uploadedCount });
       }
       e.currentTarget.reset();
       scrollToNotice();
@@ -81,13 +82,12 @@ export function MediaSection(props: {
   }
 
   async function onDelete(media: MediaRow) {
-    setError(null);
-    setNotice(null);
+    setResult(null);
     setLoading(true);
     const res = await deletePropertyMedia(props.propertyId, media.id, media.storage_path);
     setLoading(false);
     if (res && "error" in res && res.error) {
-      setError(res.error);
+      setResult({ kind: "error", message: res.error });
       return;
     }
     router.refresh();
@@ -125,7 +125,7 @@ export function MediaSection(props: {
               <span>{result.uploaded} imagem(ns) enviada(s). {result.failed.length} falha(s):</span>
             </p>
             <ul className="mt-1 list-disc pl-8 text-xs">
-              {result.failed.map((name) => <li key={name}>{name}</li>)}
+              {result.failed.map((f) => <li key={f.name}>{f.name}</li>)}
             </ul>
           </div>
         )}

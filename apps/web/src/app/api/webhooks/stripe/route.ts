@@ -82,21 +82,29 @@ export async function POST(req: NextRequest) {
     // ── Pagamento de fatura aprovado ────────────────────────────────────────
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
-      const sub = invoice.subscription
-        ? await stripe.subscriptions.retrieve(invoice.subscription as string)
-        : null;
+      // SDK v22 move subscription para parent.subscription_details — lemos via acesso dinâmico
+      // para compatibilidade com qualquer versão da API Stripe configurada no webhook.
+      const rawInvoice = invoice as unknown as Record<string, unknown>;
+      const subscriptionId: string | null =
+        (rawInvoice.subscription as string | null) ??
+        ((rawInvoice.parent as Record<string, unknown> | null)
+          ?.subscription_details as Record<string, unknown> | null)
+          ?.subscription as string | null ?? null;
+      const sub = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : null;
       if (!sub) break;
 
       const accountId = sub.metadata?.account_id;
       const planCode = sub.metadata?.plan_code;
       if (!accountId || !planCode) break;
 
+      // SDK v22: current_period_start/end movidos para billing_cycle_anchor + items
+      const rawSub = sub as unknown as Record<string, number | undefined>;
       await activateSubscription(
         admin,
         accountId,
         planCode,
-        sub.current_period_start,
-        sub.current_period_end,
+        rawSub.current_period_start ?? null,
+        rawSub.current_period_end ?? null,
         sub.id,
       );
       break;
@@ -105,9 +113,13 @@ export async function POST(req: NextRequest) {
     // ── Pagamento falhou ────────────────────────────────────────────────────
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const sub = invoice.subscription
-        ? await stripe.subscriptions.retrieve(invoice.subscription as string)
-        : null;
+      const rawInvoiceFailed = invoice as unknown as Record<string, unknown>;
+      const subscriptionIdFailed: string | null =
+        (rawInvoiceFailed.subscription as string | null) ??
+        ((rawInvoiceFailed.parent as Record<string, unknown> | null)
+          ?.subscription_details as Record<string, unknown> | null)
+          ?.subscription as string | null ?? null;
+      const sub = subscriptionIdFailed ? await stripe.subscriptions.retrieve(subscriptionIdFailed) : null;
       if (!sub) break;
 
       const accountId = sub.metadata?.account_id;
@@ -126,12 +138,14 @@ export async function POST(req: NextRequest) {
       const accountId = sub.metadata?.account_id;
       if (!accountId) break;
 
+      const rawSubDel = sub as unknown as Record<string, number | undefined>;
+      const periodEndDel = rawSubDel.current_period_end;
       await admin
         .from("subscriptions")
         .update({
           status: "canceled",
           canceled_at: new Date().toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          current_period_end: periodEndDel ? new Date(periodEndDel * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq("account_id", accountId);
@@ -145,14 +159,17 @@ export async function POST(req: NextRequest) {
       const planCode = sub.metadata?.plan_code;
       if (!accountId || !planCode) break;
 
+      const rawSubUpd = sub as unknown as Record<string, number | undefined>;
+      const periodStart = rawSubUpd.current_period_start;
+      const periodEnd = rawSubUpd.current_period_end;
       const status = sub.status === "active" ? "pro_active" : "past_due";
       await admin
         .from("subscriptions")
         .update({
           plan_code: planCode,
           status,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
+          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq("account_id", accountId);
