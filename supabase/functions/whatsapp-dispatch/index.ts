@@ -453,7 +453,6 @@ Deno.serve(async (req) => {
       .eq("direction", "outbound")
       .eq("status", "queued")
       .order("created_at", { ascending: true })
-      .order("payload->flow_step", { ascending: true })
       .limit(MAX_BATCH);
 
     if (error) {
