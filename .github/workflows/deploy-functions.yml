@@ -13,16 +13,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.32.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck gate
+        run: pnpm --filter web run typecheck
+
+      - name: Test gate
+        run: pnpm --filter web run test
+
+      - name: Prettier gate
+        run: pnpm exec prettier --check supabase/functions/conversation-handle/index.ts supabase/functions/whatsapp-dispatch/index.ts supabase/functions/whatsapp-webhook-inbound/index.ts
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Deploy Edge Functions
         run: |
-          supabase functions deploy whatsapp-webhook-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-          supabase functions deploy conversation-handle --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-          supabase functions deploy whatsapp-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-          supabase functions deploy lead-notify-broker --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-          supabase functions deploy qr-resolve --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy whatsapp-webhook-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          supabase functions deploy conversation-handle --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          supabase functions deploy whatsapp-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          supabase functions deploy lead-notify-broker --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          supabase functions deploy qr-resolve --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
