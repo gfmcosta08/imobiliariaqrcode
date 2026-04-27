@@ -452,10 +452,7 @@ Deno.serve(async (req) => {
     const retries = (msg.retry_count as number) ?? 0;
     if (retries >= 5) {
       // Esgotou tentativas: marcar como falha permanente
-      await supabase
-        .from("whatsapp_messages")
-        .update({ status: "failed" })
-        .eq("id", msg.id);
+      await supabase.from("whatsapp_messages").update({ status: "failed" }).eq("id", msg.id);
       if (msg.lead_phone) exhaustedPhones.push(String(msg.lead_phone));
       console.warn("[dispatch] message exhausted max retries, marking failed", { id: msg.id });
     } else {
