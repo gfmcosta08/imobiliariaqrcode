@@ -20,6 +20,7 @@ export default async function PublicQrPage(props: PageProps) {
 
   let initial: unknown = null;
   let fetchError: string | null = null;
+  let whatsappRedirect: string | null = null;
 
   try {
     const res = await fetch(`${base}/functions/v1/qr-resolve?token=${encodeURIComponent(token)}`, {
@@ -61,7 +62,9 @@ export default async function PublicQrPage(props: PageProps) {
         });
       }
       if (isActive && typeof payload.whatsapp_link === "string" && payload.whatsapp_link) {
-        redirect(payload.whatsapp_link);
+        // Salvar fora do try/catch: redirect() lança exceção interna do Next.js
+        // e seria capturado incorretamente pelo catch abaixo.
+        whatsappRedirect = payload.whatsapp_link;
       }
       initial = parsed;
     }
@@ -72,6 +75,9 @@ export default async function PublicQrPage(props: PageProps) {
       error: e instanceof Error ? e.message : String(e),
     });
   }
+
+  // redirect() deve ser chamado fora do try/catch
+  if (whatsappRedirect) redirect(whatsappRedirect);
 
   return <PublicQrClient token={token} initial={initial} fetchError={fetchError} />;
 }
