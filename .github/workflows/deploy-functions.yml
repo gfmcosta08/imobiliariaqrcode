@@ -38,35 +38,6 @@ jobs:
         with:
           version: latest
 
-      - name: Apply database migrations
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: |
-          for migration in supabase/migrations/*.sql; do
-            echo "Applying $migration..."
-            SQL=$(cat "$migration")
-            PAYLOAD=$(jq -n --arg q "$SQL" '{"query": $q}')
-            STATUS=$(curl -s -o /tmp/mig_response.json -w "%{http_code}" \
-              -X POST \
-              "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_ID}/database/query" \
-              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD")
-            echo "Status $STATUS for $migration"
-            cat /tmp/mig_response.json
-            # 200 = success, 400 com "already exists" = idempotente (ok)
-            if [ "$STATUS" != "200" ]; then
-              DETAIL=$(cat /tmp/mig_response.json)
-              if echo "$DETAIL" | grep -qi "already exists\|does not exist\|duplicate"; then
-                echo "Idempotent: skipping"
-              else
-                echo "Migration failed — aborting"
-                exit 1
-              fi
-            fi
-          done
-
       - name: Deploy Edge Functions
         run: |
           supabase functions deploy whatsapp-webhook-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
