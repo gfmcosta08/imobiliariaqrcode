@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { PublicQrClient } from "./public-qr-client";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -57,6 +59,9 @@ export default async function PublicQrPage(props: PageProps) {
           state: payload.state,
           ok: payload.ok,
         });
+      }
+      if (isActive && typeof payload.whatsapp_link === "string" && payload.whatsapp_link) {
+        redirect(payload.whatsapp_link);
       }
       initial = parsed;
     }
