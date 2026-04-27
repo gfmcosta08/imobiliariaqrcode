@@ -1,0 +1,19 @@
+name: WhatsApp Dispatch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger whatsapp-dispatch
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/whatsapp-dispatch")
+          echo "dispatch status: $STATUS"
+          [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ] && exit 0 || exit 1
