@@ -1,12 +1,18 @@
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
+function createStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
+  return new Stripe(key, { apiVersion: "2026-03-25.dahlia", typescript: true });
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2026-03-25.dahlia",
-  typescript: true,
+let _stripe: Stripe | null = null;
+
+export const stripe: Stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    if (!_stripe) _stripe = createStripeClient();
+    return (_stripe as unknown as Record<string | symbol, unknown>)[prop];
+  },
 });
 
 // IDs dos preços cadastrados no Stripe Dashboard.
