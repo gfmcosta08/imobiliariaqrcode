@@ -62,9 +62,7 @@ export function InvitationGenerator() {
             Clique para gerar um QR Code + credenciais de acesso para entregar impresso a um
             corretor.
           </p>
-          {error && (
-            <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2">{error}</p>
-          )}
+          {error && <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2">{error}</p>}
           <button
             onClick={handleGenerate}
             disabled={loading}
@@ -76,10 +74,7 @@ export function InvitationGenerator() {
       ) : (
         <div className="mt-5">
           {/* Área imprimível */}
-          <div
-            id="print-area"
-            className="border border-gray-200 p-6 print:border-none print:p-0"
-          >
+          <div id="print-area" className="border border-gray-200 p-6 print:border-none print:p-0">
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
               {/* QR Code */}
               <div className="flex-shrink-0">

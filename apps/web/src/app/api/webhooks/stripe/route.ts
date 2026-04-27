@@ -87,9 +87,13 @@ export async function POST(req: NextRequest) {
       const rawInvoice = invoice as unknown as Record<string, unknown>;
       const subscriptionId: string | null =
         (rawInvoice.subscription as string | null) ??
-        ((rawInvoice.parent as Record<string, unknown> | null)
-          ?.subscription_details as Record<string, unknown> | null)
-          ?.subscription as string | null ?? null;
+        ((
+          (rawInvoice.parent as Record<string, unknown> | null)?.subscription_details as Record<
+            string,
+            unknown
+          > | null
+        )?.subscription as string | null) ??
+        null;
       const sub = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : null;
       if (!sub) break;
 
@@ -116,10 +120,14 @@ export async function POST(req: NextRequest) {
       const rawInvoiceFailed = invoice as unknown as Record<string, unknown>;
       const subscriptionIdFailed: string | null =
         (rawInvoiceFailed.subscription as string | null) ??
-        ((rawInvoiceFailed.parent as Record<string, unknown> | null)
-          ?.subscription_details as Record<string, unknown> | null)
-          ?.subscription as string | null ?? null;
-      const sub = subscriptionIdFailed ? await stripe.subscriptions.retrieve(subscriptionIdFailed) : null;
+        ((
+          (rawInvoiceFailed.parent as Record<string, unknown> | null)
+            ?.subscription_details as Record<string, unknown> | null
+        )?.subscription as string | null) ??
+        null;
+      const sub = subscriptionIdFailed
+        ? await stripe.subscriptions.retrieve(subscriptionIdFailed)
+        : null;
       if (!sub) break;
 
       const accountId = sub.metadata?.account_id;

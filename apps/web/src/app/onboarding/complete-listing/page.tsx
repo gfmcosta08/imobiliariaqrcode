@@ -47,11 +47,7 @@ export default async function CompleteListingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Complete seu anúncio</h1>
           <p className="text-sm text-gray-500 mt-1">Passo 2 de 2 &mdash; Dados do imóvel</p>
         </div>
-        <PropertyEditorForm
-          mode="edit"
-          initial={property}
-          action={updateInvitationProperty}
-        />
+        <PropertyEditorForm mode="edit" initial={property} action={updateInvitationProperty} />
       </div>
     </div>
   );

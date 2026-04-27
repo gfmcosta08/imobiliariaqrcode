@@ -96,10 +96,7 @@ export async function POST() {
 
   if (!broker) {
     await supabase.auth.admin.deleteUser(authUserId);
-    return NextResponse.json(
-      { ok: false, error: "broker_setup_timeout" },
-      { status: 500 },
-    );
+    return NextResponse.json({ ok: false, error: "broker_setup_timeout" }, { status: 500 });
   }
 
   // Criar imóvel fantasma — usa 'draft' para compatibilidade com constraint original.

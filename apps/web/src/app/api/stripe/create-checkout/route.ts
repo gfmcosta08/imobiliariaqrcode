@@ -58,10 +58,7 @@ export async function POST(req: NextRequest) {
     });
     customerId = customer.id;
 
-    await admin
-      .from("accounts")
-      .update({ stripe_customer_id: customerId })
-      .eq("id", account.id);
+    await admin.from("accounts").update({ stripe_customer_id: customerId }).eq("id", account.id);
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";

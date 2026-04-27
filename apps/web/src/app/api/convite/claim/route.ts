@@ -39,10 +39,7 @@ export async function POST(request: Request) {
 
   const now = new Date();
   if (new Date(invitation.expires_at as string) < now) {
-    await supabase
-      .from("broker_invitations")
-      .update({ status: "expired" })
-      .eq("id", invitation.id);
+    await supabase.from("broker_invitations").update({ status: "expired" }).eq("id", invitation.id);
     return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 401 });
   }
 

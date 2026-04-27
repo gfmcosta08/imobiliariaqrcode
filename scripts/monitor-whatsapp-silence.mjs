@@ -287,8 +287,7 @@ async function main() {
   // ── 2. webhook_events em pending presos ────────────────────────
   const stuckWebhooks = await getStuckPendingWebhooks();
   for (const wh of stuckWebhooks) {
-    const leadPhone =
-      wh?.payload?.chat?.phone ?? wh?.payload?.message?.sender_pn ?? null;
+    const leadPhone = wh?.payload?.chat?.phone ?? wh?.payload?.message?.sender_pn ?? null;
     const hasQueued = await hasOutboundQueued(leadPhone);
 
     alerts.push({
@@ -383,8 +382,7 @@ async function main() {
   for (const inbound of inboundRows) {
     const hasOutboundAfter = outboundRows.some(
       (outbound) =>
-        outbound.lead_phone === inbound.lead_phone &&
-        outbound.created_at >= inbound.created_at,
+        outbound.lead_phone === inbound.lead_phone && outbound.created_at >= inbound.created_at,
     );
     if (!hasOutboundAfter) {
       alerts.push({

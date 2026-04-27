@@ -69,9 +69,7 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
 
     return (
       <div className="mt-3 space-y-1">
-        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-          Anúncio expirado.
-        </p>
+        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">Anúncio expirado.</p>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           Salve uma edição para reativar por mais 120 dias.
         </p>

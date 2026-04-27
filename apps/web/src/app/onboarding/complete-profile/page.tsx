@@ -74,9 +74,7 @@ export default function CompleteProfilePage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Complete seu perfil</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Passo 1 de 2 &mdash; Dados da conta
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Passo 1 de 2 &mdash; Dados da conta</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -149,9 +147,7 @@ export default function CompleteProfilePage() {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
           <button
             type="submit"

@@ -42,7 +42,10 @@ export function MediaSection(props: {
   );
 
   function scrollToNotice() {
-    setTimeout(() => noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+    setTimeout(
+      () => noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+      50,
+    );
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -102,7 +105,10 @@ export function MediaSection(props: {
 
       <div ref={noticeRef}>
         {result?.kind === "error" && (
-          <div className="mt-3 flex items-start gap-2 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <div
+            className="mt-3 flex items-start gap-2 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
             <span className="mt-0.5 shrink-0 text-base">✗</span>
             <span>{result.message}</span>
           </div>
@@ -113,19 +119,29 @@ export function MediaSection(props: {
           </p>
         )}
         {result?.kind === "success" && (
-          <div className="mt-3 flex items-start gap-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          <div
+            className="mt-3 flex items-start gap-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+            role="status"
+          >
             <span className="mt-0.5 shrink-0 text-base">✓</span>
             <span>Upload concluído: {result.uploaded} imagem(ns) enviada(s) com sucesso.</span>
           </div>
         )}
         {result?.kind === "partial" && (
-          <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          <div
+            className="mt-3 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            role="status"
+          >
             <p className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-base">⚠</span>
-              <span>{result.uploaded} imagem(ns) enviada(s). {result.failed.length} falha(s):</span>
+              <span>
+                {result.uploaded} imagem(ns) enviada(s). {result.failed.length} falha(s):
+              </span>
             </p>
             <ul className="mt-1 list-disc pl-8 text-xs">
-              {result.failed.map((f) => <li key={f.name}>{f.name}</li>)}
+              {result.failed.map((f) => (
+                <li key={f.name}>{f.name}</li>
+              ))}
             </ul>
           </div>
         )}
@@ -183,9 +199,7 @@ export function MediaSection(props: {
             >
               {loading ? "Enviando..." : "Enviar imagens"}
             </button>
-            {loading && (
-              <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span>
-            )}
+            {loading && <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span>}
           </div>
         </form>
       ) : (

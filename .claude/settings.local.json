@@ -10,7 +10,8 @@
       "Bash(git push *)",
       "WebFetch(domain:www.compass.com)",
       "mcp__9cf98ce4-af6b-40d6-8e68-a9c39164c005__deploy_to_vercel",
-      "Bash(vercel deploy *)"
+      "Bash(vercel deploy *)",
+      "Bash(findstr /i \"SUPABASE_URL SUPABASE_SERVICE\")"
     ]
   }
 }
