@@ -229,6 +229,19 @@ Deno.serve(async (req) => {
         sent_at: new Date().toISOString(),
       });
 
+      // Criar registro de rastreamento para esta interacao
+      const { data: interaction } = await supabase
+        .from("bot_interactions")
+        .insert({
+          lead_phone: leadPhone,
+          inbound_text: text.slice(0, 500),
+          webhook_event_id: insertedEvent?.id ?? null,
+          current_step: "webhook_received",
+        })
+        .select("id")
+        .maybeSingle();
+      const interactionId = interaction?.id ?? null;
+
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
       console.log(`Calling conversation-handle at: ${conversationUrl}`);
 
@@ -243,6 +256,7 @@ Deno.serve(async (req) => {
           lead_phone: leadPhone,
           text,
           payload: rootPayload,
+          interaction_id: interactionId,
         }),
       });
 
@@ -252,21 +266,18 @@ Deno.serve(async (req) => {
       try {
         convResult = (await response.json()) as Record<string, unknown>;
       } catch {
-        // resposta não é JSON — tratar como falha
+        // resposta não é JSON - tratar como falha
       }
 
-      const isQrNotFound = convResult.state === "qr_not_found";
       const isHandlerFailure = !response.ok;
 
       if (isHandlerFailure) {
         console.error(`conversation-handle failed: ${response.status}`);
       }
 
-      if (isHandlerFailure || isQrNotFound) {
-        // Regra inegociável: o bot nunca fica calado. Enfileirar mensagem de segurança.
-        const fallbackText = isQrNotFound
-          ? "Ola! Nao identifiquei o imovel nessa mensagem. Tente escanear o QR Code novamente ou entre em contato conosco."
-          : "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
+      if (isHandlerFailure) {
+        // Regra inegociavel: o bot nunca fica calado em falha tecnica.
+        const fallbackText = "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
 
         await supabase
           .from("whatsapp_messages")
@@ -288,31 +299,24 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}` },
         }).catch((err: unknown) => console.error("dispatch trigger after fallback failed:", err));
 
-        const eventStatus = isHandlerFailure ? "failed" : "processed";
         await supabase
           .from("webhook_events")
-          .update({ processing_status: eventStatus, processed_at: new Date().toISOString() })
+          .update({ processing_status: "failed", processed_at: new Date().toISOString() })
           .eq("id", insertedEvent?.id ?? "");
 
-        return new Response(
-          JSON.stringify({ ok: !isHandlerFailure, state: convResult.state ?? "error" }),
-          {
-            status: isHandlerFailure ? 500 : 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ ok: false, state: convResult.state ?? "error" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // Disparar o dispatch automaticamente após processar a conversa para resposta rápida
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
-
-      // Chamada assíncrona (não espera o dispatch terminar para responder o webhook)
       await fetch(dispatchUrl, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}`,
-        },
-      }).catch((err) => console.error("Auto-dispatch trigger failed:", err));
+        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      }).catch((err: unknown) =>
+        console.error("dispatch trigger after conversation success failed:", err),
+      );
     } else {
       await supabase
         .from("webhook_events")

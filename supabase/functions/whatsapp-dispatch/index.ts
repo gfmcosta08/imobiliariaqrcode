@@ -362,12 +362,13 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
 
 function sortRows(rows: QueueRow[]): QueueRow[] {
   return rows.sort((a, b) => {
-    const createdCmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    if (createdCmp !== 0) return createdCmp;
-
     const flowGroupA = typeof a.payload?.flow_group === "string" ? a.payload.flow_group : "";
     const flowGroupB = typeof b.payload?.flow_group === "string" ? b.payload.flow_group : "";
-    if (flowGroupA !== flowGroupB) return flowGroupA.localeCompare(flowGroupB);
+    const createdCmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+
+    if (!flowGroupA || !flowGroupB || flowGroupA !== flowGroupB) {
+      return createdCmp;
+    }
 
     const flowStepA =
       typeof a.payload?.flow_step === "number"
@@ -377,7 +378,8 @@ function sortRows(rows: QueueRow[]): QueueRow[] {
       typeof b.payload?.flow_step === "number"
         ? b.payload.flow_step
         : Number.parseInt(String(b.payload?.flow_step ?? "0"), 10) || 0;
-    return flowStepA - flowStepB;
+    const stepCmp = flowStepA - flowStepB;
+    return stepCmp !== 0 ? stepCmp : createdCmp;
   });
 }
 
@@ -433,15 +435,61 @@ Deno.serve(async (req) => {
 
   const sent: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
+  const sentPhones = new Set<string>(); // para marcar bot_interactions como completed
 
-  // Resetar mensagens travadas em "processing" há mais de 60s (edge function morreu no meio)
-  await supabase
+  // Resetar mensagens travadas em "processing" há mais de 60s
+  // com controle de retry_count para evitar loop infinito
+  const stuckCutoff = new Date(Date.now() - 60_000).toISOString();
+  const { data: stuckProcessing } = await supabase
     .from("whatsapp_messages")
-    .update({ status: "queued" })
+    .select("id, retry_count, lead_phone")
     .eq("direction", "outbound")
     .eq("status", "processing")
-    .lt("updated_at", new Date(Date.now() - 60_000).toISOString());
+    .lt("updated_at", stuckCutoff);
 
+  const exhaustedPhones: string[] = [];
+  for (const msg of stuckProcessing ?? []) {
+    const retries = (msg.retry_count as number) ?? 0;
+    if (retries >= 5) {
+      // Esgotou tentativas: marcar como falha permanente
+      await supabase
+        .from("whatsapp_messages")
+        .update({ status: "failed" })
+        .eq("id", msg.id);
+      if (msg.lead_phone) exhaustedPhones.push(String(msg.lead_phone));
+      console.warn("[dispatch] message exhausted max retries, marking failed", { id: msg.id });
+    } else {
+      // Voltar para queued incrementando o contador
+      await supabase
+        .from("whatsapp_messages")
+        .update({ status: "queued", retry_count: retries + 1 })
+        .eq("id", msg.id);
+      console.log("[dispatch] resetting stuck processing message", {
+        id: msg.id,
+        retry_count: retries + 1,
+      });
+    }
+  }
+
+  // Enfileirar fallback para leads que esgotaram tentativas
+  for (const phone of [...new Set(exhaustedPhones)]) {
+    await supabase
+      .from("whatsapp_messages")
+      .insert({
+        direction: "outbound",
+        provider: "uazapi",
+        lead_phone: phone,
+        message_type: "text",
+        payload: {
+          kind: "error_fallback",
+          text: "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.",
+        },
+        status: "queued",
+      })
+      .catch((e: unknown) =>
+        console.error("[dispatch] fallback enqueue failed", e instanceof Error ? e.message : e),
+      );
+  }
 
   let cycles = 0;
   while (cycles < MAX_CYCLES) {
@@ -502,7 +550,9 @@ Deno.serve(async (req) => {
           .select("id");
 
         if (!claimed || claimed.length === 0) {
-          console.log("[dispatch] message already claimed by another worker, skipping", { id: row.id });
+          console.log("[dispatch] message already claimed by another worker, skipping", {
+            id: row.id,
+          });
           continue;
         }
 
@@ -515,7 +565,11 @@ Deno.serve(async (req) => {
           typingHeartbeatMs,
         });
 
-        console.log("[dispatch] sending message", { id: row.id, type: row.message_type, phone: row.lead_phone });
+        console.log("[dispatch] sending message", {
+          id: row.id,
+          type: row.message_type,
+          phone: row.lead_phone,
+        });
         const result = await sendViaUazapi(baseUrl, apiToken, rowToSend);
         if (!result.ok) {
           const errDetail = (result as { ok: false; detail: string }).detail;
@@ -540,8 +594,12 @@ Deno.serve(async (req) => {
           provider_message_id: string | null;
           response: unknown;
         };
-        console.log("[dispatch] message sent", { id: row.id, providerId: okResult.provider_message_id });
+        console.log("[dispatch] message sent", {
+          id: row.id,
+          providerId: okResult.provider_message_id,
+        });
         sent.push(row.id);
+        if (row.lead_phone) sentPhones.add(row.lead_phone);
         await supabase
           .from("whatsapp_messages")
           .update({
@@ -559,9 +617,13 @@ Deno.serve(async (req) => {
         // Garantir que o "digitando" seja removido mesmo em caso de exceção
         const { to: errTo, toBroker: errToBroker } = resolveTargetPhone(row);
         if (!errToBroker && errTo && typingEndpoint) {
-          await sendTypingPresence(baseUrl, apiToken, typingEndpoint, String(errTo), "paused").catch(
-            () => {},
-          );
+          await sendTypingPresence(
+            baseUrl,
+            apiToken,
+            typingEndpoint,
+            String(errTo),
+            "paused",
+          ).catch(() => {});
         }
         failed.push({ id: row.id, error: errMsg });
         await supabase
@@ -579,6 +641,22 @@ Deno.serve(async (req) => {
     }
 
     if (batch.length < MAX_BATCH) break;
+  }
+
+  // Marcar bot_interactions como completed para leads que tiveram mensagens enviadas
+  if (sentPhones.size > 0) {
+    await supabase
+      .from("bot_interactions")
+      .update({ current_step: "completed" })
+      .in("lead_phone", [...sentPhones])
+      .in("current_step", ["response_queued", "dispatch_sent"])
+      .eq("is_resolved", false)
+      .catch((e: unknown) =>
+        console.error(
+          "[dispatch] bot_interactions update failed",
+          e instanceof Error ? e.message : e,
+        ),
+      );
   }
 
   console.log("[dispatch] run complete", { sent: sent.length, failed: failed.length, cycles });

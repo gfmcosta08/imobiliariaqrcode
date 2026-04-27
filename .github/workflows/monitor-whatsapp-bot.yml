@@ -26,3 +26,6 @@ jobs:
           BOT_MONITOR_PENDING_MINUTES: "3"
           BOT_MONITOR_QUEUE_STUCK_MINUTES: "10"
           BOT_MONITOR_LOOKBACK_MINUTES: "20"
+          BOT_MONITOR_PENDING_LOOKBACK_HOURS: "24"
+          BOT_MONITOR_HEAL: "true"
+          BOT_MONITOR_FALLBACK_TEXT: "Desculpe, tivemos um problema tecnico. Tente novamente em instantes."
