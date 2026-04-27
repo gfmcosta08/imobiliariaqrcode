@@ -134,6 +134,17 @@ async function setInteractionRecovering(interactionId, newRetryCount) {
 
 // ─── Queries de detecção ─────────────────────────────────────────────────────
 
+async function getPendingSteps() {
+  const cutoff = isoMinutesAgo(QUEUE_STUCK_MINUTES);
+  return get(
+    `bot_interaction_steps?select=id,interaction_id,step_name,started_at` +
+      `&status=eq.pending` +
+      `&started_at=lte.${encodeURIComponent(cutoff)}` +
+      `&order=started_at.asc` +
+      `&limit=50`,
+  );
+}
+
 async function getStuckQueuedMessages() {
   const cutoff = isoMinutesAgo(QUEUE_STUCK_MINUTES);
   return get(
@@ -215,6 +226,45 @@ async function main() {
         dispatchTriggered = true;
         healed.push(`dispatch_triggered:${reason}`);
       }
+    }
+  }
+
+  // ── 0. Etapas pending presas (log por etapa) ───────────────────
+  const pendingSteps = await getPendingSteps();
+  for (const step of pendingSteps) {
+    const interactionRows = await get(
+      `bot_interactions?select=lead_phone&id=eq.${step.interaction_id}&limit=1`,
+    );
+    const phone = interactionRows[0]?.lead_phone ?? null;
+
+    alerts.push({
+      type: "step_pending_timeout",
+      step_name: step.step_name,
+      lead_phone: phone,
+      event_id: step.id,
+      started_at: step.started_at,
+      suspect_function: "conversation-handle/whatsapp-dispatch",
+    });
+
+    if (HEAL_ENABLED) {
+      if (step.step_name === "conversation_starting" || step.step_name === "response_queuing") {
+        // conversation-handle não completou a etapa → fallback + dispatch
+        if (phone && !(await hasOutboundQueued(phone))) {
+          await enqueueFallback(phone);
+          healed.push(`fallback_enqueued:${phone}`);
+        }
+        await healDispatch(`step_${step.step_name}_stuck`);
+      } else if (step.step_name === "dispatch_sent") {
+        // Mensagens enfileiradas mas dispatch não processou
+        await healDispatch("dispatch_sent_pending");
+      }
+      // Marcar step como failed para não processar de novo no próximo ciclo
+      await patch("bot_interaction_steps", step.id, "id", {
+        status: "failed",
+        completed_at: new Date().toISOString(),
+        error_detail: "healed_by_monitor",
+      });
+      healed.push(`step_healed:${step.step_name}:${step.interaction_id}`);
     }
   }
 

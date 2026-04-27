@@ -7,7 +7,40 @@ type InboundInput = {
   event_id?: string;
   payload?: Record<string, unknown>;
   interaction_id?: string;
+  starting_step_id?: string;
 };
+
+// ── Helpers de log por etapa ─────────────────────────────────────────────────
+
+async function logStep(
+  supabase: ReturnType<typeof createClient>,
+  interactionId: string | null | undefined,
+  stepName: string,
+): Promise<string | null> {
+  if (!interactionId) return null;
+  const { data } = await supabase.rpc("fn_start_interaction_step", {
+    p_interaction_id: interactionId,
+    p_step: stepName,
+  });
+  return (data as string | null) ?? null;
+}
+
+function completeStep(
+  supabase: ReturnType<typeof createClient>,
+  stepId: string | null | undefined,
+  status: "complete" | "failed",
+  error?: string,
+): void {
+  if (!stepId) return;
+  supabase
+    .rpc("fn_complete_interaction_step", {
+      p_step_id: stepId,
+      p_status: status,
+      p_error: error ?? null,
+    })
+    .then(() => {})
+    .catch(() => {});
+}
 
 type LeadSnapshot = {
   id: string;
@@ -1236,12 +1269,15 @@ Deno.serve(async (req) => {
   let _interactionId: string | null = null;
   let _interactionStep = "session_loaded";
   let _interactionError: string | undefined;
+  let _startingStepId: string | null = null; // step_id de conversation_starting (vem do webhook-inbound)
+  let _currentStepId: string | null = null; // step_id da etapa em curso
 
   try {
     const body = (await req.json()) as InboundInput;
     const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
     const text = String(body.text ?? "").trim();
     _interactionId = body.interaction_id ?? null;
+    _startingStepId = body.starting_step_id ?? null;
 
     if (!leadPhone || !text) {
       return json({ ok: false, error: "missing_input" }, 400);
@@ -1257,6 +1293,13 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } },
     );
     _supabase = supabase;
+
+    // Fechar conversation_starting → complete (chegamos ao handler com sucesso)
+    completeStep(supabase, _startingStepId, "complete");
+    _startingStepId = null; // já fechado, não fechar de novo no finally
+
+    // Iniciar session_loaded → pending
+    _currentStepId = await logStep(supabase, _interactionId, "session_loaded");
 
     const qrToken = parseQrToken(text);
 
@@ -1292,12 +1335,18 @@ Deno.serve(async (req) => {
     await sendTypingNow(leadPhone);
     _typingPhone = leadPhone;
     if (qrToken) {
+      // session_loaded → complete; property_resolving → pending
+      completeStep(supabase, _currentStepId, "complete");
+      _currentStepId = await logStep(supabase, _interactionId, "property_resolving");
+
       const property =
         (await loadPropertyByQr(supabase, qrToken)) ??
         (await loadPropertyByPublicId(supabase, qrToken));
       if (!property) {
         console.log("[bot] qr_not_found - canceling typing", { qrToken });
         _interactionStep = "error_no_property";
+        completeStep(supabase, _currentStepId, "failed", "property_not_found");
+        _currentStepId = null;
         await cancelTypingNow(leadPhone);
         await queuePropertyCodePrompt(supabase, leadPhone);
         return json({ ok: true, state: "property_code_not_found" });
@@ -1415,11 +1464,17 @@ Deno.serve(async (req) => {
       }
 
       _interactionStep = "property_resolved";
+      // property_resolving → complete; response_queuing → pending
+      completeStep(supabase, _currentStepId, "complete");
+      _currentStepId = await logStep(supabase, _interactionId, "response_queuing");
       try {
         console.log("[bot] queuing property pack", { propertyId, leadPhone });
         await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
         console.log("[bot] property pack queued OK", { propertyId, leadPhone });
         _interactionStep = "response_queued";
+        // response_queuing → complete
+        completeStep(supabase, _currentStepId, "complete");
+        _currentStepId = null;
       } catch (packErr) {
         const packMsg = packErr instanceof Error ? packErr.message : String(packErr);
         console.error("[bot] sendPropertyPack failed - queuing fallback", {
@@ -1451,11 +1506,15 @@ Deno.serve(async (req) => {
       }
       _interactionStep = "response_queued";
       return json({ ok: true, state: "started", property_id: propertyId });
-    }
+    } // fim if (qrToken)
 
     if (!session?.id || !session.origin_property_id) {
       return json({ ok: true, state: "ignored_without_session" });
     }
+
+    // follow-up: session_loaded → complete; property_resolving → pending
+    completeStep(supabase, _currentStepId, "complete");
+    _currentStepId = await logStep(supabase, _interactionId, "property_resolving");
 
     const { data: property } = await supabase
       .from("properties")
@@ -1469,9 +1528,14 @@ Deno.serve(async (req) => {
         propertyId: session.origin_property_id,
       });
       _interactionStep = "error_no_property";
+      completeStep(supabase, _currentStepId, "failed", "property_not_found_in_session");
+      _currentStepId = null;
       return json({ ok: false, error: "property_not_found" }, 400);
     }
     _interactionStep = "property_resolved";
+    // property_resolving → complete; response_queuing → pending
+    completeStep(supabase, _currentStepId, "complete");
+    _currentStepId = await logStep(supabase, _interactionId, "response_queuing");
     console.log("[bot] processing follow-up", {
       leadPhone,
       sessionState: session.state,
@@ -2035,7 +2099,31 @@ Deno.serve(async (req) => {
     }
     return json({ ok: false, error: "unexpected", detail: message }, 500);
   } finally {
-    // Atualizar etapa em bot_interactions — fire-and-forget, nunca bloqueia a resposta
+    // Fechar etapa em curso — fire-and-forget, nunca bloqueia a resposta
+    if (_supabase && _currentStepId) {
+      // Se não houve erro: a função completou normalmente → complete
+      // Se houve erro: crash inesperado → failed
+      _supabase
+        .rpc("fn_complete_interaction_step", {
+          p_step_id: _currentStepId,
+          p_status: _interactionError ? "failed" : "complete",
+          p_error: _interactionError ?? null,
+        })
+        .then(() => {})
+        .catch(() => {});
+    }
+    // conversation_starting nunca foi fechado (crash antes do corpo do handler)
+    if (_supabase && _startingStepId) {
+      _supabase
+        .rpc("fn_complete_interaction_step", {
+          p_step_id: _startingStepId,
+          p_status: _interactionError ? "failed" : "complete",
+          p_error: _interactionError ?? null,
+        })
+        .then(() => {})
+        .catch(() => {});
+    }
+    // Manter backward compat: atualizar current_step em bot_interactions
     if (_supabase && _interactionId) {
       _supabase
         .from("bot_interactions")

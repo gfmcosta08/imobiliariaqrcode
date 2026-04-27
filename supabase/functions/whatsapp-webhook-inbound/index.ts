@@ -242,6 +242,28 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const interactionId = interaction?.id ?? null;
 
+      // Log step-by-step: webhook_received (complete) + conversation_starting (pending)
+      let startingStepId: string | null = null;
+      if (interactionId) {
+        // webhook_received: sempre completa se chegamos até aqui
+        const { data: wrStepId } = await supabase.rpc("fn_start_interaction_step", {
+          p_interaction_id: interactionId,
+          p_step: "webhook_received",
+        });
+        if (wrStepId) {
+          supabase
+            .rpc("fn_complete_interaction_step", { p_step_id: wrStepId, p_status: "complete" })
+            .then(() => {})
+            .catch(() => {});
+        }
+        // conversation_starting: fica pending até conversation-handle responder
+        const { data: csStepId } = await supabase.rpc("fn_start_interaction_step", {
+          p_interaction_id: interactionId,
+          p_step: "conversation_starting",
+        });
+        startingStepId = csStepId ?? null;
+      }
+
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
       console.log(`Calling conversation-handle at: ${conversationUrl}`);
 
@@ -257,6 +279,7 @@ Deno.serve(async (req) => {
           text,
           payload: rootPayload,
           interaction_id: interactionId,
+          starting_step_id: startingStepId,
         }),
       });
 

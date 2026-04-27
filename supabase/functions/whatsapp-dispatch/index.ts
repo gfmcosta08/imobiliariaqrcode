@@ -596,7 +596,14 @@ Deno.serve(async (req) => {
           providerId: okResult.provider_message_id,
         });
         sent.push(row.id);
-        if (row.lead_phone) sentPhones.add(row.lead_phone);
+        if (row.lead_phone) {
+          sentPhones.add(row.lead_phone);
+          // Log step dispatch_sent via função SQL (dispatch não tem interaction_id)
+          supabase
+            .rpc("fn_log_dispatch_step_for_phone", { p_phone: row.lead_phone })
+            .then(() => {})
+            .catch(() => {});
+        }
         await supabase
           .from("whatsapp_messages")
           .update({
