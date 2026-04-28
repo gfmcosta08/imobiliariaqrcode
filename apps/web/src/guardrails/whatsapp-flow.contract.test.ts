@@ -51,6 +51,65 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain("normalizedInput.includes(normalizedPublicId)");
   });
 
+  it("mantem retry quando o ID informado apos semelhantes nao e encontrado", () => {
+    const src = read(conversationHandlePath);
+    const visitPropertyIdBlock = src.match(
+      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    );
+    expect(visitPropertyIdBlock?.[0]).toBeTruthy();
+    expect(visitPropertyIdBlock?.[0]).toContain("resolveRecommendedProperty(supabase, text, recommended)");
+    expect(visitPropertyIdBlock?.[0]).toContain('kind: "ask_property_id_retry"');
+    expect(visitPropertyIdBlock?.[0]).toContain(
+      "Nao encontrei esse imovel. Por favor, informe novamente o ID do imovel.",
+    );
+    expect(visitPropertyIdBlock?.[0]).toContain('state: "awaiting_visit_property_id"');
+  });
+
+  it("mantem registro de visita pos-semelhantes marcado como fluxo pos-listagem", () => {
+    const src = read(conversationHandlePath);
+    const visitPropertyIdBlock = src.match(
+      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    );
+    expect(visitPropertyIdBlock?.[0]).toBeTruthy();
+    expect(visitPropertyIdBlock?.[0]).toContain("targetProp");
+    expect(visitPropertyIdBlock?.[0]).toContain('"main_menu_post_similar"');
+    expect(visitPropertyIdBlock?.[0]).toContain("{ postListingFlow: true }");
+  });
+
+  it("mantem template enriquecido para cenario B do estoque geral", () => {
+    const src = read(conversationHandlePath);
+    const registerVisitBlock = src.match(
+      /async function doRegisterVisit\([\s\S]*?async function sendTypingPresenceNow/,
+    );
+    expect(registerVisitBlock?.[0]).toBeTruthy();
+    expect(registerVisitBlock?.[0]).toContain('scenario: isGeneralStockOwner ? "B" : "A"');
+    expect(registerVisitBlock?.[0]).toContain("Alerta de novo lead para visita.");
+    expect(registerVisitBlock?.[0]).toContain("Nome do lead:");
+    expect(registerVisitBlock?.[0]).toContain("Telefone do lead:");
+    expect(registerVisitBlock?.[0]).toContain("ID do imovel escolhido:");
+    expect(registerVisitBlock?.[0]).toContain("Dono do anuncio:");
+    expect(registerVisitBlock?.[0]).toContain("Contato do dono do anuncio:");
+    expect(registerVisitBlock?.[0]).toContain("to_broker: true");
+  });
+
+  it("mantem ordem pos-ID: confirmacao, notificacao ao corretor e menu", () => {
+    const src = read(conversationHandlePath);
+    const registerVisitBlock = src.match(
+      /async function doRegisterVisit\([\s\S]*?async function sendTypingPresenceNow/,
+    )?.[0];
+    expect(registerVisitBlock).toBeTruthy();
+    expect(registerVisitBlock).toContain("options.postListingFlow");
+    expect(registerVisitBlock).toContain("const flowGroup = isPostListingFlow ? crypto.randomUUID() : null;");
+    expect(registerVisitBlock).toContain("flow_step: flowGroup ? flowStep++ : null");
+
+    const confirmIndex = registerVisitBlock!.indexOf('kind: "visit_registered"');
+    const notifyIndex = registerVisitBlock!.indexOf('kind: "broker_notification"');
+    const menuIndex = registerVisitBlock!.indexOf("await sendMainMenu(");
+    expect(confirmIndex).toBeGreaterThan(-1);
+    expect(notifyIndex).toBeGreaterThan(confirmIndex);
+    expect(menuIndex).toBeGreaterThan(notifyIndex);
+  });
+
   it("mantem ordem de envio por flow_step no mesmo flow_group no dispatcher", () => {
     const src = read(dispatchPath);
     expect(src).toContain("function sortRows");

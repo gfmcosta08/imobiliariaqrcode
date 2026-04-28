@@ -1118,11 +1118,16 @@ async function doRegisterVisit(
   lastMenu: string | null,
   profileName: string | null,
   interactionText: string,
+  options: { postListingFlow?: boolean } = {},
 ): Promise<void> {
   const originProperty = await loadOriginPropertyForSession(supabase, sessionId);
   const originBrokerId = fmt(originProperty?.broker_id) || String(property.broker_id);
   const originAccountId = fmt(originProperty?.account_id) || String(property.account_id);
   const listingOwnerBrokerId = String(property.broker_id);
+  const isPostListingFlow =
+    options.postListingFlow === true || lastMenu === "main_menu_post_similar";
+  const flowGroup = isPostListingFlow ? crypto.randomUUID() : null;
+  let flowStep = 1;
   const isGeneralStockOwner =
     Boolean(originBrokerId) &&
     Boolean(listingOwnerBrokerId) &&
@@ -1135,7 +1140,7 @@ async function doRegisterVisit(
     property_id: property.id,
   });
 
-  await upsertLead(supabase, {
+  const registeredLead = await upsertLead(supabase, {
     propertyId: String(property.id),
     brokerId: originBrokerId,
     leadPhone,
@@ -1146,6 +1151,7 @@ async function doRegisterVisit(
     interactionType: "visit_interest",
     forceNameUpdate: false,
   });
+  const leadForMessage = registeredLead ?? lead;
 
   await queueOutbound(supabase, {
     account_id: String(property.account_id),
@@ -1156,8 +1162,10 @@ async function doRegisterVisit(
     payload: {
       kind: "visit_registered",
       text: `${firstName}, combinado! Ja registrei seu pedido de visita. O corretor vai falar com voce em instantes.`,
-      lead_id: lead?.id ?? null,
+      lead_id: leadForMessage?.id ?? null,
     },
+    flow_group: flowGroup,
+    flow_step: flowGroup ? flowStep++ : null,
   });
 
   if (brokerPhone) {
@@ -1169,13 +1177,13 @@ async function doRegisterVisit(
     const notificationText = isGeneralStockOwner
       ? [
           "Alerta de novo lead para visita.",
-          `Nome do lead: ${lead?.nome_completo || firstName}`,
+          `Nome do lead: ${leadForMessage?.nome_completo || firstName}`,
           `Telefone do lead: ${leadPhone}`,
           `ID do imovel escolhido: ${property.public_id}`,
           `Dono do anuncio: ${ownerName}`,
           `Contato do dono do anuncio: ${ownerPhone}`,
         ].join("\n")
-      : `Novo lead para visita no imovel ${property.public_id}. Cliente: ${leadPhone}. Nome: ${lead?.nome_completo || firstName}.`;
+      : `Novo lead para visita no imovel ${property.public_id}. Cliente: ${leadPhone}. Nome: ${leadForMessage?.nome_completo || firstName}.`;
 
     await queueOutbound(supabase, {
       account_id: originAccountId,
@@ -1192,6 +1200,8 @@ async function doRegisterVisit(
         listing_owner_phone: isGeneralStockOwner ? ownerPhone : null,
         text: notificationText,
       },
+      flow_group: flowGroup,
+      flow_step: flowGroup ? flowStep++ : null,
     });
     console.log("option1_notification_sent", {
       scenario: isGeneralStockOwner ? "B" : "A",
@@ -1202,7 +1212,15 @@ async function doRegisterVisit(
   }
 
   // Re-mostra o menu: cliente pode ainda escolher opção 2 ou 3
-  await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName);
+  await sendMainMenu(
+    supabase,
+    property,
+    leadPhone,
+    brokerPhone,
+    firstName,
+    flowGroup ?? undefined,
+    flowGroup ? flowStep++ : undefined,
+  );
   await supabase
     .from("conversation_sessions")
     .update({ state: "awaiting_main_choice" })
@@ -1849,6 +1867,7 @@ Deno.serve(async (req) => {
             "main_menu_post_similar",
             profileName,
             `Interesse em visita ao imovel ${targetProp.public_id}`,
+            { postListingFlow: true },
           );
         } else {
           const confirmName =
@@ -1963,6 +1982,7 @@ Deno.serve(async (req) => {
             visitLastMenu,
             profileName,
             `Visita apos confirmacao de nome`,
+            { postListingFlow: visitLastMenu === "main_menu_post_similar" },
           );
         } else {
           await doRegisterVisit(
@@ -1976,6 +1996,7 @@ Deno.serve(async (req) => {
             visitLastMenu,
             profileName,
             `Visita apos confirmacao de nome`,
+            { postListingFlow: visitLastMenu === "main_menu_post_similar" },
           );
         }
         return json({ ok: true, state: "visit_registered_after_name_confirm" });
@@ -2068,6 +2089,7 @@ Deno.serve(async (req) => {
         visitLastMenu,
         profileName,
         `Visita apos coleta de nome`,
+        { postListingFlow: visitLastMenu === "main_menu_post_similar" },
       );
       return json({ ok: true, state: "visit_registered_after_name_input" });
     }
