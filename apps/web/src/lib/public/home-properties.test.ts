@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CITY_REGIONS,
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  SUN_POSITIONS,
+} from "@/lib/property-options";
+import {
   applyHomePropertyFilters,
   parseHomeFilters,
   type HomePropertyCard,
@@ -50,6 +56,16 @@ describe("parseHomeFilters", () => {
     expect(filters.purpose).toBe("sale");
     expect(filters.bedrooms_min).toBe(3);
     expect(filters.sale_price_max).toBe(500000);
+  });
+});
+
+describe("property filter options", () => {
+  it("mantem as opcoes oficiais compartilhadas entre cadastro e home", () => {
+    expect(PROPERTY_TYPES).toEqual(["Residencial", "Comercial", "Industrial", "Rural", "Terreno"]);
+    expect(PROPERTY_SUBTYPES).toContain("Casa");
+    expect(PROPERTY_SUBTYPES).toContain("Terreno em condomínio");
+    expect(SUN_POSITIONS).toEqual(["Nascente", "Poente"]);
+    expect(CITY_REGIONS).toEqual(["Norte", "Sul", "Leste", "Oeste", "Centro"]);
   });
 });
 

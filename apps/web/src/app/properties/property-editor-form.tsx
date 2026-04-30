@@ -4,6 +4,12 @@ import type { FormEvent, ReactNode } from "react";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 
+import {
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  CITY_REGIONS,
+  SUN_POSITIONS,
+} from "@/lib/property-options";
 import type { CreatePropertyState } from "./actions";
 import { ImageBatchPicker } from "./image-batch-picker";
 
@@ -79,26 +85,6 @@ type PropertyEditorFormProps = {
 
 const inputClass =
   "rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950";
-
-const propertyTypes = ["Residencial", "Comercial", "Industrial", "Rural", "Terreno"];
-const propertySubtypes = [
-  "Casa",
-  "Apartamento",
-  "Cobertura",
-  "Kitnet/Studio",
-  "Sobrado",
-  "Condomínio fechado",
-  "Flat/Aparthotel",
-  "Sala Comercial",
-  "Loja",
-  "Galpão",
-  "Prédio Comercial",
-  "Chácara",
-  "Fazenda",
-  "Sítio",
-  "Lote",
-  "Terreno em condomínio",
-];
 
 function SubmitButton(props: { mode: "create" | "edit" }) {
   const { pending } = useFormStatus();
@@ -226,7 +212,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             >
               <option value="">Não informado</option>
-              {propertyTypes.map((option) => (
+              {PROPERTY_TYPES.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -240,7 +226,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             >
               <option value="">Não informado</option>
-              {propertySubtypes.map((option) => (
+              {PROPERTY_SUBTYPES.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -475,8 +461,11 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             >
               <option value="">Não informado</option>
-              <option value="Nascente">Nascente</option>
-              <option value="Poente">Poente</option>
+              {SUN_POSITIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </FieldLabel>
           <FieldLabel label="Idade do Imóvel (anos)">
@@ -740,11 +729,11 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             >
               <option value="">Não informado</option>
-              <option value="Norte">Norte</option>
-              <option value="Sul">Sul</option>
-              <option value="Leste">Leste</option>
-              <option value="Oeste">Oeste</option>
-              <option value="Centro">Centro</option>
+              {CITY_REGIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </FieldLabel>
         </div>

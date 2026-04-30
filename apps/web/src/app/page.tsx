@@ -1,6 +1,12 @@
 import Link from "next/link";
 
 import {
+  CITY_REGIONS,
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  SUN_POSITIONS,
+} from "@/lib/property-options";
+import {
   buildHomeHref,
   loadHomeProperties,
   parseHomeFilters,
@@ -286,10 +292,7 @@ export default async function Home({ searchParams }: PageProps) {
               label="Tipo"
               name="property_type"
               value={filters.property_type}
-              options={[
-                ["", "Todos"],
-                ...options.propertyTypes.map((value) => [value, value] as const),
-              ]}
+              options={[["", "Todos"], ...PROPERTY_TYPES.map((value) => [value, value] as const)]}
             />
             <SelectFilter
               label="Subtipo"
@@ -297,7 +300,7 @@ export default async function Home({ searchParams }: PageProps) {
               value={filters.property_subtype}
               options={[
                 ["", "Todos"],
-                ...options.propertySubtypes.map((value) => [value, value] as const),
+                ...PROPERTY_SUBTYPES.map((value) => [value, value] as const),
               ]}
             />
             <SelectFilter
@@ -323,19 +326,13 @@ export default async function Home({ searchParams }: PageProps) {
               label="Posicao solar"
               name="sun_position"
               value={filters.sun_position}
-              options={[
-                ["", "Todos"],
-                ...options.sunPositions.map((value) => [value, value] as const),
-              ]}
+              options={[["", "Todos"], ...SUN_POSITIONS.map((value) => [value, value] as const)]}
             />
             <SelectFilter
               label="Regiao"
               name="city_region"
               value={filters.city_region}
-              options={[
-                ["", "Todas"],
-                ...options.cityRegions.map((value) => [value, value] as const),
-              ]}
+              options={[["", "Todas"], ...CITY_REGIONS.map((value) => [value, value] as const)]}
             />
           </div>
 

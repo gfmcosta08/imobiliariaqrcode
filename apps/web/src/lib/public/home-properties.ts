@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import {
+  CITY_REGIONS,
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  SUN_POSITIONS,
+} from "@/lib/property-options";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type HomePurposeFilter = "sale" | "rent" | null;
@@ -485,11 +491,11 @@ function isPubliclyEligible(row: PropertyRow): boolean {
 
 function buildFilterOptions(rows: HomePropertyCard[]): HomeFilterOptions {
   return {
-    propertyTypes: uniqueSorted(rows.map((row) => row.property_type)),
-    propertySubtypes: uniqueSorted(rows.map((row) => row.property_subtype)),
+    propertyTypes: [...PROPERTY_TYPES],
+    propertySubtypes: [...PROPERTY_SUBTYPES],
     floorTypes: uniqueSorted(rows.map((row) => row.floor_type)),
-    sunPositions: uniqueSorted(rows.map((row) => row.sun_position)),
-    cityRegions: uniqueSorted(rows.map((row) => row.city_region)),
+    sunPositions: [...SUN_POSITIONS],
+    cityRegions: [...CITY_REGIONS],
   };
 }
 
@@ -502,11 +508,11 @@ async function loadFilterOptions(
 
   const row = data as OptionsRpcRow;
   return {
-    propertyTypes: uniqueSorted(row.property_types ?? []),
-    propertySubtypes: uniqueSorted(row.property_subtypes ?? []),
+    propertyTypes: [...PROPERTY_TYPES],
+    propertySubtypes: [...PROPERTY_SUBTYPES],
     floorTypes: uniqueSorted(row.floor_types ?? []),
-    sunPositions: uniqueSorted(row.sun_positions ?? []),
-    cityRegions: uniqueSorted(row.city_regions ?? []),
+    sunPositions: [...SUN_POSITIONS],
+    cityRegions: [...CITY_REGIONS],
   };
 }
 
