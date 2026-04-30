@@ -40,22 +40,18 @@ create index if not exists idx_properties_home_search_trgm
 on public.properties
 using gin (
   lower(
-    concat_ws(
-      ' ',
-      title,
-      public_id,
-      internal_code,
-      property_type,
-      property_subtype,
-      neighborhood,
-      city,
-      state,
-      city_region,
-      full_address,
-      full_description,
-      highlights,
-      array_to_string(nearby_points, ' ')
-    )
+    coalesce(title, '') || ' ' ||
+    coalesce(public_id, '') || ' ' ||
+    coalesce(internal_code, '') || ' ' ||
+    coalesce(property_type, '') || ' ' ||
+    coalesce(property_subtype, '') || ' ' ||
+    coalesce(neighborhood, '') || ' ' ||
+    coalesce(city, '') || ' ' ||
+    coalesce(state, '') || ' ' ||
+    coalesce(city_region, '') || ' ' ||
+    coalesce(full_address, '') || ' ' ||
+    coalesce(full_description, '') || ' ' ||
+    coalesce(highlights, '')
   ) gin_trgm_ops
 )
 where listing_status in ('published', 'printed')
