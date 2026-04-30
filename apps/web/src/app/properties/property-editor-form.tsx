@@ -25,6 +25,7 @@ type PropertyFormInitial = {
   full_address?: string | null;
   street_number?: string | null;
   address_complement?: string | null;
+  location_map_url?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   full_description?: string | null;
@@ -533,6 +534,18 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               defaultValue={initial.postal_code ?? ""}
               className={inputClass}
             />
+          </FieldLabel>
+          <FieldLabel label="Localização do imóvel *">
+            <input
+              name="location_map_url"
+              type="url"
+              placeholder="https://maps.google.com/..."
+              defaultValue={initial.location_map_url ?? ""}
+              className={inputClass}
+            />
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Cole o link de localização do imóvel no mapa, como Google Maps.
+            </p>
           </FieldLabel>
           <FieldLabel label="Latitude">
             <input

@@ -1,4 +1,13 @@
 import Link from "next/link";
+
+import {
+  buildHomeHref,
+  loadHomeProperties,
+  parseHomeFilters,
+  type HomePropertiesResult,
+  type HomePropertyCard,
+  type HomePropertyFilters,
+} from "@/lib/public/home-properties";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 type GlobalMetrics = {
@@ -9,11 +18,91 @@ type GlobalMetrics = {
   total_commission: number;
 };
 
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const numericFilterGroups: Array<{
+  label: string;
+  min: keyof HomePropertyFilters;
+  max: keyof HomePropertyFilters;
+  placeholder: string;
+}> = [
+  { label: "Area construida", min: "built_area_min", max: "built_area_max", placeholder: "m2" },
+  { label: "Area do terreno", min: "land_area_min", max: "land_area_max", placeholder: "m2" },
+  { label: "Quartos", min: "bedrooms_min", max: "bedrooms_max", placeholder: "Qtd." },
+  { label: "Suites", min: "suites_min", max: "suites_max", placeholder: "Qtd." },
+  { label: "Banheiros", min: "bathrooms_min", max: "bathrooms_max", placeholder: "Qtd." },
+  { label: "Vagas", min: "parking_spaces_min", max: "parking_spaces_max", placeholder: "Qtd." },
+  { label: "Salas", min: "living_rooms_min", max: "living_rooms_max", placeholder: "Qtd." },
+  { label: "Preco venda", min: "sale_price_min", max: "sale_price_max", placeholder: "R$" },
+  { label: "Preco aluguel", min: "rent_price_min", max: "rent_price_max", placeholder: "R$" },
+  { label: "Condominio", min: "condo_fee_min", max: "condo_fee_max", placeholder: "R$" },
+];
+
 function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-export default async function Home() {
+function formatNumber(value: number | null): string {
+  return value == null ? "" : String(value);
+}
+
+function getPriceLabel(item: HomePropertyCard): string {
+  if (item.purpose === "sale" && item.sale_price) return formatBRL(item.sale_price);
+  if ((item.purpose === "rent" || item.purpose === "season") && item.rent_price) {
+    return `${formatBRL(item.rent_price)} / mes`;
+  }
+  if (item.sale_price) return formatBRL(item.sale_price);
+  if (item.rent_price) return `${formatBRL(item.rent_price)} / mes`;
+  return "Valor sob consulta";
+}
+
+function getPurposeLabel(purpose: string | null): string {
+  if (purpose === "sale") return "Compra";
+  if (purpose === "rent") return "Aluguel";
+  if (purpose === "season") return "Temporada";
+  return "Imovel";
+}
+
+function getLocationLabel(item: HomePropertyCard): string {
+  return (
+    [item.neighborhood, item.city, item.state].filter(Boolean).join(", ") ||
+    "Localizacao sob consulta"
+  );
+}
+
+function getAreaLabel(item: HomePropertyCard): string {
+  const area = item.built_area_m2 ?? item.total_area_m2 ?? item.land_area_m2;
+  return area ? `${area} m2` : "Area sob consulta";
+}
+
+function filterHref(
+  filters: HomePropertyFilters,
+  overrides: Record<string, string | null | undefined>,
+): string {
+  const current: Record<string, string | null | undefined> = {
+    q: filters.q,
+    purpose: filters.purpose,
+    property_type: filters.property_type,
+    property_subtype: filters.property_subtype,
+    furnished: filters.furnished,
+    floor_type: filters.floor_type,
+    sun_position: filters.sun_position,
+    city_region: filters.city_region,
+  };
+
+  for (const group of numericFilterGroups) {
+    const min = filters[group.min];
+    const max = filters[group.max];
+    current[group.min] = typeof min === "number" ? String(min) : null;
+    current[group.max] = typeof max === "number" ? String(max) : null;
+  }
+
+  return buildHomeHref({ ...current, ...overrides });
+}
+
+async function loadMetrics(): Promise<GlobalMetrics> {
   const fallback: GlobalMetrics = {
     total_properties: 0,
     total_sold: 0,
@@ -22,13 +111,12 @@ export default async function Home() {
     total_commission: 0,
   };
 
-  let metrics = fallback;
   try {
     const sb = createServiceRoleClient();
     const { data } = await sb.rpc("get_global_dashboard_metrics");
     if (data && typeof data === "object") {
       const d = data as Partial<GlobalMetrics>;
-      metrics = {
+      return {
         total_properties: Number(d.total_properties ?? 0),
         total_sold: Number(d.total_sold ?? 0),
         total_clients: Number(d.total_clients ?? 0),
@@ -37,14 +125,44 @@ export default async function Home() {
       };
     }
   } catch {
-    metrics = fallback;
+    return fallback;
   }
+
+  return fallback;
+}
+
+function emptyHomeResult(filters: HomePropertyFilters): HomePropertiesResult {
+  return {
+    filters,
+    items: [],
+    totalEligible: 0,
+    options: {
+      propertyTypes: [],
+      propertySubtypes: [],
+      floorTypes: [],
+      sunPositions: [],
+      cityRegions: [],
+    },
+  };
+}
+
+export default async function Home({ searchParams }: PageProps) {
+  const rawSearchParams = searchParams ? await searchParams : undefined;
+  const metrics = await loadMetrics();
+
+  let home = emptyHomeResult(parseHomeFilters(rawSearchParams));
+  try {
+    home = await loadHomeProperties(rawSearchParams);
+  } catch {
+    home = emptyHomeResult(parseHomeFilters(rawSearchParams));
+  }
+
+  const { filters, options } = home;
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      {/* ── HERO ────────────────────────────────────────────── */}
       <div
-        className="relative flex h-screen min-h-[600px] flex-col"
+        className="relative flex min-h-[620px] flex-col"
         style={{
           backgroundImage:
             "url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1920&q=80')",
@@ -52,12 +170,12 @@ export default async function Home() {
           backgroundPosition: "center",
         }}
       >
-        {/* Overlay escuro */}
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/45" />
 
-        {/* Nav sobre o hero */}
-        <nav className="relative z-10 flex items-center justify-between px-8 py-5">
-          <span className="text-sm font-bold uppercase tracking-widest text-white">IMOBQR</span>
+        <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-8">
+          <Link href="/" className="text-sm font-bold uppercase tracking-widest text-white">
+            IMOBQR
+          </Link>
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/dashboard" className="text-sm text-white/90 transition hover:text-white">
               Corretores
@@ -74,270 +192,376 @@ export default async function Home() {
           </Link>
         </nav>
 
-        {/* Conteúdo hero */}
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16 text-center">
           <h1 className="font-display text-5xl font-semibold text-white drop-shadow-sm lg:text-6xl">
             Encontre seu lugar
           </h1>
 
-          {/* Barra de busca estilo Compass */}
-          <div className="mt-8 w-full max-w-2xl">
-            <div className="flex overflow-hidden rounded-none">
-              <button
-                type="button"
-                className="bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+          <div className="mt-8 w-full max-w-3xl">
+            <div className="flex flex-wrap">
+              <Link
+                href={filterHref(filters, { purpose: "sale" })}
+                className={`px-6 py-3 text-sm font-semibold ${
+                  filters.purpose === "sale" ? "bg-black text-white" : "bg-white text-gray-900"
+                }`}
               >
                 Comprar
-              </button>
-              <button
-                type="button"
-                className="bg-white px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-900"
+              </Link>
+              <Link
+                href={filterHref(filters, { purpose: "rent" })}
+                className={`px-6 py-3 text-sm font-semibold ${
+                  filters.purpose === "rent" ? "bg-black text-white" : "bg-white text-gray-600"
+                }`}
               >
                 Alugar
-              </button>
-              <button
-                type="button"
-                className="bg-white px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-900"
-              >
-                Anunciar
-              </button>
-            </div>
-            <div className="flex bg-white">
-              <input
-                type="text"
-                placeholder="Cidade, bairro, endereço, referência..."
-                className="flex-1 px-5 py-4 text-sm text-gray-800 outline-none placeholder:text-gray-400"
-              />
+              </Link>
               <Link
                 href="/login"
+                className="bg-white px-6 py-3 text-sm font-semibold text-gray-600"
+              >
+                Anunciar
+              </Link>
+            </div>
+            <form action="/" method="get" className="flex bg-white">
+              {filters.purpose ? (
+                <input type="hidden" name="purpose" value={filters.purpose} />
+              ) : null}
+              <input
+                type="text"
+                name="q"
+                defaultValue={filters.q}
+                placeholder="Cidade, bairro, codigo ou referencia..."
+                className="min-w-0 flex-1 px-5 py-4 text-sm text-gray-800 outline-none placeholder:text-gray-400"
+              />
+              <button
+                type="submit"
                 className="flex items-center bg-black px-5 text-white transition hover:bg-zinc-800"
                 aria-label="Buscar"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-              </Link>
-            </div>
+                <span className="text-sm font-semibold">Buscar</span>
+              </button>
+            </form>
           </div>
         </div>
       </div>
 
-      {/* ── SEÇÃO: IMÓVEIS DESTAQUE ──────────────────────────── */}
-      <section className="px-8 py-14">
-        <h2 className="text-2xl font-bold text-gray-900">Imóveis em destaque</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Confira os imóveis com QR Code ativo na plataforma.
-        </p>
-
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Card exemplo 1 */}
-          <div className="overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-            <div
-              className="h-52 w-full bg-gray-200"
-              style={{
-                backgroundImage:
-                  "url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=70')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
-            <div className="p-4">
-              <p className="text-xl font-bold text-gray-900">R$ 850.000</p>
-              <p className="mt-1 text-sm text-gray-600">3 quartos · 2 banheiros · 120 m²</p>
-              <p className="mt-1 text-sm text-gray-500">Rua das Palmeiras, São Paulo, SP</p>
-            </div>
+      <section id="imoveis" className="px-6 py-14 md:px-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Imoveis em destaque</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {home.totalEligible} imoveis publicos disponiveis na plataforma.
+            </p>
           </div>
-
-          {/* Card exemplo 2 */}
-          <div className="overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-            <div
-              className="h-52 w-full bg-gray-200"
-              style={{
-                backgroundImage:
-                  "url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=70')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
-            <div className="p-4">
-              <p className="text-xl font-bold text-gray-900">R$ 1.250.000</p>
-              <p className="mt-1 text-sm text-gray-600">4 quartos · 3 banheiros · 210 m²</p>
-              <p className="mt-1 text-sm text-gray-500">Av. Atlântica, Rio de Janeiro, RJ</p>
-            </div>
-          </div>
-
-          {/* Card escuro — estilo "Exclusivos" da Compass */}
-          <div className="flex flex-col justify-between overflow-hidden rounded-sm bg-gray-900 p-6 shadow-sm">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-white/60">IMOBQR</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-white">
-                QR EXCLUSIVO
-              </p>
-              <h3 className="mt-4 text-xl font-bold leading-snug text-white">
-                Capture leads antes do imóvel ir ao mercado
-              </h3>
-              <p className="mt-3 text-sm text-white/70">
-                QR Code na placa gera interesse automático e notifica o corretor em tempo real.
-              </p>
-            </div>
-            <Link
-              href="/login"
-              className="mt-6 inline-flex items-center border border-white px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white hover:text-gray-900"
-            >
-              Quero anunciar &rarr;
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="inline-flex bg-black px-5 py-3 text-sm font-medium text-white"
+          >
+            Quero anunciar
+          </Link>
         </div>
 
-        <Link
-          href="/login"
-          className="mt-8 inline-flex items-center bg-black px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-        >
-          Ver todos os imóveis &rarr;
-        </Link>
+        <form action="/" method="get" className="mt-8 border border-gray-200 bg-white p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Busca
+              <input
+                name="q"
+                defaultValue={filters.q}
+                className="mt-1 w-full border border-gray-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
+                placeholder="Cidade, bairro ou codigo"
+              />
+            </label>
+            <SelectFilter
+              label="Finalidade"
+              name="purpose"
+              value={filters.purpose ?? ""}
+              options={[
+                ["", "Todos"],
+                ["sale", "Comprar"],
+                ["rent", "Alugar"],
+              ]}
+            />
+            <SelectFilter
+              label="Tipo"
+              name="property_type"
+              value={filters.property_type}
+              options={[
+                ["", "Todos"],
+                ...options.propertyTypes.map((value) => [value, value] as const),
+              ]}
+            />
+            <SelectFilter
+              label="Subtipo"
+              name="property_subtype"
+              value={filters.property_subtype}
+              options={[
+                ["", "Todos"],
+                ...options.propertySubtypes.map((value) => [value, value] as const),
+              ]}
+            />
+            <SelectFilter
+              label="Mobiliado"
+              name="furnished"
+              value={filters.furnished}
+              options={[
+                ["", "Todos"],
+                ["true", "Sim"],
+                ["false", "Nao"],
+              ]}
+            />
+            <SelectFilter
+              label="Piso"
+              name="floor_type"
+              value={filters.floor_type}
+              options={[
+                ["", "Todos"],
+                ...options.floorTypes.map((value) => [value, value] as const),
+              ]}
+            />
+            <SelectFilter
+              label="Posicao solar"
+              name="sun_position"
+              value={filters.sun_position}
+              options={[
+                ["", "Todos"],
+                ...options.sunPositions.map((value) => [value, value] as const),
+              ]}
+            />
+            <SelectFilter
+              label="Regiao"
+              name="city_region"
+              value={filters.city_region}
+              options={[
+                ["", "Todas"],
+                ...options.cityRegions.map((value) => [value, value] as const),
+              ]}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+            {numericFilterGroups.map((group) => (
+              <div
+                key={String(group.min)}
+                className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+              >
+                {group.label}
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <input
+                    name={String(group.min)}
+                    defaultValue={formatNumber(filters[group.min] as number | null)}
+                    className="min-w-0 border border-gray-200 px-2 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
+                    placeholder={`Min ${group.placeholder}`}
+                  />
+                  <input
+                    name={String(group.max)}
+                    defaultValue={formatNumber(filters[group.max] as number | null)}
+                    className="min-w-0 border border-gray-200 px-2 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
+                    placeholder={`Max ${group.placeholder}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="submit" className="bg-black px-5 py-2.5 text-sm font-medium text-white">
+              Aplicar filtros
+            </button>
+            <Link
+              href="/#imoveis"
+              className="border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-800"
+            >
+              Limpar filtros
+            </Link>
+          </div>
+        </form>
+
+        {home.items.length ? (
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {home.items.map((item) => (
+              <Link
+                key={item.id}
+                href={item.detail_href}
+                className="group overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
+              >
+                {item.image_url ? (
+                  <div
+                    className="h-52 w-full bg-gray-200 transition group-hover:scale-[1.01]"
+                    style={{
+                      backgroundImage: `url('${item.image_url}')`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-52 w-full items-center justify-center bg-gray-900 text-xs font-bold uppercase tracking-widest text-white/60">
+                    {getPurposeLabel(item.purpose)}
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xl font-bold text-gray-900">{getPriceLabel(item)}</p>
+                    <span className="shrink-0 bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
+                      {getPurposeLabel(item.purpose)}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-1 text-sm font-medium text-gray-800">
+                    {item.title || item.public_id}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {item.bedrooms ?? 0} quartos / {item.bathrooms ?? 0} banheiros /{" "}
+                    {getAreaLabel(item)}
+                  </p>
+                  <p className="mt-1 line-clamp-1 text-sm text-gray-500">
+                    {getLocationLabel(item)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 border border-dashed border-gray-300 px-6 py-12 text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Nenhum imovel encontrado</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Ajuste a busca ou remova filtros para ver mais opcoes.
+            </p>
+            <Link
+              href="/#imoveis"
+              className="mt-5 inline-flex bg-black px-5 py-2.5 text-sm font-medium text-white"
+            >
+              Limpar filtros
+            </Link>
+          </div>
+        )}
       </section>
 
-      {/* ── BANNER CTA PRETO ──────────────────────────────────── */}
       <section className="flex flex-col items-start justify-between gap-6 bg-black px-8 py-14 md:flex-row md:items-center">
         <div>
           <h2 className="text-2xl font-bold text-white">
-            Digitalize sua captação com QR Code imobiliário
+            Digitalize sua captacao com QR Code imobiliario
           </h2>
           <p className="mt-2 text-sm text-white/60">
-            Leads automáticos, notificações no WhatsApp e painel completo para corretores.
+            Leads automaticos, notificacoes no WhatsApp e painel completo para corretores.
           </p>
         </div>
         <Link
           href="/login"
           className="shrink-0 border border-white px-6 py-3 text-sm font-medium text-white transition hover:bg-white hover:text-black"
         >
-          Comece agora &rarr;
+          Comece agora
         </Link>
       </section>
 
-      {/* ── MÉTRICAS DA PLATAFORMA ───────────────────────────── */}
       <section className="px-8 py-14">
-        <h2 className="text-2xl font-bold text-gray-900">Plataforma em números</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Plataforma em numeros</h2>
         <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
-          <div>
-            <p className="text-3xl font-bold text-gray-900">{metrics.total_properties}</p>
-            <p className="mt-1 text-sm text-gray-500">Imóveis cadastrados</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-gray-900">{metrics.total_sold}</p>
-            <p className="mt-1 text-sm text-gray-500">Imóveis vendidos</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-gray-900">{metrics.total_clients}</p>
-            <p className="mt-1 text-sm text-gray-500">Clientes atendidos</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-gray-900">{metrics.active_brokers}</p>
-            <p className="mt-1 text-sm text-gray-500">Corretores ativos</p>
-          </div>
+          <Metric value={metrics.total_properties} label="Imoveis cadastrados" />
+          <Metric value={metrics.total_sold} label="Imoveis vendidos" />
+          <Metric value={metrics.total_clients} label="Clientes atendidos" />
+          <Metric value={metrics.active_brokers} label="Corretores ativos" />
           <div>
             <p className="text-2xl font-bold text-gray-900">
               {formatBRL(metrics.total_commission)}
             </p>
-            <p className="mt-1 text-sm text-gray-500">Comissão total</p>
+            <p className="mt-1 text-sm text-gray-500">Comissao total</p>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────── */}
       <footer className="bg-black px-8 py-14 text-white">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">
-              Empresa
-            </p>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/plans" className="text-sm text-white/80 transition hover:text-white">
-                  Sobre nós
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Carreiras
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">
-              Explorar
-            </p>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Para corretores
-                </Link>
-              </li>
-              <li>
-                <Link href="/plans" className="text-sm text-white/80 transition hover:text-white">
-                  Planos e preços
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">
-              Suporte
-            </p>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Central de ajuda
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Contato
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">Acesso</p>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Entrar
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="text-sm text-white/80 transition hover:text-white">
-                  Criar conta
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="text-sm text-white/80 transition hover:text-white"
-                >
-                  Painel
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <FooterColumn
+            title="Empresa"
+            links={[
+              ["Sobre nos", "/plans"],
+              ["Carreiras", "/login"],
+            ]}
+          />
+          <FooterColumn
+            title="Explorar"
+            links={[
+              ["Para corretores", "/login"],
+              ["Planos e precos", "/plans"],
+            ]}
+          />
+          <FooterColumn
+            title="Suporte"
+            links={[
+              ["Central de ajuda", "/login"],
+              ["Contato", "/login"],
+            ]}
+          />
+          <FooterColumn
+            title="Acesso"
+            links={[
+              ["Entrar", "/login"],
+              ["Criar conta", "/login"],
+              ["Painel", "/dashboard"],
+            ]}
+          />
         </div>
         <div className="mt-12 border-t border-white/10 pt-8">
           <p className="text-xs text-white/30">
-            © {new Date().getFullYear()} ImobQR. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} ImobQR. Todos os direitos reservados.
           </p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function SelectFilter({
+  label,
+  name,
+  value,
+  options,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  options: ReadonlyArray<readonly [string, string]>;
+}) {
+  return (
+    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+      {label}
+      <select
+        name={name}
+        defaultValue={value}
+        className="mt-1 w-full border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
+      >
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={`${name}-${optionValue || "all"}`} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function Metric({ value, label }: { value: number; label: string }) {
+  return (
+    <div>
+      <p className="text-3xl font-bold text-gray-900">{value}</p>
+      <p className="mt-1 text-sm text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+function FooterColumn({ title, links }: { title: string; links: Array<[string, string]> }) {
+  return (
+    <div>
+      <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/50">{title}</p>
+      <ul className="space-y-2">
+        {links.map(([label, href]) => (
+          <li key={label}>
+            <Link href={href} className="text-sm text-white/80 transition hover:text-white">
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

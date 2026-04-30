@@ -12,6 +12,7 @@
   full_address: string | null;
   street_number: string | null;
   address_complement: string | null;
+  location_map_url: string | null;
   latitude: number | null;
   longitude: number | null;
   description: string | null;
@@ -121,6 +122,35 @@ function parseTextList(value: FormDataEntryValue | null): string[] | null {
   return items.length ? items : null;
 }
 
+export function requiresLocationMapUrl(listingStatus: string | null | undefined): boolean {
+  return listingStatus === "published" || listingStatus === "printed";
+}
+
+export function validateLocationMapUrl(
+  listingStatus: string | null | undefined,
+  locationMapUrl: string | null | undefined,
+): string | null {
+  if (!requiresLocationMapUrl(listingStatus)) {
+    return null;
+  }
+
+  const url = String(locationMapUrl ?? "").trim();
+  if (!url) {
+    return "Informe a localização do imóvel.";
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "Insira um link de geolocalização válido.";
+    }
+  } catch {
+    return "Insira um link de geolocalização válido.";
+  }
+
+  return null;
+}
+
 export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
   const purposeRaw = String(formData.get("purpose") ?? "").trim();
   const purpose =
@@ -164,6 +194,7 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
     full_address: nullableText(formData.get("full_address")),
     street_number: nullableText(formData.get("street_number")),
     address_complement: nullableText(formData.get("address_complement")),
+    location_map_url: nullableText(formData.get("location_map_url")),
     latitude: parseDecimalInput(formData.get("latitude")),
     longitude: parseDecimalInput(formData.get("longitude")),
     description: fullDescription ?? legacyDescription,

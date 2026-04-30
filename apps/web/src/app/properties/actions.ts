@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { buildPropertyPayload } from "@/lib/property-form";
+import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
 import { createClient } from "@/lib/supabase/server";
 import { uploadMediaFilesForProperty } from "./media-actions";
 
@@ -15,6 +15,10 @@ export async function createProperty(
 ): Promise<CreatePropertyState> {
   const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
+  const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
+  if (locationError) {
+    return { error: locationError };
+  }
   const files = formData
     .getAll("media_files")
     .filter((v): v is File => v instanceof File && v.size > 0);
@@ -54,6 +58,10 @@ export async function updatePropertyDetails(
 
   const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
+  const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
+  if (locationError) {
+    return { error: locationError };
+  }
 
   const { error } = await supabase.from("properties").update(payload).eq("id", propertyId);
   if (error) {
@@ -67,6 +75,25 @@ export async function updatePropertyDetails(
 
 export async function updatePropertyStatus(propertyId: string, listing_status: string) {
   const supabase = await createClient();
+  if (listing_status === "published" || listing_status === "printed") {
+    const { data: property, error: propertyError } = await supabase
+      .from("properties")
+      .select("location_map_url")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (propertyError) {
+      return { error: propertyError.message };
+    }
+
+    const locationError = validateLocationMapUrl(
+      listing_status,
+      property?.location_map_url ?? null,
+    );
+    if (locationError) {
+      return { error: locationError };
+    }
+  }
+
   const { error } = await supabase
     .from("properties")
     .update({ listing_status })

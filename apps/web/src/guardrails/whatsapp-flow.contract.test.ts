@@ -57,7 +57,9 @@ describe("WhatsApp guardrails contracts", () => {
       /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
     );
     expect(visitPropertyIdBlock?.[0]).toBeTruthy();
-    expect(visitPropertyIdBlock?.[0]).toContain("resolveRecommendedProperty(supabase, text, recommended)");
+    expect(visitPropertyIdBlock?.[0]).toContain(
+      "resolveRecommendedProperty(supabase, text, recommended)",
+    );
     expect(visitPropertyIdBlock?.[0]).toContain('kind: "ask_property_id_retry"');
     expect(visitPropertyIdBlock?.[0]).toContain(
       "Nao encontrei esse imovel. Por favor, informe novamente o ID do imovel.",
@@ -99,7 +101,9 @@ describe("WhatsApp guardrails contracts", () => {
     )?.[0];
     expect(registerVisitBlock).toBeTruthy();
     expect(registerVisitBlock).toContain("options.postListingFlow");
-    expect(registerVisitBlock).toContain("const flowGroup = isPostListingFlow ? crypto.randomUUID() : null;");
+    expect(registerVisitBlock).toContain(
+      "const flowGroup = isPostListingFlow ? crypto.randomUUID() : null;",
+    );
     expect(registerVisitBlock).toContain("flow_step: flowGroup ? flowStep++ : null");
 
     const confirmIndex = registerVisitBlock!.indexOf('kind: "visit_registered"');

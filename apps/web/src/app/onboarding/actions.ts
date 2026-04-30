@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import type { CreatePropertyState } from "@/app/properties/actions";
-import { buildPropertyPayload } from "@/lib/property-form";
+import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
 import { createClient } from "@/lib/supabase/server";
 
 export async function updateInvitationProperty(
@@ -18,6 +18,10 @@ export async function updateInvitationProperty(
   const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
   payload.listing_status = "published";
+  const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
+  if (locationError) {
+    return { error: locationError };
+  }
 
   const { error: updateError } = await supabase
     .from("properties")
