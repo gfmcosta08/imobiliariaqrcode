@@ -141,6 +141,28 @@ describe("WhatsApp guardrails contracts", () => {
     expect(qrBlock).toContain('context: "qr_entry_property_pack"');
   });
 
+  it("mantem deduplicacao do QR baseada apenas no pacote visivel ao cliente", () => {
+    const src = read(conversationHandlePath);
+    expect(src).toContain("function isQrPackCustomerMessage");
+    expect(src).toContain("async function countRecentQrPackCustomerMessages");
+    expect(src).toContain('row.message_type !== "system"');
+    expect(src).toContain("payload.to_broker !== true");
+    expect(src).toContain('kind === "lead_intro"');
+    expect(src).toContain('kind === "property_summary"');
+    expect(src).toContain('kind === "property_image"');
+    expect(src).toContain('kind === "main_menu"');
+    expect(src).toContain('kind.startsWith("menu_option_")');
+  });
+
+  it("impede que lead_created ou alerta ao corretor bloqueiem o pacote inicial do QR", () => {
+    const src = read(conversationHandlePath);
+    const qrBlock = src.match(/if \(qrToken\)[\s\S]*?\/\/ fim if \(qrToken\)/)?.[0];
+    expect(qrBlock).toBeTruthy();
+    expect(qrBlock).toContain("countRecentQrPackCustomerMessages(");
+    expect(qrBlock).not.toContain("countRecentOutboundMessages(");
+    expect(qrBlock).toContain("await sendPropertyPack(");
+  });
+
   it("mantem fallback rastreavel quando a trava anti-silencio bloqueia sucesso falso", () => {
     const src = read(conversationHandlePath);
     expect(src).toContain("class SilentResponseError extends Error");

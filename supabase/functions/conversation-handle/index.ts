@@ -871,26 +871,46 @@ async function sendMainMenu(
   });
 }
 
-async function countRecentOutboundMessages(
+function isQrPackCustomerMessage(row: Record<string, unknown>): boolean {
+  const payload = asRecord(row.payload) ?? {};
+  const kind = typeof payload.kind === "string" ? payload.kind : "";
+  return (
+    row.message_type !== "system" &&
+    payload.to_broker !== true &&
+    (kind === "lead_intro" ||
+      kind === "property_summary" ||
+      kind === "property_image" ||
+      kind === "main_menu" ||
+      kind.startsWith("menu_option_"))
+  );
+}
+
+async function countRecentQrPackCustomerMessages(
   supabase: ReturnType<typeof createClient>,
   leadPhone: string,
   propertyId: string,
   activeOnly = false,
 ): Promise<number> {
-  let query = supabase
+  const { data, error } = await supabase
     .from("whatsapp_messages")
-    .select("id", { count: "exact", head: true })
+    .select("id, message_type, payload")
     .eq("lead_phone", leadPhone)
     .eq("property_id", propertyId)
     .eq("direction", "outbound")
-    .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString());
+    .in("status", activeOnly ? ["queued", "processing"] : ["queued", "processing", "sent"])
+    .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
+    .limit(100);
 
-  if (activeOnly) {
-    query = query.in("status", ["queued", "processing"]);
+  if (error) {
+    console.error("[bot] recent QR pack count failed", {
+      leadPhone,
+      propertyId,
+      error: error.message,
+    });
+    return 0;
   }
 
-  const { count } = await query;
-  return count ?? 0;
+  return (data ?? []).filter((row: Record<string, unknown>) => isQrPackCustomerMessage(row)).length;
 }
 
 async function countVisibleCustomerOutboundMessages(
@@ -1567,9 +1587,9 @@ Deno.serve(async (req) => {
 
       const firstName = pickGreetingName(lead, profileName) ?? "Olá";
 
-      // Fix B - Guard de timestamp: skip se já existem mensagens outbound nos últimos 5 min
+      // Fix B - Guard de timestamp: skip se já existe pacote visivel recente do QR
       // (belt-and-suspenders em relação ao session dedup acima)
-      const recentOutbound = await countRecentOutboundMessages(
+      const recentOutbound = await countRecentQrPackCustomerMessages(
         supabase,
         leadPhone,
         propertyId,
@@ -1577,10 +1597,10 @@ Deno.serve(async (req) => {
       );
 
       if (recentOutbound > 0) {
-        const activeOutbound = await countVisibleCustomerOutboundMessages(
+        const activeOutbound = await countRecentQrPackCustomerMessages(
           supabase,
           leadPhone,
-          new Date(Date.now() - CUSTOMER_RESPONSE_WINDOW_MS).toISOString(),
+          propertyId,
           true,
         );
         if (activeOutbound > 0) {
