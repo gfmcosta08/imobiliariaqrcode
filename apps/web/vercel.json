@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/notify-expiring",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/bot-health-monitor",
-      "schedule": "* * * * *"
     }
   ]
 }

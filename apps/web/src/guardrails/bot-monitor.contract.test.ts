@@ -14,6 +14,7 @@ const migrationPath = path.join(
 const configPath = path.join(repoRoot, "supabase/config.toml");
 const cronRoutePath = path.join(repoRoot, "apps/web/src/app/api/cron/bot-health-monitor/route.ts");
 const vercelConfigPath = path.join(repoRoot, "apps/web/vercel.json");
+const githubMonitorWorkflowPath = path.join(repoRoot, ".github/workflows/monitor-whatsapp-bot.yml");
 
 function read(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
@@ -90,12 +91,19 @@ describe("Bot health monitor guardrails", () => {
     expect(config).toContain("verify_jwt = false");
   });
 
-  it("mantem agendamento do monitor pelo Vercel Cron", () => {
+  it("mantem rota manual do monitor sem cron frequente no Vercel Hobby", () => {
     const route = read(cronRoutePath);
     const vercel = read(vercelConfigPath);
     expect(route).toContain("/functions/v1/bot-health-monitor");
     expect(route).toContain("CRON_SECRET");
-    expect(vercel).toContain("/api/cron/bot-health-monitor");
-    expect(vercel).toContain('"schedule": "* * * * *"');
+    expect(vercel).not.toContain("/api/cron/bot-health-monitor");
+    expect(vercel).not.toContain('"schedule": "* * * * *"');
+  });
+
+  it("mantem agendamento do monitor pelo GitHub Actions", () => {
+    const workflow = read(githubMonitorWorkflowPath);
+    expect(workflow).toContain('cron: "*/5 * * * *"');
+    expect(workflow).toContain("$SUPABASE_URL/functions/v1/bot-health-monitor");
+    expect(workflow).toContain("CRON_SECRET");
   });
 });
