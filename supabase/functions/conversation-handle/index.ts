@@ -51,6 +51,19 @@ type LeadSnapshot = {
 };
 
 const ACTIVE_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const CUSTOMER_RESPONSE_WINDOW_MS = 5 * 60 * 1000;
+const TECHNICAL_FALLBACK_TEXT =
+  "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
+
+class SilentResponseError extends Error {
+  fallbackQueued: boolean;
+
+  constructor(message: string, fallbackQueued: boolean) {
+    super(message);
+    this.name = "SilentResponseError";
+    this.fallbackQueued = fallbackQueued;
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
@@ -880,6 +893,106 @@ async function countRecentOutboundMessages(
   return count ?? 0;
 }
 
+async function countVisibleCustomerOutboundMessages(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+  sinceIso: string,
+  activeOnly = false,
+): Promise<number> {
+  let query = supabase
+    .from("whatsapp_messages")
+    .select("id, message_type, payload")
+    .eq("lead_phone", leadPhone)
+    .eq("direction", "outbound")
+    .in("status", activeOnly ? ["queued", "processing"] : ["queued", "processing", "sent"])
+    .gte("created_at", sinceIso)
+    .limit(100);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[anti-silence] visible outbound count failed", {
+      leadPhone,
+      error: error.message,
+    });
+    return 0;
+  }
+
+  return (data ?? []).filter((row: Record<string, unknown>) => {
+    const payload = asRecord(row.payload) ?? {};
+    return row.message_type !== "system" && payload.to_broker !== true;
+  }).length;
+}
+
+async function queueCustomerFallback(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+  propertyId: string | null,
+  accountId: string | null,
+  brokerPhone: string | null,
+  reason: string,
+): Promise<boolean> {
+  const { error } = await supabase.from("whatsapp_messages").insert({
+    direction: "outbound",
+    provider: "uazapi",
+    account_id: accountId,
+    property_id: propertyId,
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    status: "queued",
+    payload: {
+      kind: "error_fallback",
+      text: TECHNICAL_FALLBACK_TEXT,
+      silent_guard: true,
+      reason,
+    },
+  });
+
+  if (error) {
+    console.error("[anti-silence] fallback enqueue failed", {
+      leadPhone,
+      propertyId,
+      reason,
+      error: error.message,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+async function ensureCustomerResponseQueued(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    leadPhone: string;
+    sinceIso: string;
+    propertyId: string | null;
+    accountId: string | null;
+    brokerPhone: string | null;
+    context: string;
+  },
+): Promise<void> {
+  const visibleCount = await countVisibleCustomerOutboundMessages(
+    supabase,
+    input.leadPhone,
+    input.sinceIso,
+  );
+  if (visibleCount > 0) return;
+
+  const fallbackQueued = await queueCustomerFallback(
+    supabase,
+    input.leadPhone,
+    input.propertyId,
+    input.accountId,
+    input.brokerPhone,
+    input.context,
+  );
+  throw new SilentResponseError(
+    `silent_response_blocked:${input.context}`,
+    fallbackQueued,
+  );
+}
+
 async function handleShowSimilarProperties(
   supabase: ReturnType<typeof createClient>,
   property: Record<string, unknown>,
@@ -1294,6 +1407,7 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as InboundInput;
     const leadPhone = normalizePhone(String(body.lead_phone ?? ""));
     const text = String(body.text ?? "").trim();
+    const customerResponseStartedAt = new Date().toISOString();
     _interactionId = body.interaction_id ?? null;
     _startingStepId = body.starting_step_id ?? null;
 
@@ -1390,10 +1504,10 @@ Deno.serve(async (req) => {
             sessionAgeMs: Math.round(sessionAgeMs / 1000) + "s",
           });
           await cancelTypingNow(leadPhone);
-          const activeOutbound = await countRecentOutboundMessages(
+          const activeOutbound = await countVisibleCustomerOutboundMessages(
             supabase,
             leadPhone,
-            propertyId,
+            new Date(Date.now() - CUSTOMER_RESPONSE_WINDOW_MS).toISOString(),
             true,
           );
           if (activeOutbound > 0) {
@@ -1402,6 +1516,14 @@ Deno.serve(async (req) => {
 
           const firstName = pickGreetingName(null, profileName) ?? "Olá";
           await sendMainMenu(supabase, property, leadPhone, null, firstName);
+          await ensureCustomerResponseQueued(supabase, {
+            leadPhone,
+            sinceIso: customerResponseStartedAt,
+            propertyId,
+            accountId: String(property.account_id),
+            brokerPhone: null,
+            context: "qr_session_dedup_menu_resent",
+          });
           return json({ ok: true, state: "main_menu_resent_session_dedup" });
         }
       }
@@ -1458,10 +1580,10 @@ Deno.serve(async (req) => {
       );
 
       if (recentOutbound > 0) {
-        const activeOutbound = await countRecentOutboundMessages(
+        const activeOutbound = await countVisibleCustomerOutboundMessages(
           supabase,
           leadPhone,
-          propertyId,
+          new Date(Date.now() - CUSTOMER_RESPONSE_WINDOW_MS).toISOString(),
           true,
         );
         if (activeOutbound > 0) {
@@ -1478,6 +1600,14 @@ Deno.serve(async (req) => {
           propertyId,
         });
         await sendMainMenu(supabase, property, leadPhone, null, firstName);
+        await ensureCustomerResponseQueued(supabase, {
+          leadPhone,
+          sinceIso: customerResponseStartedAt,
+          propertyId,
+          accountId: String(property.account_id),
+          brokerPhone: null,
+          context: "qr_recent_pack_menu_resent",
+        });
         return json({ ok: true, state: "main_menu_resent_recent_pack" });
       }
 
@@ -1522,6 +1652,14 @@ Deno.serve(async (req) => {
           },
         });
       }
+      await ensureCustomerResponseQueued(supabase, {
+        leadPhone,
+        sinceIso: customerResponseStartedAt,
+        propertyId,
+        accountId: String(property.account_id),
+        brokerPhone: null,
+        context: "qr_entry_property_pack",
+      });
       _interactionStep = "response_queued";
       return json({ ok: true, state: "started", property_id: propertyId });
     } // fim if (qrToken)
@@ -2113,6 +2251,31 @@ Deno.serve(async (req) => {
     return json({ ok: true, state: "awaiting_valid_reply" });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    if (e instanceof SilentResponseError) {
+      console.error("[bot] anti-silence blocked silent success", {
+        message,
+        typingPhone: _typingPhone,
+        fallbackQueued: e.fallbackQueued,
+      });
+      _interactionStep = "error_silent_response_blocked";
+      _interactionError = message;
+      if (_currentStepId && _supabase) {
+        completeStep(_supabase, _currentStepId, "failed", message);
+        _currentStepId = null;
+      }
+      if (_typingPhone) {
+        await cancelTypingNow(_typingPhone).catch(() => {});
+      }
+      return json(
+        {
+          ok: false,
+          error: "silent_response_blocked",
+          fallback_queued: e.fallbackQueued,
+          detail: message,
+        },
+        500,
+      );
+    }
     console.error("[bot] unexpected error", { message, typingPhone: _typingPhone });
     _interactionStep = "error_conversation_failed";
     _interactionError = message;

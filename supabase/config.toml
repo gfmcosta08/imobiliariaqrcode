@@ -300,6 +300,9 @@ verify_jwt = false
 [functions.whatsapp-dispatch]
 verify_jwt = false
 
+[functions.bot-health-monitor]
+verify_jwt = false
+
 [functions.billing-stripe-webhook]
 verify_jwt = false
 

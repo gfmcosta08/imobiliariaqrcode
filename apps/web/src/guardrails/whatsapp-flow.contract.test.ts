@@ -10,6 +10,7 @@ const conversationHandlePath = path.join(
   repoRoot,
   "supabase/functions/conversation-handle/index.ts",
 );
+const inboundPath = path.join(repoRoot, "supabase/functions/whatsapp-webhook-inbound/index.ts");
 const dispatchPath = path.join(repoRoot, "supabase/functions/whatsapp-dispatch/index.ts");
 
 function read(filePath: string): string {
@@ -120,5 +121,41 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain("flowGroupA");
     expect(src).toContain("flowStepA");
     expect(src).toContain("return stepCmp !== 0 ? stepCmp : createdCmp;");
+  });
+
+  it("mantem trava anti-silencio ignorando mensagens internas e notificacoes ao corretor", () => {
+    const src = read(conversationHandlePath);
+    expect(src).toContain("function countVisibleCustomerOutboundMessages");
+    expect(src).toContain('row.message_type !== "system"');
+    expect(src).toContain("payload.to_broker !== true");
+    expect(src).toContain("function ensureCustomerResponseQueued");
+    expect(src).toContain('"error_silent_response_blocked"');
+  });
+
+  it("mantem validacao anti-silencio no fluxo inicial por QR apos montar o pacote", () => {
+    const src = read(conversationHandlePath);
+    const qrBlock = src.match(/if \(qrToken\)[\s\S]*?\/\/ fim if \(qrToken\)/)?.[0];
+    expect(qrBlock).toBeTruthy();
+    expect(qrBlock).toContain("await sendPropertyPack(");
+    expect(qrBlock).toContain("ensureCustomerResponseQueued(supabase");
+    expect(qrBlock).toContain('context: "qr_entry_property_pack"');
+  });
+
+  it("mantem fallback rastreavel quando a trava anti-silencio bloqueia sucesso falso", () => {
+    const src = read(conversationHandlePath);
+    expect(src).toContain("class SilentResponseError extends Error");
+    expect(src).toContain("silent_guard: true");
+    expect(src).toContain("silent_response_blocked");
+    expect(src).toContain("fallback_queued: e.fallbackQueued");
+  });
+
+  it("mantem checagem defensiva no webhook antes de marcar como processado", () => {
+    const src = read(inboundPath);
+    const successGuardIndex = src.indexOf("const visibleCustomerMessages");
+    const processedIndex = src.indexOf('processing_status: "processed"');
+    expect(successGuardIndex).toBeGreaterThan(-1);
+    expect(processedIndex).toBeGreaterThan(successGuardIndex);
+    expect(src).toContain("conversation-handle succeeded without visible customer response");
+    expect(src).toContain('"silent_response_blocked"');
   });
 });

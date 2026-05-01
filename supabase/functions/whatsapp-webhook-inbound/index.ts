@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
+const CUSTOMER_RESPONSE_WINDOW_MS = 5 * 60 * 1000;
+const TECHNICAL_FALLBACK_TEXT =
+  "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
+
 function getStr(obj: Record<string, unknown>, keys: string[]): string | null {
   for (const k of keys) {
     const value = obj[k];
@@ -18,6 +22,56 @@ function normalizePhone(v: string | null): string | null {
   if (!v) return null;
   const d = v.replace(/\D/g, "");
   return d || null;
+}
+
+async function countVisibleCustomerOutboundMessages(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+  sinceIso: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select("id, message_type, payload")
+    .eq("lead_phone", leadPhone)
+    .eq("direction", "outbound")
+    .in("status", ["queued", "processing", "sent"])
+    .gte("created_at", sinceIso)
+    .limit(100);
+
+  if (error) {
+    console.error("visible customer outbound count failed", error.message);
+    return 0;
+  }
+
+  return (data ?? []).filter((row: Record<string, unknown>) => {
+    const payload = asRecord(row.payload) ?? {};
+    return row.message_type !== "system" && payload.to_broker !== true;
+  }).length;
+}
+
+async function queueCustomerFallback(
+  supabase: ReturnType<typeof createClient>,
+  leadPhone: string,
+  reason: string,
+): Promise<void> {
+  await supabase
+    .from("whatsapp_messages")
+    .insert({
+      direction: "outbound",
+      provider: "uazapi",
+      lead_phone: leadPhone,
+      message_type: "text",
+      payload: {
+        kind: "error_fallback",
+        text: TECHNICAL_FALLBACK_TEXT,
+        silent_guard: true,
+        reason,
+      },
+      status: "queued",
+    })
+    .catch((e: unknown) =>
+      console.error("fallback enqueue failed", e instanceof Error ? e.message : e),
+    );
 }
 
 function extractText(payload: Record<string, unknown>): string {
@@ -266,6 +320,7 @@ Deno.serve(async (req) => {
 
       const conversationUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/conversation-handle`;
       console.log(`Calling conversation-handle at: ${conversationUrl}`);
+      const customerResponseStartedAt = new Date().toISOString();
 
       const response = await fetch(conversationUrl, {
         method: "POST",
@@ -300,21 +355,14 @@ Deno.serve(async (req) => {
 
       if (isHandlerFailure) {
         // Regra inegociavel: o bot nunca fica calado em falha tecnica.
-        const fallbackText = "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
-
-        await supabase
-          .from("whatsapp_messages")
-          .insert({
-            direction: "outbound",
-            provider: "uazapi",
-            lead_phone: leadPhone,
-            message_type: "text",
-            payload: { kind: "error_fallback", text: fallbackText },
-            status: "queued",
-          })
-          .catch((e: unknown) =>
-            console.error("fallback enqueue failed", e instanceof Error ? e.message : e),
-          );
+        const visibleAfterFailure = await countVisibleCustomerOutboundMessages(
+          supabase,
+          leadPhone,
+          new Date(Date.now() - CUSTOMER_RESPONSE_WINDOW_MS).toISOString(),
+        );
+        if (visibleAfterFailure === 0 && convResult.fallback_queued !== true) {
+          await queueCustomerFallback(supabase, leadPhone, "handler_failure");
+        }
 
         // Disparar dispatch para entregar o fallback
         await fetch(dispatchUrl, {
@@ -331,6 +379,38 @@ Deno.serve(async (req) => {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      const visibleCustomerMessages = await countVisibleCustomerOutboundMessages(
+        supabase,
+        leadPhone,
+        customerResponseStartedAt,
+      );
+      const handlerState = typeof convResult.state === "string" ? convResult.state : "";
+      const allowsExistingQueuedResponse = handlerState === "pack_already_queued";
+      if (visibleCustomerMessages === 0 && !allowsExistingQueuedResponse) {
+        console.error("conversation-handle succeeded without visible customer response");
+        await queueCustomerFallback(supabase, leadPhone, "silent_success_blocked_by_inbound");
+
+        await fetch(dispatchUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}` },
+        }).catch((err: unknown) =>
+          console.error("dispatch trigger after anti-silence fallback failed:", err),
+        );
+
+        await supabase
+          .from("webhook_events")
+          .update({ processing_status: "failed", processed_at: new Date().toISOString() })
+          .eq("id", insertedEvent?.id ?? "");
+
+        return new Response(
+          JSON.stringify({ ok: false, state: "silent_response_blocked" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
