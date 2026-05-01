@@ -168,7 +168,10 @@ async function resolveContext(supabase: Supabase, interaction: InteractionRow): 
     .from("leads")
     .select("property_id, broker_id")
     .eq("client_phone", interaction.lead_phone)
-    .gte("created_at", new Date(new Date(interaction.created_at).getTime() - 10 * 60_000).toISOString())
+    .gte(
+      "created_at",
+      new Date(new Date(interaction.created_at).getTime() - 10 * 60_000).toISOString(),
+    )
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -217,7 +220,9 @@ async function resolveContext(supabase: Supabase, interaction: InteractionRow): 
       .eq("id", brokerId)
       .maybeSingle();
     brokerName = broker?.display_name ? String(broker.display_name) : null;
-    brokerPhone = sanitizeBrokerPhone(broker?.whatsapp_number ? String(broker.whatsapp_number) : null);
+    brokerPhone = sanitizeBrokerPhone(
+      broker?.whatsapp_number ? String(broker.whatsapp_number) : null,
+    );
     accountId = accountId ?? (broker?.account_id ? String(broker.account_id) : null);
   }
 
@@ -445,7 +450,8 @@ async function recoverAndNotify(
   if (!incident) return { updated: false };
 
   const recovery: Record<string, unknown> = {};
-  if (options.fallback) Object.assign(recovery, await queueFallbackIfNeeded(supabase, incident, context));
+  if (options.fallback)
+    Object.assign(recovery, await queueFallbackIfNeeded(supabase, incident, context));
   if (options.dispatch) Object.assign(recovery, await triggerDispatch());
 
   if (Object.keys(recovery).length) {
@@ -591,10 +597,12 @@ Deno.serve(async (req) => {
     }
 
     if (interaction.current_step === "response_queued" && isOld) {
-      const delivered = await hasVisibleCustomerOutbound(supabase, leadPhone, interaction.created_at, [
-        "sent",
-        "delivered",
-      ]);
+      const delivered = await hasVisibleCustomerOutbound(
+        supabase,
+        leadPhone,
+        interaction.created_at,
+        ["sent", "delivered"],
+      );
       if (!delivered) {
         const { incident, created } = await createOrGetIncident(supabase, {
           interaction_id: interaction.id,
@@ -675,7 +683,9 @@ Deno.serve(async (req) => {
 
   const { data: stuckMessages } = await supabase
     .from("whatsapp_messages")
-    .select("id, lead_phone, broker_phone, property_id, status, message_type, payload, created_at, updated_at")
+    .select(
+      "id, lead_phone, broker_phone, property_id, status, message_type, payload, created_at, updated_at",
+    )
     .eq("direction", "outbound")
     .in("status", ["queued", "processing"])
     .lt("updated_at", cutoffIso)

@@ -404,13 +404,10 @@ Deno.serve(async (req) => {
           .update({ processing_status: "failed", processed_at: new Date().toISOString() })
           .eq("id", insertedEvent?.id ?? "");
 
-        return new Response(
-          JSON.stringify({ ok: false, state: "silent_response_blocked" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ ok: false, state: "silent_response_blocked" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       console.log(`Triggering dispatch at: ${dispatchUrl}`);

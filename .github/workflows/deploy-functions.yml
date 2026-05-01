@@ -32,7 +32,7 @@ jobs:
         run: pnpm --filter web run test
 
       - name: Prettier gate
-        run: pnpm exec prettier --check supabase/functions/conversation-handle/index.ts supabase/functions/whatsapp-dispatch/index.ts supabase/functions/whatsapp-webhook-inbound/index.ts
+        run: pnpm exec prettier --check supabase/functions/conversation-handle/index.ts supabase/functions/whatsapp-dispatch/index.ts supabase/functions/whatsapp-webhook-inbound/index.ts supabase/functions/bot-health-monitor/index.ts
 
       - uses: supabase/setup-cli@v1
         with:
@@ -43,6 +43,7 @@ jobs:
           supabase functions deploy whatsapp-webhook-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
           supabase functions deploy conversation-handle --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
           supabase functions deploy whatsapp-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          supabase functions deploy bot-health-monitor --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
           supabase functions deploy lead-notify-broker --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
           supabase functions deploy qr-resolve --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
         env:

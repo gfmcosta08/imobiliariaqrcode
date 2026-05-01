@@ -12,10 +12,7 @@ const migrationPath = path.join(
   "supabase/migrations/20260501090000_bot_incidents_monitoring.sql",
 );
 const configPath = path.join(repoRoot, "supabase/config.toml");
-const cronRoutePath = path.join(
-  repoRoot,
-  "apps/web/src/app/api/cron/bot-health-monitor/route.ts",
-);
+const cronRoutePath = path.join(repoRoot, "apps/web/src/app/api/cron/bot-health-monitor/route.ts");
 const vercelConfigPath = path.join(repoRoot, "apps/web/vercel.json");
 
 function read(filePath: string): string {

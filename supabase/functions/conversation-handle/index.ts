@@ -987,10 +987,7 @@ async function ensureCustomerResponseQueued(
     input.brokerPhone,
     input.context,
   );
-  throw new SilentResponseError(
-    `silent_response_blocked:${input.context}`,
-    fallbackQueued,
-  );
+  throw new SilentResponseError(`silent_response_blocked:${input.context}`, fallbackQueued);
 }
 
 async function handleShowSimilarProperties(
