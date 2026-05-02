@@ -439,37 +439,45 @@ async function resolveRecommendedProperty(
   supabase: ReturnType<typeof createClient>,
   input: string,
   recommendedIds: string[],
+  shownIds: string[] = [],
 ): Promise<Record<string, unknown> | null> {
-  if (!recommendedIds.length) return null;
+  const candidateIds = Array.from(
+    new Set(
+      [...recommendedIds, ...shownIds]
+        .map((id) => String(id ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+  if (!candidateIds.length) return null;
 
   const trimmed = input.trim();
-  const num = parseInt(trimmed, 10);
-
-  if (!isNaN(num) && String(num) === trimmed && num >= 1 && num <= recommendedIds.length) {
-    const targetId = recommendedIds[num - 1];
-    const { data: targetProp } = await supabase
-      .from("properties")
-      .select("id, public_id, broker_id, account_id")
-      .eq("id", targetId)
-      .maybeSingle();
-    return targetProp ?? null;
-  }
+  if (!trimmed) return null;
 
   const { data: props } = await supabase
     .from("properties")
     .select("id, public_id, broker_id, account_id")
-    .in("id", recommendedIds);
+    .in("id", candidateIds);
 
   const normalizedInput = normalizePropertyCode(trimmed);
-  return (
+  const byDisplayedOrInternalId =
     (props ?? []).find((p: Record<string, unknown>) => {
+      const internalId = fmt(p.id);
       const normalizedPublicId = normalizePropertyCode(p.public_id);
       return (
-        normalizedPublicId.length > 0 &&
-        (normalizedInput === normalizedPublicId || normalizedInput.includes(normalizedPublicId))
+        (internalId.length > 0 && trimmed === internalId && candidateIds.includes(internalId)) ||
+        (normalizedPublicId.length > 0 &&
+          (normalizedInput === normalizedPublicId || normalizedInput.includes(normalizedPublicId)))
       );
-    }) ?? null
-  );
+    }) ?? null;
+  if (byDisplayedOrInternalId) return byDisplayedOrInternalId;
+
+  const num = parseInt(trimmed, 10);
+  if (!isNaN(num) && String(num) === trimmed && num >= 1 && num <= candidateIds.length) {
+    const targetId = candidateIds[num - 1];
+    return (props ?? []).find((p: Record<string, unknown>) => fmt(p.id) === targetId) ?? null;
+  }
+
+  return null;
 }
 
 function summarizeProperty(row: Record<string, unknown>): string {
@@ -1894,6 +1902,9 @@ Deno.serve(async (req) => {
         const recommended = Array.isArray(session.last_recommended_properties)
           ? (session.last_recommended_properties as string[])
           : [];
+        const shown = Array.isArray(session.similar_shown_property_ids)
+          ? (session.similar_shown_property_ids as string[])
+          : recommended;
         const count = recommended.length;
 
         console.log("option1_selected_in_multi_property_context", {
@@ -1901,6 +1912,7 @@ Deno.serve(async (req) => {
           captador_broker_id: property.broker_id,
           source: "similar_or_general_stock",
           count,
+          shown_count: shown.length,
         });
 
         await queueOutbound(supabase, {
@@ -1916,7 +1928,13 @@ Deno.serve(async (req) => {
         });
         await supabase
           .from("conversation_sessions")
-          .update({ state: "awaiting_visit_property_id" })
+          .update({
+            state: "awaiting_visit_property_id",
+            last_menu: "main_menu_post_similar",
+            last_recommended_properties: recommended,
+            similar_shown_property_ids: shown,
+            target_property_id: null,
+          })
           .eq("id", session.id);
         return json({ ok: true, state: "awaiting_visit_property_id" });
       }
@@ -1993,12 +2011,17 @@ Deno.serve(async (req) => {
       const recommended = Array.isArray(session.last_recommended_properties)
         ? (session.last_recommended_properties as string[])
         : [];
+      const shown = Array.isArray(session.similar_shown_property_ids)
+        ? (session.similar_shown_property_ids as string[])
+        : [];
       console.log("option1_property_id_received", {
         lead_phone: leadPhone,
         typed_property_id: text.trim(),
+        recommended_count: recommended.length,
+        shown_count: shown.length,
       });
 
-      const targetProp = await resolveRecommendedProperty(supabase, text, recommended);
+      const targetProp = await resolveRecommendedProperty(supabase, text, recommended, shown);
       if (targetProp) {
         const targetId = String(targetProp.id);
         const hasName =

@@ -59,13 +59,46 @@ describe("WhatsApp guardrails contracts", () => {
     );
     expect(visitPropertyIdBlock?.[0]).toBeTruthy();
     expect(visitPropertyIdBlock?.[0]).toContain(
-      "resolveRecommendedProperty(supabase, text, recommended)",
+      "resolveRecommendedProperty(supabase, text, recommended, shown)",
     );
     expect(visitPropertyIdBlock?.[0]).toContain('kind: "ask_property_id_retry"');
     expect(visitPropertyIdBlock?.[0]).toContain(
       "Nao encontrei esse imovel. Por favor, informe novamente o ID do imovel.",
     );
     expect(visitPropertyIdBlock?.[0]).toContain('state: "awaiting_visit_property_id"');
+  });
+
+  it("mantem resolucao do ID contra todos os imoveis semelhantes ja exibidos", () => {
+    const src = read(conversationHandlePath);
+    const resolverBlock = src.match(
+      /async function resolveRecommendedProperty\([\s\S]*?function summarizeProperty/,
+    );
+    const visitPropertyIdBlock = src.match(
+      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    );
+    expect(resolverBlock?.[0]).toBeTruthy();
+    expect(resolverBlock?.[0]).toContain("shownIds: string[] = []");
+    expect(resolverBlock?.[0]).toContain("[...recommendedIds, ...shownIds]");
+    expect(resolverBlock?.[0]).toContain(".in(\"id\", candidateIds)");
+    expect(resolverBlock?.[0]).toContain("trimmed === internalId");
+    expect(resolverBlock?.[0]).toContain("normalizePropertyCode(p.public_id)");
+    expect(visitPropertyIdBlock?.[0]).toContain("session.similar_shown_property_ids");
+    expect(visitPropertyIdBlock?.[0]).toContain(
+      "resolveRecommendedProperty(supabase, text, recommended, shown)",
+    );
+  });
+
+  it("preserva contexto pos-semelhantes ao pedir ID para falar com corretor", () => {
+    const src = read(conversationHandlePath);
+    const postSimilarBlock = src.match(
+      /if \(session\.state === "awaiting_post_similar_choice"\)[\s\S]*?if \(matchChoice2\(text\)\)/,
+    );
+    expect(postSimilarBlock?.[0]).toBeTruthy();
+    expect(postSimilarBlock?.[0]).toContain('state: "awaiting_visit_property_id"');
+    expect(postSimilarBlock?.[0]).toContain('last_menu: "main_menu_post_similar"');
+    expect(postSimilarBlock?.[0]).toContain("last_recommended_properties: recommended");
+    expect(postSimilarBlock?.[0]).toContain("similar_shown_property_ids: shown");
+    expect(postSimilarBlock?.[0]).toContain("target_property_id: null");
   });
 
   it("mantem registro de visita pos-semelhantes marcado como fluxo pos-listagem", () => {
