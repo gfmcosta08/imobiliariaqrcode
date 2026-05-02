@@ -51,9 +51,11 @@ describe("WhatsApp guardrails contracts", () => {
       /const parsedQrToken = parseQrToken\(text\);[\s\S]*?if \(!qrToken\)/,
     );
     expect(sessionLoadBlock?.[0]).toBeTruthy();
-    expect(sessionLoadBlock?.[0]).toContain(
-      'session?.state === "awaiting_visit_property_id" ? null : parsedQrToken',
-    );
+    expect(src).toContain("function classifyConversationIntent");
+    expect(src).toContain('"post_similar_property_id"');
+    expect(src).toContain('"visit_property_id"');
+    expect(src).toContain("conversationIntent === \"visit_property_id\"");
+    expect(src).toContain("conversationIntent === \"post_similar_property_id\"");
 
     const qrBranchIndex = src.indexOf("if (qrToken) {");
     const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
@@ -70,18 +72,18 @@ describe("WhatsApp guardrails contracts", () => {
 
   it("mantem retry quando o ID informado apos semelhantes nao e encontrado", () => {
     const src = read(conversationHandlePath);
-    const visitPropertyIdBlock = src.match(
-      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    const selectionHandlerBlock = src.match(
+      /async function handlePostSimilarPropertyId\([\s\S]*?async function sendTypingPresenceNow/,
     );
-    expect(visitPropertyIdBlock?.[0]).toBeTruthy();
-    expect(visitPropertyIdBlock?.[0]).toContain(
+    expect(selectionHandlerBlock?.[0]).toBeTruthy();
+    expect(selectionHandlerBlock?.[0]).toContain(
       "resolveRecommendedProperty(supabase, text, recommended, shown)",
     );
-    expect(visitPropertyIdBlock?.[0]).toContain('kind: "ask_property_id_retry"');
-    expect(visitPropertyIdBlock?.[0]).toContain(
+    expect(selectionHandlerBlock?.[0]).toContain('kind: "ask_property_id_retry"');
+    expect(selectionHandlerBlock?.[0]).toContain(
       "Nao encontrei esse imovel. Por favor, informe novamente o ID do imovel.",
     );
-    expect(visitPropertyIdBlock?.[0]).toContain('state: "awaiting_visit_property_id"');
+    expect(selectionHandlerBlock?.[0]).toContain('state: "awaiting_visit_property_id"');
   });
 
   it("mantem resolucao do ID contra todos os imoveis semelhantes ja exibidos", () => {
@@ -89,8 +91,8 @@ describe("WhatsApp guardrails contracts", () => {
     const resolverBlock = src.match(
       /async function resolveRecommendedProperty\([\s\S]*?function summarizeProperty/,
     );
-    const visitPropertyIdBlock = src.match(
-      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    const selectionHandlerBlock = src.match(
+      /async function handlePostSimilarPropertyId\([\s\S]*?async function sendTypingPresenceNow/,
     );
     expect(resolverBlock?.[0]).toBeTruthy();
     expect(resolverBlock?.[0]).toContain("shownIds: string[] = []");
@@ -98,10 +100,20 @@ describe("WhatsApp guardrails contracts", () => {
     expect(resolverBlock?.[0]).toContain(".in(\"id\", candidateIds)");
     expect(resolverBlock?.[0]).toContain("trimmed === internalId");
     expect(resolverBlock?.[0]).toContain("normalizePropertyCode(p.public_id)");
-    expect(visitPropertyIdBlock?.[0]).toContain("session.similar_shown_property_ids");
-    expect(visitPropertyIdBlock?.[0]).toContain(
+    expect(selectionHandlerBlock?.[0]).toContain("session.similar_shown_property_ids");
+    expect(selectionHandlerBlock?.[0]).toContain(
       "resolveRecommendedProperty(supabase, text, recommended, shown)",
     );
+  });
+
+  it("aceita ID direto no menu pos-semelhantes sem exigir escolha 1 antes", () => {
+    const src = read(conversationHandlePath);
+    const postSimilarBlock = src.match(
+      /if \(session\.state === "awaiting_post_similar_choice"\)[\s\S]*?if \(session\.state === "awaiting_visit_property_id"\)/,
+    );
+    expect(postSimilarBlock?.[0]).toBeTruthy();
+    expect(postSimilarBlock?.[0]).toContain("option1_direct_property_id_in_multi_property_context");
+    expect(postSimilarBlock?.[0]).toContain("handlePostSimilarPropertyId({");
   });
 
   it("preserva contexto pos-semelhantes ao pedir ID para falar com corretor", () => {
@@ -119,13 +131,29 @@ describe("WhatsApp guardrails contracts", () => {
 
   it("mantem registro de visita pos-semelhantes marcado como fluxo pos-listagem", () => {
     const src = read(conversationHandlePath);
-    const visitPropertyIdBlock = src.match(
-      /if \(session\.state === "awaiting_visit_property_id"\)[\s\S]*?if \(session\.state === "awaiting_name_confirmation"\)/,
+    const selectionHandlerBlock = src.match(
+      /async function handlePostSimilarPropertyId\([\s\S]*?async function sendTypingPresenceNow/,
     );
-    expect(visitPropertyIdBlock?.[0]).toBeTruthy();
-    expect(visitPropertyIdBlock?.[0]).toContain("targetProp");
-    expect(visitPropertyIdBlock?.[0]).toContain('"main_menu_post_similar"');
-    expect(visitPropertyIdBlock?.[0]).toContain("{ postListingFlow: true }");
+    expect(selectionHandlerBlock?.[0]).toBeTruthy();
+    expect(selectionHandlerBlock?.[0]).toContain("targetProp");
+    expect(selectionHandlerBlock?.[0]).toContain('"main_menu_post_similar"');
+    expect(selectionHandlerBlock?.[0]).toContain("{ postListingFlow: true }");
+  });
+
+  it("mantem current_property_id como contexto do menu e origin_property_id como captador", () => {
+    const src = read(conversationHandlePath);
+    const followUpBlock = src.match(
+      /const sessionPropertyId = fmt\(session\.current_property_id\)[\s\S]*?const \{ data: broker \} = await supabase/,
+    );
+    const registerVisitBlock = src.match(
+      /async function doRegisterVisit\([\s\S]*?async function handlePostSimilarPropertyId/,
+    );
+    expect(followUpBlock?.[0]).toBeTruthy();
+    expect(followUpBlock?.[0]).toContain("fmt(session.current_property_id)");
+    expect(followUpBlock?.[0]).toContain("fmt(session.origin_property_id)");
+    expect(registerVisitBlock?.[0]).toContain("current_property_id: String(property.id)");
+    expect(registerVisitBlock?.[0]).toContain("target_property_id: null");
+    expect(registerVisitBlock?.[0]).toContain("originBrokerId");
   });
 
   it("mantem template enriquecido para cenario B do estoque geral", () => {
