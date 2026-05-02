@@ -20,6 +20,7 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+_remote_*_schema_check.sql
 
 # OS
 .DS_Store

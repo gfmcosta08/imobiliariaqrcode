@@ -12,6 +12,7 @@ type InteractionRow = {
   error_detail: string | null;
   retry_count: number;
   is_resolved: boolean;
+  steps_history?: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -19,6 +20,7 @@ type InteractionRow = {
 type IncidentInput = {
   interaction_id?: string | null;
   source_step_id?: string | null;
+  source_step_name?: string | null;
   source_message_id?: string | null;
   source_webhook_event_id?: string | null;
   lead_phone?: string | null;
@@ -31,20 +33,21 @@ type IncidentInput = {
 
 type IncidentRow = {
   id: string;
-  interaction_id: string | null;
-  source_step_id: string | null;
-  source_message_id: string | null;
-  source_webhook_event_id: string | null;
+  webhook_event_id: string | null;
+  incident_source_message_id: string | null;
+  incident_source_webhook_event_id: string | null;
   lead_phone: string | null;
-  property_id: string | null;
-  broker_id: string | null;
-  incident_type: string;
-  severity: "info" | "warning" | "critical";
-  status: string;
-  details: Record<string, unknown>;
+  incident_property_id: string | null;
+  incident_broker_id: string | null;
+  incident_type: string | null;
+  incident_severity: "info" | "warning" | "critical" | null;
+  incident_status: string | null;
+  incident_detected_at: string | null;
+  incident_details: Record<string, unknown>;
   admin_notified_at: string | null;
   broker_notified_at: string | null;
   auto_recovery_attempted_at: string | null;
+  auto_recovery_result: Record<string, unknown> | null;
 };
 
 type Context = {
@@ -58,7 +61,8 @@ type Context = {
 };
 
 const DEFAULT_MONITOR_WINDOW_HOURS = 24;
-const DEFAULT_STUCK_MINUTES = 2;
+const DEFAULT_STUCK_MINUTES = 5;
+const MAX_STUCK_MINUTES = 5;
 const FALLBACK_TEXT = "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
 
 function toInt(value: string | undefined | null, fallback: number): number {
@@ -242,30 +246,22 @@ async function findOpenIncident(
   input: IncidentInput,
 ): Promise<IncidentRow | null> {
   let query = supabase
-    .from("bot_incidents")
+    .from("bot_interactions")
     .select("*")
     .eq("incident_type", input.incident_type)
-    .eq("status", "open")
+    .eq("incident_status", "open")
     .limit(1);
 
   if (input.interaction_id) {
-    query = query.eq("interaction_id", input.interaction_id);
-  } else if (input.source_step_id) {
-    query = query.eq("source_step_id", input.source_step_id);
+    query = query.eq("id", input.interaction_id);
   } else if (input.source_message_id) {
-    query = query.eq("source_message_id", input.source_message_id);
+    query = query.eq("incident_source_message_id", input.source_message_id);
   } else if (input.source_webhook_event_id) {
-    query = query.eq("source_webhook_event_id", input.source_webhook_event_id);
+    query = query.eq("incident_source_webhook_event_id", input.source_webhook_event_id);
   } else if (input.lead_phone) {
     query = query.eq("lead_phone", input.lead_phone);
   } else {
-    const { data } = await query
-      .is("interaction_id", null)
-      .is("source_step_id", null)
-      .is("source_message_id", null)
-      .is("source_webhook_event_id", null)
-      .is("lead_phone", null)
-      .maybeSingle();
+    const { data } = await query.eq("lead_phone", "system").maybeSingle();
     return (data as IncidentRow | null) ?? null;
   }
 
@@ -280,20 +276,81 @@ async function createOrGetIncident(
   const existing = await findOpenIncident(supabase, input);
   if (existing) return { incident: existing, created: false };
 
-  const { data, error } = await supabase
-    .from("bot_incidents")
-    .insert({
-      interaction_id: input.interaction_id ?? null,
+  const patch = {
+    incident_source_message_id: input.source_message_id ?? null,
+    incident_source_webhook_event_id: input.source_webhook_event_id ?? null,
+    incident_property_id: input.property_id ?? null,
+    incident_broker_id: input.broker_id ?? null,
+    incident_type: input.incident_type,
+    incident_severity: input.severity,
+    incident_status: "open",
+    incident_detected_at: new Date().toISOString(),
+    incident_details: {
+      ...(input.details ?? {}),
       source_step_id: input.source_step_id ?? null,
-      source_message_id: input.source_message_id ?? null,
-      source_webhook_event_id: input.source_webhook_event_id ?? null,
-      lead_phone: input.lead_phone ?? null,
-      property_id: input.property_id ?? null,
-      broker_id: input.broker_id ?? null,
-      incident_type: input.incident_type,
-      severity: input.severity,
-      status: "open",
-      details: input.details,
+      source_step_name: input.source_step_name ?? null,
+    },
+  };
+
+  if (input.interaction_id) {
+    const { data, error } = await supabase
+      .from("bot_interactions")
+      .update(patch)
+      .eq("id", input.interaction_id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      console.error("[bot-health-monitor] incident update failed", {
+        type: input.incident_type,
+        error: error.message,
+      });
+      return { incident: null, created: false };
+    }
+
+    return { incident: data as IncidentRow, created: Boolean(data) };
+  }
+
+  let targetId: string | null = null;
+  if (input.lead_phone) {
+    const { data: latest } = await supabase
+      .from("bot_interactions")
+      .select("id")
+      .eq("lead_phone", input.lead_phone)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    targetId = latest?.id ? String(latest.id) : null;
+  }
+
+  if (targetId) {
+    const { data, error } = await supabase
+      .from("bot_interactions")
+      .update(patch)
+      .eq("id", targetId)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      console.error("[bot-health-monitor] incident update failed", {
+        type: input.incident_type,
+        error: error.message,
+      });
+      return { incident: null, created: false };
+    }
+
+    return { incident: data as IncidentRow, created: Boolean(data) };
+  }
+
+  const { data, error } = await supabase
+    .from("bot_interactions")
+    .insert({
+      lead_phone: input.lead_phone ?? "system",
+      inbound_text: input.incident_type,
+      webhook_event_id: input.source_webhook_event_id ?? null,
+      current_step: `incident_${input.incident_type}`,
+      is_resolved: false,
+      ...patch,
     })
     .select("*")
     .maybeSingle();
@@ -312,13 +369,13 @@ async function createOrGetIncident(
 function buildAdminText(incident: IncidentRow, context: Context): string {
   return [
     "Alerta do monitor do bot.",
-    `Severidade: ${incident.severity}`,
+    `Severidade: ${incident.incident_severity ?? "warning"}`,
     `Tipo: ${incident.incident_type}`,
     `Cliente: ${maskPhone(incident.lead_phone)}`,
     `Imovel: ${context.propertyPublicId ?? "nao identificado"}`,
-    `Etapa: ${String(incident.details?.current_step ?? "nao identificada")}`,
-    `Erro: ${String(incident.details?.error_detail ?? "sem detalhe")}`,
-    `Acao: ${String(incident.details?.auto_recovery ?? "registrado para acompanhamento")}`,
+    `Etapa: ${String(incident.incident_details?.current_step ?? "nao identificada")}`,
+    `Erro: ${String(incident.incident_details?.error_detail ?? "sem detalhe")}`,
+    `Acao: ${String(incident.incident_details?.auto_recovery ?? "registrado para acompanhamento")}`,
   ].join("\n");
 }
 
@@ -364,7 +421,7 @@ async function notifyAdmin(supabase: Supabase, incident: IncidentRow, context: C
   }
 
   await supabase
-    .from("bot_incidents")
+    .from("bot_interactions")
     .update({ admin_notified_at: new Date().toISOString() })
     .eq("id", incident.id);
 }
@@ -390,7 +447,7 @@ async function notifyBroker(supabase: Supabase, incident: IncidentRow, context: 
   });
 
   await supabase
-    .from("bot_incidents")
+    .from("bot_interactions")
     .update({ broker_notified_at: new Date().toISOString() })
     .eq("id", incident.id);
 }
@@ -418,7 +475,7 @@ async function queueFallbackIfNeeded(
     payload: {
       kind: "error_fallback",
       text: FALLBACK_TEXT,
-      bot_incident_id: incident.id,
+      bot_interaction_id: incident.id,
       monitor_recovery: true,
     },
   });
@@ -456,7 +513,7 @@ async function recoverAndNotify(
 
   if (Object.keys(recovery).length) {
     await supabase
-      .from("bot_incidents")
+      .from("bot_interactions")
       .update({
         auto_recovery_attempted_at: new Date().toISOString(),
         auto_recovery_result: recovery,
@@ -464,7 +521,10 @@ async function recoverAndNotify(
       .eq("id", incident.id);
     incident.auto_recovery_attempted_at = new Date().toISOString();
     incident.auto_recovery_result = recovery;
-    incident.details = { ...(incident.details ?? {}), auto_recovery: JSON.stringify(recovery) };
+    incident.incident_details = {
+      ...(incident.incident_details ?? {}),
+      auto_recovery: JSON.stringify(recovery),
+    };
   }
 
   await notifyAdmin(supabase, incident, context);
@@ -474,9 +534,9 @@ async function recoverAndNotify(
 
 async function markRecoverableIncidentsResolved(supabase: Supabase): Promise<number> {
   const { data } = await supabase
-    .from("bot_incidents")
-    .select("id, lead_phone, detected_at")
-    .eq("status", "open")
+    .from("bot_interactions")
+    .select("id, lead_phone, incident_detected_at")
+    .eq("incident_status", "open")
     .in("incident_type", [
       "silent_customer_response",
       "processed_webhook_without_customer_response",
@@ -491,13 +551,16 @@ async function markRecoverableIncidentsResolved(supabase: Supabase): Promise<num
     const visible = await hasVisibleCustomerOutbound(
       supabase,
       phone,
-      String(incident.detected_at),
+      String(incident.incident_detected_at),
       ["sent", "delivered"],
     );
     if (!visible) continue;
     await supabase
-      .from("bot_incidents")
-      .update({ status: "auto_recovered", resolved_at: new Date().toISOString() })
+      .from("bot_interactions")
+      .update({
+        incident_status: "auto_recovered",
+        incident_resolved_at: new Date().toISOString(),
+      })
       .eq("id", incident.id);
     resolved += 1;
   }
@@ -520,11 +583,12 @@ Deno.serve(async (req) => {
   );
 
   const stuckMinutes = toInt(Deno.env.get("BOT_MONITOR_STUCK_MINUTES"), DEFAULT_STUCK_MINUTES);
+  const cappedStuckMinutes = Math.min(stuckMinutes, MAX_STUCK_MINUTES);
   const monitorWindowHours = toInt(
     Deno.env.get("BOT_MONITOR_WINDOW_HOURS"),
     DEFAULT_MONITOR_WINDOW_HOURS,
   );
-  const cutoffIso = new Date(Date.now() - stuckMinutes * 60_000).toISOString();
+  const cutoffIso = new Date(Date.now() - cappedStuckMinutes * 60_000).toISOString();
   const windowIso = new Date(Date.now() - monitorWindowHours * 60 * 60_000).toISOString();
 
   const createdIncidentIds = new Set<string>();
@@ -640,45 +704,38 @@ Deno.serve(async (req) => {
       if (created && incident?.id) createdIncidentIds.add(incident.id);
       await recoverAndNotify(supabase, incident, context, { broker: true });
     }
-  }
 
-  const { data: pendingSteps } = await supabase
-    .from("bot_interaction_steps")
-    .select("id, interaction_id, step_name, started_at, error_detail")
-    .eq("status", "pending")
-    .lt("started_at", cutoffIso)
-    .limit(100);
+    const stepsHistory = Array.isArray(interaction.steps_history) ? interaction.steps_history : [];
+    for (const rawStep of stepsHistory) {
+      const step = asRecord(rawStep);
+      if (!step || step.status !== "pending") continue;
+      const startedAt = typeof step.started_at === "string" ? step.started_at : null;
+      if (!startedAt || new Date(startedAt).getTime() >= new Date(cutoffIso).getTime()) continue;
 
-  for (const step of pendingSteps ?? []) {
-    const { data: interaction } = await supabase
-      .from("bot_interactions")
-      .select("*")
-      .eq("id", step.interaction_id)
-      .maybeSingle();
-    if (!interaction) continue;
-    const context = await resolveContext(supabase, interaction as InteractionRow);
-    const { incident, created } = await createOrGetIncident(supabase, {
-      interaction_id: String(step.interaction_id),
-      source_step_id: String(step.id),
-      source_webhook_event_id: interaction.webhook_event_id,
-      lead_phone: interaction.lead_phone,
-      property_id: context.propertyId,
-      broker_id: context.brokerId,
-      incident_type: "pending_step_timeout",
-      severity: "warning",
-      details: {
-        step_name: step.step_name,
-        started_at: step.started_at,
-        current_step: interaction.current_step,
-        error_detail: step.error_detail,
-      },
-    });
-    if (created && incident?.id) createdIncidentIds.add(incident.id);
-    await recoverAndNotify(supabase, incident, context, {
-      fallback: !interaction.is_resolved,
-      dispatch: true,
-      broker: true,
-    });
+      const { incident, created } = await createOrGetIncident(supabase, {
+        interaction_id: interaction.id,
+        source_step_id: typeof step.id === "string" ? step.id : null,
+        source_step_name: typeof step.step_name === "string" ? step.step_name : null,
+        source_webhook_event_id: interaction.webhook_event_id,
+        lead_phone: interaction.lead_phone,
+        property_id: context.propertyId,
+        broker_id: context.brokerId,
+        incident_type: "pending_step_timeout",
+        severity: "warning",
+        details: {
+          step_name: step.step_name ?? null,
+          started_at: startedAt,
+          current_step: interaction.current_step,
+          error_detail: interaction.error_detail,
+        },
+      });
+      if (created && incident?.id) createdIncidentIds.add(incident.id);
+      await recoverAndNotify(supabase, incident, context, {
+        fallback: !interaction.is_resolved,
+        dispatch: true,
+        broker: true,
+      });
+    }
   }
 
   const { data: stuckMessages } = await supabase
