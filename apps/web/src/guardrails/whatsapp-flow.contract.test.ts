@@ -45,6 +45,22 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain('state: "awaiting_visit_property_id"');
   });
 
+  it("prioriza ID informado no estado pos-semelhantes antes de tratar como novo QR", () => {
+    const src = read(conversationHandlePath);
+    const sessionLoadBlock = src.match(
+      /const parsedQrToken = parseQrToken\(text\);[\s\S]*?if \(!qrToken\)/,
+    );
+    expect(sessionLoadBlock?.[0]).toBeTruthy();
+    expect(sessionLoadBlock?.[0]).toContain(
+      'session?.state === "awaiting_visit_property_id" ? null : parsedQrToken',
+    );
+
+    const qrBranchIndex = src.indexOf("if (qrToken) {");
+    const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
+    expect(qrBranchIndex).toBeGreaterThan(-1);
+    expect(visitIdBranchIndex).toBeGreaterThan(qrBranchIndex);
+  });
+
   it("mantem normalizacao de ID do imovel para comparacao tolerante", () => {
     const src = read(conversationHandlePath);
     expect(src).toContain("function normalizePropertyCode");

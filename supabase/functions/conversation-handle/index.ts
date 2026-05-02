@@ -1458,7 +1458,7 @@ Deno.serve(async (req) => {
     // Iniciar session_loaded → pending
     _currentStepId = await logStep(supabase, _interactionId, "session_loaded");
 
-    const qrToken = parseQrToken(text);
+    const parsedQrToken = parseQrToken(text);
 
     const { data: session } = await supabase
       .from("conversation_sessions")
@@ -1469,6 +1469,7 @@ Deno.serve(async (req) => {
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    const qrToken = session?.state === "awaiting_visit_property_id" ? null : parsedQrToken;
 
     // Para mensagens sem QR: verificar sessão antes de disparar "digitando"
     if (!qrToken) {
