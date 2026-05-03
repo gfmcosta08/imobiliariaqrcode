@@ -10,7 +10,8 @@
     "typecheck": "pnpm --filter web run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm --filter web run test"
+    "test": "pnpm --filter web run test",
+    "test:bot-guardrails": "pnpm --filter web exec vitest run src/guardrails"
   },
   "devDependencies": {
     "prettier": "^3.5.3"

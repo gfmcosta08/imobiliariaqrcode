@@ -467,6 +467,33 @@ async function loadOriginPropertyForSession(
   return originProperty ?? null;
 }
 
+async function loadLeadOriginBrokerContact(
+  supabase: ReturnType<typeof createClient>,
+  sessionId: string,
+  fallbackBrokerId: string | null,
+  fallbackBrokerName: string | null,
+  fallbackBrokerPhone: string | null,
+): Promise<{ name: string | null; phone: string | null; brokerPhone: string | null }> {
+  const originProperty = await loadOriginPropertyForSession(supabase, sessionId);
+  const originBrokerId = fmt(originProperty?.broker_id);
+
+  if (originBrokerId) {
+    const originContact = await loadBrokerContact(supabase, originBrokerId);
+    return {
+      name: originContact.name ?? "Corretor",
+      phone: originContact.phone,
+      brokerPhone: originContact.phone,
+    };
+  }
+
+  const fallbackContact = await loadBrokerContact(supabase, fallbackBrokerId);
+  return {
+    name: fallbackContact.name ?? fallbackBrokerName,
+    phone: fallbackContact.phone ?? fallbackBrokerPhone,
+    brokerPhone: fallbackContact.phone ?? fallbackBrokerPhone,
+  };
+}
+
 async function resolveRecommendedProperty(
   supabase: ReturnType<typeof createClient>,
   input: string,
@@ -2044,24 +2071,39 @@ Deno.serve(async (req) => {
       }
 
       if (matchChoice3(text)) {
-        const contact = brokerPhone ?? "Numero nao cadastrado ainda";
-        const name = brokerName ?? "Corretor";
+        const leadOriginBroker = await loadLeadOriginBrokerContact(
+          supabase,
+          session.id,
+          fmt(property.broker_id),
+          brokerName,
+          brokerPhone,
+        );
+        const contact = leadOriginBroker.phone ?? "Numero nao cadastrado ainda";
+        const name = leadOriginBroker.name ?? "Corretor";
         const choiceGroup = crypto.randomUUID();
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
           lead_phone: leadPhone,
-          broker_phone: brokerPhone,
+          broker_phone: leadOriginBroker.brokerPhone,
           message_type: "text",
           payload: {
             kind: "broker_contact",
-            text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
+            text: `Aqui esta o contato do corretor responsavel pelo seu atendimento:\nNome: ${name}\nWhatsApp: ${contact}`,
           },
           flow_group: choiceGroup,
           flow_step: 1,
         });
         // Mantém sessão aberta para o cliente ainda poder escolher 1 ou 2
-        await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName, choiceGroup, 2);
+        await sendMainMenu(
+          supabase,
+          property,
+          leadPhone,
+          leadOriginBroker.brokerPhone,
+          firstName,
+          choiceGroup,
+          2,
+        );
         return json({ ok: true, state: "broker_contact_sent" });
       }
     }
@@ -2178,23 +2220,38 @@ Deno.serve(async (req) => {
       }
 
       if (matchChoice3(text)) {
-        const contact = brokerPhone ?? "Numero nao cadastrado ainda";
-        const name = brokerName ?? "Corretor";
+        const leadOriginBroker = await loadLeadOriginBrokerContact(
+          supabase,
+          session.id,
+          fmt(property.broker_id),
+          brokerName,
+          brokerPhone,
+        );
+        const contact = leadOriginBroker.phone ?? "Numero nao cadastrado ainda";
+        const name = leadOriginBroker.name ?? "Corretor";
         const choiceGroup2 = crypto.randomUUID();
         await queueOutbound(supabase, {
           account_id: property.account_id,
           property_id: property.id,
           lead_phone: leadPhone,
-          broker_phone: brokerPhone,
+          broker_phone: leadOriginBroker.brokerPhone,
           message_type: "text",
           payload: {
             kind: "broker_contact",
-            text: `Aqui esta o contato do corretor responsavel por este imovel:\nNome: ${name}\nWhatsApp: ${contact}`,
+            text: `Aqui esta o contato do corretor responsavel pelo seu atendimento:\nNome: ${name}\nWhatsApp: ${contact}`,
           },
           flow_group: choiceGroup2,
           flow_step: 1,
         });
-        await sendMainMenu(supabase, property, leadPhone, brokerPhone, firstName, choiceGroup2, 2);
+        await sendMainMenu(
+          supabase,
+          property,
+          leadPhone,
+          leadOriginBroker.brokerPhone,
+          firstName,
+          choiceGroup2,
+          2,
+        );
         return json({ ok: true, state: "broker_contact_sent" });
       }
 

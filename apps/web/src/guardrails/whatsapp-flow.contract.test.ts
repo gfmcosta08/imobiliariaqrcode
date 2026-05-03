@@ -156,6 +156,31 @@ describe("WhatsApp guardrails contracts", () => {
     expect(registerVisitBlock?.[0]).toContain("originBrokerId");
   });
 
+  it("envia contato do corretor captador na opcao 3 quando existe origin_property_id", () => {
+    const src = read(conversationHandlePath);
+    const mainChoiceBlock = src.match(
+      /if \(session\.state === "awaiting_main_choice"\)[\s\S]*?if \(session\.state === "awaiting_recommendation_choice"\)/,
+    );
+    const postSimilarBlock = src.match(
+      /if \(session\.state === "awaiting_post_similar_choice"\)[\s\S]*?if \(session\.state === "awaiting_visit_property_id"\)/,
+    );
+    const originContactBlock = src.match(
+      /async function loadLeadOriginBrokerContact\([\s\S]*?async function resolveRecommendedProperty/,
+    );
+
+    expect(originContactBlock?.[0]).toBeTruthy();
+    expect(originContactBlock?.[0]).toContain("loadOriginPropertyForSession");
+    expect(originContactBlock?.[0]).toContain("const originBrokerId = fmt(originProperty?.broker_id)");
+    expect(originContactBlock?.[0]).toContain("loadBrokerContact(supabase, originBrokerId)");
+    expect(originContactBlock?.[0]).toContain("fallbackBrokerId");
+    expect(mainChoiceBlock?.[0]).toContain("loadLeadOriginBrokerContact(");
+    expect(postSimilarBlock?.[0]).toContain("loadLeadOriginBrokerContact(");
+    expect(mainChoiceBlock?.[0]).toContain("broker_phone: leadOriginBroker.brokerPhone");
+    expect(postSimilarBlock?.[0]).toContain("broker_phone: leadOriginBroker.brokerPhone");
+    expect(mainChoiceBlock?.[0]).toContain("responsavel pelo seu atendimento");
+    expect(postSimilarBlock?.[0]).toContain("responsavel pelo seu atendimento");
+  });
+
   it("mantem template enriquecido para cenario B do estoque geral", () => {
     const src = read(conversationHandlePath);
     const registerVisitBlock = src.match(
