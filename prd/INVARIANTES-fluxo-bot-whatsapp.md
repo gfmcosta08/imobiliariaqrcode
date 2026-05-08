@@ -18,6 +18,7 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
 - `origin_property_id` e o imovel original do QR/codigo e define o corretor captador do lead.
 - `current_property_id` e o imovel atual usado como contexto do menu e da navegacao.
 - `target_property_id` e temporario e so deve existir enquanto o bot aguarda confirmacao/coleta de nome ou conclusao de escolha.
+- Em contas Premium, o captador de atendimento pode ser o corretor atribuido por round-robin e deve ficar persistido na sessao em campos `assigned_*`, sem sobrescrever `origin_property_id`.
 - Escolher um imovel semelhante pode atualizar `current_property_id`, mas nao pode sobrescrever `origin_property_id`.
 
 ## Entrada Por QR Ou Codigo
@@ -49,6 +50,7 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
 ## Notificacoes
 
 - O corretor captador e o corretor vinculado ao QR/codigo original.
+- Em contas Premium, o corretor captador da conversa e o corretor atribuido por round-robin na sessao.
 - Se o imovel escolhido pertence a outro corretor, a notificacao continua indo ao captador e deve incluir dados do dono do anuncio.
 - Notificacao ao corretor deve usar `payload.to_broker = true`.
 - Notificacao ao corretor nao e resposta visivel ao cliente.

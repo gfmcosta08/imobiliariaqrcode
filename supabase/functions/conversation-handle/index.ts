@@ -50,6 +50,13 @@ type LeadSnapshot = {
   interaction_count: number;
 };
 
+type RoutingAssignment = {
+  recipientId: string | null;
+  name: string | null;
+  phone: string | null;
+  status: string | null;
+};
+
 type ConversationIntent =
   | "qr_entry"
   | "property_code_lookup"
@@ -446,6 +453,63 @@ async function loadBrokerContact(
   };
 }
 
+function routingAssignmentFromSession(session: Record<string, unknown> | null | undefined) {
+  const phone = sanitizeBrokerPhone(fmt(session?.assigned_broker_phone) || null);
+  if (!phone) return null;
+  return {
+    recipientId: fmt(session?.assigned_routing_recipient_id) || null,
+    name: fmt(session?.assigned_broker_name) || null,
+    phone,
+    status: "session",
+  } satisfies RoutingAssignment;
+}
+
+async function resolveLeadRoutingAssignment(
+  supabase: ReturnType<typeof createClient>,
+  property: Record<string, unknown>,
+  leadId: string | null = null,
+): Promise<RoutingAssignment> {
+  const fallback = await loadBrokerContact(supabase, fmt(property.broker_id));
+
+  try {
+    const { data, error } = await supabase.rpc("assign_premium_lead_recipient", {
+      p_account_id: property.account_id,
+      p_origin_broker_id: property.broker_id,
+      p_property_id: property.id,
+      p_lead_id: leadId,
+      p_qr_code_id: null,
+    });
+
+    if (error) {
+      console.error("assign_premium_lead_recipient failed", error.message);
+      return {
+        recipientId: null,
+        name: fallback.name,
+        phone: fallback.phone,
+        status: "fallback",
+      };
+    }
+
+    const row = asRecord(data);
+    const assignedPhone = sanitizeBrokerPhone(fmt(row?.whatsapp_number) || null);
+    return {
+      recipientId: fmt(row?.recipient_id) || null,
+      name: fmt(row?.display_name) || fallback.name,
+      phone: assignedPhone ?? fallback.phone,
+      status: fmt(row?.status) || "assigned",
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("assign_premium_lead_recipient exception", message);
+    return {
+      recipientId: null,
+      name: fallback.name,
+      phone: fallback.phone,
+      status: "fallback",
+    };
+  }
+}
+
 async function loadOriginPropertyForSession(
   supabase: ReturnType<typeof createClient>,
   sessionId: string,
@@ -474,6 +538,20 @@ async function loadLeadOriginBrokerContact(
   fallbackBrokerName: string | null,
   fallbackBrokerPhone: string | null,
 ): Promise<{ name: string | null; phone: string | null; brokerPhone: string | null }> {
+  const { data: sessionRouting } = await supabase
+    .from("conversation_sessions")
+    .select("assigned_routing_recipient_id, assigned_broker_name, assigned_broker_phone")
+    .eq("id", sessionId)
+    .maybeSingle();
+  const assigned = routingAssignmentFromSession(sessionRouting);
+  if (assigned) {
+    return {
+      name: assigned.name ?? "Corretor",
+      phone: assigned.phone,
+      brokerPhone: assigned.phone,
+    };
+  }
+
   const originProperty = await loadOriginPropertyForSession(supabase, sessionId);
   const originBrokerId = fmt(originProperty?.broker_id);
 
@@ -501,11 +579,7 @@ async function resolveRecommendedProperty(
   shownIds: string[] = [],
 ): Promise<Record<string, unknown> | null> {
   const candidateIds = Array.from(
-    new Set(
-      [...recommendedIds, ...shownIds]
-        .map((id) => String(id ?? "").trim())
-        .filter(Boolean),
-    ),
+    new Set([...recommendedIds, ...shownIds].map((id) => String(id ?? "").trim()).filter(Boolean)),
   );
   if (!candidateIds.length) return null;
 
@@ -798,6 +872,7 @@ async function sendPropertyPack(
   leadPhone: string,
   lead: LeadSnapshot | null,
   profileName: string | null,
+  assignedBrokerPhone: string | null = null,
 ) {
   const propertyId = String(property.id);
   const accountId = String(property.account_id);
@@ -813,7 +888,9 @@ async function sendPropertyPack(
     broker?.whatsapp_number ||
     (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles?.whatsapp_number ||
     null;
-  const brokerPhone = sanitizeBrokerPhone(rawBrokerPhone ? String(rawBrokerPhone) : null);
+  const brokerPhone =
+    sanitizeBrokerPhone(assignedBrokerPhone) ??
+    sanitizeBrokerPhone(rawBrokerPhone ? String(rawBrokerPhone) : null);
   const brokerName = broker?.display_name ? String(broker.display_name) : null;
   const firstName = pickGreetingName(lead, profileName);
   const introText = firstName
@@ -1325,12 +1402,14 @@ async function doRegisterVisit(
     options.postListingFlow === true || lastMenu === "main_menu_post_similar";
   const flowGroup = isPostListingFlow ? crypto.randomUUID() : null;
   let flowStep = 1;
-  const originBrokerContact = isPostListingFlow
-    ? await loadBrokerContact(supabase, originBrokerId)
-    : { name: null, phone: brokerPhone };
-  const notificationBrokerPhone = isPostListingFlow
-    ? (originBrokerContact.phone ?? brokerPhone)
-    : brokerPhone;
+  const captadorContact = await loadLeadOriginBrokerContact(
+    supabase,
+    sessionId,
+    originBrokerId,
+    null,
+    brokerPhone,
+  );
+  const notificationBrokerPhone = captadorContact.brokerPhone ?? brokerPhone;
   const isGeneralStockOwner =
     Boolean(originBrokerId) &&
     Boolean(listingOwnerBrokerId) &&
@@ -1339,6 +1418,8 @@ async function doRegisterVisit(
   console.log("option1_routing_decided", {
     scenario: isGeneralStockOwner ? "B" : "A",
     captador_broker_id: originBrokerId,
+    assigned_broker_name: captadorContact.name,
+    assigned_broker_phone: notificationBrokerPhone,
     listing_owner_broker_id: listingOwnerBrokerId,
     property_id: property.id,
   });
@@ -1409,6 +1490,8 @@ async function doRegisterVisit(
     console.log("option1_notification_sent", {
       scenario: isGeneralStockOwner ? "B" : "A",
       captador_broker_id: originBrokerId,
+      assigned_broker_name: captadorContact.name,
+      assigned_broker_phone: notificationBrokerPhone,
       listing_owner_broker_id: listingOwnerBrokerId,
       property_id: property.id,
     });
@@ -1438,19 +1521,17 @@ async function doRegisterVisit(
     .eq("id", sessionId);
 }
 
-async function handlePostSimilarPropertyId(
-  input: {
-    supabase: ReturnType<typeof createClient>;
-    session: Record<string, unknown>;
-    property: Record<string, unknown>;
-    lead: LeadSnapshot | null;
-    leadPhone: string;
-    brokerPhone: string | null;
-    firstName: string;
-    profileName: string | null;
-    text: string;
-  },
-): Promise<Response> {
+async function handlePostSimilarPropertyId(input: {
+  supabase: ReturnType<typeof createClient>;
+  session: Record<string, unknown>;
+  property: Record<string, unknown>;
+  lead: LeadSnapshot | null;
+  leadPhone: string;
+  brokerPhone: string | null;
+  firstName: string;
+  profileName: string | null;
+  text: string;
+}): Promise<Response> {
   const {
     supabase,
     session,
@@ -1680,7 +1761,7 @@ Deno.serve(async (req) => {
     const { data: session } = await supabase
       .from("conversation_sessions")
       .select(
-        "id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, similar_shown_property_ids, similar_page_number, target_property_id, updated_at",
+        "id, state, origin_property_id, current_property_id, last_menu, last_recommended_properties, similar_shown_property_ids, similar_page_number, target_property_id, assigned_routing_recipient_id, assigned_broker_name, assigned_broker_phone, updated_at",
       )
       .eq("lead_phone", leadPhone)
       .order("updated_at", { ascending: false })
@@ -1771,30 +1852,27 @@ Deno.serve(async (req) => {
           }
 
           const firstName = pickGreetingName(null, profileName) ?? "Olá";
-          await sendMainMenu(supabase, property, leadPhone, null, firstName);
+          const existingAssignment = routingAssignmentFromSession(session);
+          await sendMainMenu(
+            supabase,
+            property,
+            leadPhone,
+            existingAssignment?.phone ?? null,
+            firstName,
+          );
           await ensureCustomerResponseQueued(supabase, {
             leadPhone,
             sinceIso: customerResponseStartedAt,
             propertyId,
             accountId: String(property.account_id),
-            brokerPhone: null,
+            brokerPhone: existingAssignment?.phone ?? null,
             context: "qr_session_dedup_menu_resent",
           });
           return json({ ok: true, state: "main_menu_resent_session_dedup" });
         }
       }
 
-      const lead = await upsertLead(supabase, {
-        propertyId,
-        brokerId,
-        leadPhone,
-        text,
-        profileName,
-        informedName,
-        intent: "visit_interest",
-        interactionType: "qr_entry",
-        forceNameUpdate: Boolean(correctedName),
-      });
+      const routingAssignment = await resolveLeadRoutingAssignment(supabase, property);
 
       if (session?.id) {
         await supabase
@@ -1802,6 +1880,9 @@ Deno.serve(async (req) => {
           .update({
             origin_property_id: propertyId,
             current_property_id: propertyId,
+            assigned_routing_recipient_id: routingAssignment.recipientId,
+            assigned_broker_name: routingAssignment.name,
+            assigned_broker_phone: routingAssignment.phone,
             state: "awaiting_main_choice",
             last_menu: "main_menu",
             last_recommended_properties: [],
@@ -1815,6 +1896,9 @@ Deno.serve(async (req) => {
           lead_phone: leadPhone,
           origin_property_id: propertyId,
           current_property_id: propertyId,
+          assigned_routing_recipient_id: routingAssignment.recipientId,
+          assigned_broker_name: routingAssignment.name,
+          assigned_broker_phone: routingAssignment.phone,
           state: "awaiting_main_choice",
           last_menu: "main_menu",
           last_recommended_properties: [],
@@ -1823,6 +1907,18 @@ Deno.serve(async (req) => {
           target_property_id: null,
         });
       }
+
+      const lead = await upsertLead(supabase, {
+        propertyId,
+        brokerId,
+        leadPhone,
+        text,
+        profileName,
+        informedName,
+        intent: "visit_interest",
+        interactionType: "qr_entry",
+        forceNameUpdate: Boolean(correctedName),
+      });
 
       const firstName = pickGreetingName(lead, profileName) ?? "Olá";
 
@@ -1855,13 +1951,13 @@ Deno.serve(async (req) => {
           leadPhone,
           propertyId,
         });
-        await sendMainMenu(supabase, property, leadPhone, null, firstName);
+        await sendMainMenu(supabase, property, leadPhone, routingAssignment.phone, firstName);
         await ensureCustomerResponseQueued(supabase, {
           leadPhone,
           sinceIso: customerResponseStartedAt,
           propertyId,
           accountId: String(property.account_id),
-          brokerPhone: null,
+          brokerPhone: routingAssignment.phone,
           context: "qr_recent_pack_menu_resent",
         });
         return json({ ok: true, state: "main_menu_resent_recent_pack" });
@@ -1873,7 +1969,14 @@ Deno.serve(async (req) => {
       _currentStepId = await logStep(supabase, _interactionId, "response_queuing");
       try {
         console.log("[bot] queuing property pack", { propertyId, leadPhone });
-        await sendPropertyPack(supabase, property, leadPhone, lead, profileName);
+        await sendPropertyPack(
+          supabase,
+          property,
+          leadPhone,
+          lead,
+          profileName,
+          routingAssignment.phone,
+        );
         console.log("[bot] property pack queued OK", { propertyId, leadPhone });
         _interactionStep = "response_queued";
         // response_queuing → complete
@@ -1966,8 +2069,12 @@ Deno.serve(async (req) => {
       (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles
         ?.whatsapp_number ||
       null;
-    const brokerPhone = sanitizeBrokerPhone(rawBrokerPhone2 ? String(rawBrokerPhone2) : null);
-    const brokerName = broker?.display_name ? String(broker.display_name) : null;
+    const assignedRouting = routingAssignmentFromSession(session);
+    const brokerPhone =
+      assignedRouting?.phone ??
+      sanitizeBrokerPhone(rawBrokerPhone2 ? String(rawBrokerPhone2) : null);
+    const brokerName =
+      assignedRouting?.name ?? (broker?.display_name ? String(broker.display_name) : null);
 
     const lead = await upsertLead(supabase, {
       propertyId: String(property.id),

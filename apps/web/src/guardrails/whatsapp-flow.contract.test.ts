@@ -54,8 +54,8 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain("function classifyConversationIntent");
     expect(src).toContain('"post_similar_property_id"');
     expect(src).toContain('"visit_property_id"');
-    expect(src).toContain("conversationIntent === \"visit_property_id\"");
-    expect(src).toContain("conversationIntent === \"post_similar_property_id\"");
+    expect(src).toContain('conversationIntent === "visit_property_id"');
+    expect(src).toContain('conversationIntent === "post_similar_property_id"');
 
     const qrBranchIndex = src.indexOf("if (qrToken) {");
     const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
@@ -97,7 +97,7 @@ describe("WhatsApp guardrails contracts", () => {
     expect(resolverBlock?.[0]).toBeTruthy();
     expect(resolverBlock?.[0]).toContain("shownIds: string[] = []");
     expect(resolverBlock?.[0]).toContain("[...recommendedIds, ...shownIds]");
-    expect(resolverBlock?.[0]).toContain(".in(\"id\", candidateIds)");
+    expect(resolverBlock?.[0]).toContain('.in("id", candidateIds)');
     expect(resolverBlock?.[0]).toContain("trimmed === internalId");
     expect(resolverBlock?.[0]).toContain("normalizePropertyCode(p.public_id)");
     expect(selectionHandlerBlock?.[0]).toContain("session.similar_shown_property_ids");
@@ -156,7 +156,7 @@ describe("WhatsApp guardrails contracts", () => {
     expect(registerVisitBlock?.[0]).toContain("originBrokerId");
   });
 
-  it("envia contato do corretor captador na opcao 3 quando existe origin_property_id", () => {
+  it("envia contato do captador atribuido na opcao 3 antes do fallback por origin_property_id", () => {
     const src = read(conversationHandlePath);
     const mainChoiceBlock = src.match(
       /if \(session\.state === "awaiting_main_choice"\)[\s\S]*?if \(session\.state === "awaiting_recommendation_choice"\)/,
@@ -169,8 +169,12 @@ describe("WhatsApp guardrails contracts", () => {
     );
 
     expect(originContactBlock?.[0]).toBeTruthy();
+    expect(originContactBlock?.[0]).toContain("routingAssignmentFromSession(sessionRouting)");
+    expect(originContactBlock?.[0]).toContain("assigned_broker_phone");
     expect(originContactBlock?.[0]).toContain("loadOriginPropertyForSession");
-    expect(originContactBlock?.[0]).toContain("const originBrokerId = fmt(originProperty?.broker_id)");
+    expect(originContactBlock?.[0]).toContain(
+      "const originBrokerId = fmt(originProperty?.broker_id)",
+    );
     expect(originContactBlock?.[0]).toContain("loadBrokerContact(supabase, originBrokerId)");
     expect(originContactBlock?.[0]).toContain("fallbackBrokerId");
     expect(mainChoiceBlock?.[0]).toContain("loadLeadOriginBrokerContact(");
@@ -179,6 +183,20 @@ describe("WhatsApp guardrails contracts", () => {
     expect(postSimilarBlock?.[0]).toContain("broker_phone: leadOriginBroker.brokerPhone");
     expect(mainChoiceBlock?.[0]).toContain("responsavel pelo seu atendimento");
     expect(postSimilarBlock?.[0]).toContain("responsavel pelo seu atendimento");
+  });
+
+  it("fixa captador premium por round-robin na sessao sem sobrescrever origin_property_id", () => {
+    const src = read(conversationHandlePath);
+    const qrBlock = src.match(/if \(qrToken\)[\s\S]*?\/\/ fim if \(qrToken\)/)?.[0];
+    expect(qrBlock).toBeTruthy();
+    expect(src).toContain("assign_premium_lead_recipient");
+    expect(src).toContain("function routingAssignmentFromSession");
+    expect(qrBlock).toContain("const routingAssignment = await resolveLeadRoutingAssignment");
+    expect(qrBlock).toContain("assigned_routing_recipient_id: routingAssignment.recipientId");
+    expect(qrBlock).toContain("assigned_broker_name: routingAssignment.name");
+    expect(qrBlock).toContain("assigned_broker_phone: routingAssignment.phone");
+    expect(qrBlock).toContain("origin_property_id: propertyId");
+    expect(qrBlock).toContain("current_property_id: propertyId");
   });
 
   it("mantem template enriquecido para cenario B do estoque geral", () => {

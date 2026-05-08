@@ -49,8 +49,34 @@ Deno.serve(async (req) => {
 
     const broker = lead.brokers as any;
     const property = lead.properties as any;
+    const { data: sessionRouting } = await supabase
+      .from("conversation_sessions")
+      .select("assigned_broker_name, assigned_broker_phone, assigned_routing_recipient_id")
+      .eq("lead_phone", lead.client_phone)
+      .eq("origin_property_id", lead.property_id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!broker?.whatsapp_number) {
+    let targetPhone = sessionRouting?.assigned_broker_phone ?? broker?.whatsapp_number ?? null;
+    let targetName = sessionRouting?.assigned_broker_name ?? "Corretor";
+
+    if (!sessionRouting?.assigned_broker_phone) {
+      const { data: assignment } = await supabase.rpc("assign_premium_lead_recipient", {
+        p_account_id: broker?.account_id,
+        p_origin_broker_id: lead.broker_id,
+        p_property_id: lead.property_id,
+        p_lead_id: lead.id,
+        p_qr_code_id: null,
+      });
+      if (assignment && typeof assignment === "object") {
+        const row = assignment as Record<string, unknown>;
+        targetPhone = typeof row.whatsapp_number === "string" ? row.whatsapp_number : targetPhone;
+        targetName = typeof row.display_name === "string" ? row.display_name : targetName;
+      }
+    }
+
+    if (!targetPhone) {
       return new Response(JSON.stringify({ ok: true, message: "no_broker_phone" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -71,12 +97,14 @@ Deno.serve(async (req) => {
       account_id: broker.account_id,
       property_id: lead.property_id,
       lead_phone: lead.client_phone,
-      broker_phone: broker.whatsapp_number,
+      broker_phone: targetPhone,
       message_type: "text",
       status: "queued",
       payload: {
         kind: "lead_notify_manual",
         lead_id: lead.id,
+        assigned_routing_recipient_id: sessionRouting?.assigned_routing_recipient_id ?? null,
+        assigned_broker_name: targetName,
         text: msg_text,
         to_broker: true,
       },
