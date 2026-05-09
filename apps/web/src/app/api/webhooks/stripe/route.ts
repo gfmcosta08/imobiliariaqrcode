@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { stripe } from "@/lib/stripe";
+import {
+  activateSoloProperty,
+  countSoloActiveProperties,
+  soloPeriodEndFromNow,
+} from "@/lib/solo-activation";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
-
-const SOLO_VALIDITY_DAYS = 90;
 
 async function activateSubscription(
   admin: ReturnType<typeof createServiceRoleClient>,
@@ -18,9 +21,7 @@ async function activateSubscription(
 ) {
   const isSolo = planCode === "solo";
   const status = isSolo ? "solo_active" : "pro_active";
-  const currentPeriodEnd = isSolo
-    ? new Date(Date.now() + SOLO_VALIDITY_DAYS * 86400 * 1000).toISOString()
-    : periodEnd
+  const currentPeriodEnd = isSolo ? soloPeriodEndFromNow() : periodEnd
       ? new Date(periodEnd * 1000).toISOString()
       : null;
 
@@ -41,15 +42,21 @@ async function activateSubscription(
     );
 
   if (isSolo) {
-    await admin
+    const activeCount = await countSoloActiveProperties(admin, accountId);
+    const { data: eligibleProperties, error: eligibleError } = await admin
       .from("properties")
-      .update({
-        listing_status: "published",
-        expires_at: currentPeriodEnd,
-        origin_plan_code: "solo",
-      })
+      .select("id")
       .eq("account_id", accountId)
       .in("listing_status", ["expired", "draft"]);
+
+    if (eligibleError) throw eligibleError;
+    if (activeCount === 0 && eligibleProperties?.length === 1 && currentPeriodEnd) {
+      await activateSoloProperty(admin, {
+        accountId,
+        propertyId: eligibleProperties[0].id as string,
+        expiresAt: currentPeriodEnd,
+      });
+    }
   } else {
     await admin
       .from("properties")
