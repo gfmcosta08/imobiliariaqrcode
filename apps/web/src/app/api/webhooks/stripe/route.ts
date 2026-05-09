@@ -4,8 +4,9 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-// Desabilita o bodyParser do Next.js — Stripe precisa do raw body para validar a assinatura
 export const runtime = "nodejs";
+
+const SOLO_VALIDITY_DAYS = 90;
 
 async function activateSubscription(
   admin: ReturnType<typeof createServiceRoleClient>,
@@ -17,32 +18,60 @@ async function activateSubscription(
 ) {
   const isSolo = planCode === "solo";
   const status = isSolo ? "solo_active" : "pro_active";
+  const currentPeriodEnd = isSolo
+    ? new Date(Date.now() + SOLO_VALIDITY_DAYS * 86400 * 1000).toISOString()
+    : periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
+      : null;
 
   await admin
     .from("subscriptions")
-    .update({
-      plan_code: planCode,
-      status,
-      billing_provider: "stripe",
-      provider_subscription_id: stripeSubscriptionId,
-      current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("account_id", accountId);
+    .upsert(
+      {
+        account_id: accountId,
+        plan_code: planCode,
+        status,
+        billing_provider: "stripe",
+        provider_subscription_id: stripeSubscriptionId,
+        current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
+        current_period_end: currentPeriodEnd,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "account_id" },
+    );
 
-  // Para solo: atualizar expires_at do imóvel vinculado (120 dias)
   if (isSolo) {
     await admin
       .from("properties")
       .update({
         listing_status: "published",
-        expires_at: new Date(Date.now() + 120 * 86400 * 1000).toISOString(),
+        expires_at: currentPeriodEnd,
         origin_plan_code: "solo",
       })
       .eq("account_id", accountId)
       .in("listing_status", ["expired", "draft"]);
+  } else {
+    await admin
+      .from("properties")
+      .update({ origin_plan_code: planCode })
+      .eq("account_id", accountId)
+      .in("listing_status", ["expired", "draft"])
+      .in("origin_plan_code", ["free", "trial", "solo"]);
   }
+}
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const rawInvoice = invoice as unknown as Record<string, unknown>;
+  return (
+    (rawInvoice.subscription as string | null) ??
+    ((
+      (rawInvoice.parent as Record<string, unknown> | null)?.subscription_details as Record<
+        string,
+        unknown
+      > | null
+    )?.subscription as string | null) ??
+    null
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -64,7 +93,6 @@ export async function POST(req: NextRequest) {
   const admin = createServiceRoleClient();
 
   switch (event.type) {
-    // ── Checkout concluído ──────────────────────────────────────────────────
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const accountId = session.metadata?.account_id;
@@ -72,28 +100,14 @@ export async function POST(req: NextRequest) {
       if (!accountId || !planCode) break;
 
       if (session.mode === "payment") {
-        // Solo: pagamento único
         await activateSubscription(admin, accountId, planCode, null, null, null);
       }
-      // Subscription: aguarda invoice.payment_succeeded para ativar
       break;
     }
 
-    // ── Pagamento de fatura aprovado ────────────────────────────────────────
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
-      // SDK v22 move subscription para parent.subscription_details — lemos via acesso dinâmico
-      // para compatibilidade com qualquer versão da API Stripe configurada no webhook.
-      const rawInvoice = invoice as unknown as Record<string, unknown>;
-      const subscriptionId: string | null =
-        (rawInvoice.subscription as string | null) ??
-        ((
-          (rawInvoice.parent as Record<string, unknown> | null)?.subscription_details as Record<
-            string,
-            unknown
-          > | null
-        )?.subscription as string | null) ??
-        null;
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
       const sub = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : null;
       if (!sub) break;
 
@@ -101,7 +115,6 @@ export async function POST(req: NextRequest) {
       const planCode = sub.metadata?.plan_code;
       if (!accountId || !planCode) break;
 
-      // SDK v22: current_period_start/end movidos para billing_cycle_anchor + items
       const rawSub = sub as unknown as Record<string, number | undefined>;
       await activateSubscription(
         admin,
@@ -114,20 +127,10 @@ export async function POST(req: NextRequest) {
       break;
     }
 
-    // ── Pagamento falhou ────────────────────────────────────────────────────
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const rawInvoiceFailed = invoice as unknown as Record<string, unknown>;
-      const subscriptionIdFailed: string | null =
-        (rawInvoiceFailed.subscription as string | null) ??
-        ((
-          (rawInvoiceFailed.parent as Record<string, unknown> | null)
-            ?.subscription_details as Record<string, unknown> | null
-        )?.subscription as string | null) ??
-        null;
-      const sub = subscriptionIdFailed
-        ? await stripe.subscriptions.retrieve(subscriptionIdFailed)
-        : null;
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
+      const sub = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : null;
       if (!sub) break;
 
       const accountId = sub.metadata?.account_id;
@@ -140,36 +143,34 @@ export async function POST(req: NextRequest) {
       break;
     }
 
-    // ── Assinatura cancelada ou encerrada ───────────────────────────────────
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
       const accountId = sub.metadata?.account_id;
       if (!accountId) break;
 
-      const rawSubDel = sub as unknown as Record<string, number | undefined>;
-      const periodEndDel = rawSubDel.current_period_end;
+      const rawSub = sub as unknown as Record<string, number | undefined>;
+      const periodEnd = rawSub.current_period_end;
       await admin
         .from("subscriptions")
         .update({
           status: "canceled",
           canceled_at: new Date().toISOString(),
-          current_period_end: periodEndDel ? new Date(periodEndDel * 1000).toISOString() : null,
+          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq("account_id", accountId);
       break;
     }
 
-    // ── Assinatura atualizada (ex.: upgrade de plano) ───────────────────────
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
       const accountId = sub.metadata?.account_id;
       const planCode = sub.metadata?.plan_code;
       if (!accountId || !planCode) break;
 
-      const rawSubUpd = sub as unknown as Record<string, number | undefined>;
-      const periodStart = rawSubUpd.current_period_start;
-      const periodEnd = rawSubUpd.current_period_end;
+      const rawSub = sub as unknown as Record<string, number | undefined>;
+      const periodStart = rawSub.current_period_start;
+      const periodEnd = rawSub.current_period_end;
       const status = sub.status === "active" ? "pro_active" : "past_due";
       await admin
         .from("subscriptions")

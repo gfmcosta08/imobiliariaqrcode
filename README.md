@@ -86,6 +86,24 @@ O restante do MVP (schema, app, QR, leads via web, parceiros, cron FREE) está i
 
 GitHub Actions: lint, typecheck, **testes unitários**, `prettier --check`.
 
+## Homologação segura
+
+O fluxo de Preview/Staging, dados sanitizados e WhatsApp de teste está documentado em:
+
+- `prd/PRD-homologacao-staging-dados-sanitizados-whatsapp.md`
+- `docs/homologacao-staging.md`
+- `.github/pull_request_template.md`
+
+Para testar o webhook WhatsApp sem número exclusivo de homologação, use payload simulado contra Supabase Staging:
+
+```powershell
+$env:SUPABASE_URL="https://projeto-staging.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="service_role_staging"
+$env:TEST_LEAD_PHONE="5511900000001"
+$env:TEST_MESSAGE_TEXT="IMV-TESTE-001"
+.\scripts\test-whatsapp-webhook-staging.ps1
+```
+
 ## Encerramento deste pacote (MVP)
 
 Funcionalidades previstas **sem** depender de Uazapi ou gateway de pagamento estão cobertas: schema, painel, QR público, leads, similares, parceiro, cron de expiração FREE, testes de utilitário, loading states e hardening leve de headers. O que permanece como fase seguinte está em **Integrações deixadas por último**.

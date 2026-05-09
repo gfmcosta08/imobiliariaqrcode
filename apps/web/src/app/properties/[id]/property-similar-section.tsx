@@ -28,9 +28,9 @@ export async function PropertySimilarSection({ propertyId }: { propertyId: strin
 
   return (
     <div className="mt-10">
-      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Imóveis similares</h2>
+      <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Imoveis similares</h2>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Sugestões do mesmo corretor (regras FREE/PRO do banco).
+        Sugestoes do mesmo corretor conforme regras do plano ativo.
       </p>
       <ul className="mt-4 space-y-3">
         {items.map((s) => {
@@ -49,7 +49,7 @@ export async function PropertySimilarSection({ propertyId }: { propertyId: strin
               </Link>
               <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 {[s.city, s.state].filter(Boolean).join(" / ")}
-                {pStr ? ` · ${pStr}` : ""}
+                {pStr ? ` - ${pStr}` : ""}
               </p>
             </li>
           );

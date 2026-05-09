@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const {
     data: { user },
   } = await supabaseUser.auth.getUser();
+
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
@@ -30,13 +31,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = createServiceRoleClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL não configurada." }, { status: 500 });
+  }
 
-  // Buscar ou criar customer Stripe vinculado à conta
+  const admin = createServiceRoleClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("account_id, email, full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile?.account_id) {
+    return NextResponse.json({ error: "Conta não encontrada." }, { status: 404 });
+  }
+
   const { data: account } = await admin
     .from("accounts")
     .select("id, stripe_customer_id")
-    .eq("owner_profile_id", user.id)
+    .eq("id", profile.account_id)
     .maybeSingle();
 
   if (!account) {
@@ -45,15 +59,9 @@ export async function POST(req: NextRequest) {
 
   let customerId = account.stripe_customer_id as string | null;
   if (!customerId) {
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", user.id)
-      .maybeSingle();
-
     const customer = await stripe.customers.create({
-      email: profile?.email ?? user.email ?? undefined,
-      name: profile?.full_name ?? undefined,
+      email: profile.email ?? user.email ?? undefined,
+      name: profile.full_name ?? undefined,
       metadata: { account_id: account.id, profile_id: user.id },
     });
     customerId = customer.id;
@@ -61,9 +69,7 @@ export async function POST(req: NextRequest) {
     await admin.from("accounts").update({ stripe_customer_id: customerId }).eq("id", account.id);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const isSolo = planCode === "solo";
-
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: isSolo ? "payment" : "subscription",

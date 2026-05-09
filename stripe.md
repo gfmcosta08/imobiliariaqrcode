@@ -1,51 +1,71 @@
-# Integração Stripe — Checklist de Ativação
+# Integracao Stripe - Checklist de Ativacao
 
-## Variáveis de ambiente (Vercel → Settings → Environment Variables)
+## Conta Stripe
 
-| Variável                | Onde obter                                                               |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `STRIPE_SECRET_KEY`     | dashboard.stripe.com → Developers → API keys                             |
-| `STRIPE_WEBHOOK_SECRET` | dashboard.stripe.com → Developers → Webhooks → Signing secret            |
-| `STRIPE_PRICE_SOLO`     | Criar produto "Solo" — pagamento único R$ 150 → copiar o Price ID        |
-| `STRIPE_PRICE_PRO`      | Criar produto "Pro" — recorrente mensal R$ 500 → copiar o Price ID       |
-| `STRIPE_PRICE_PREMIUM`  | Criar produto "Premium" — recorrente mensal R$ 1.000 → copiar o Price ID |
+- Conta usada: `Area restrita de imoveisqr`
+- Account ID: `acct_1TTpQqDF917sGAMh`
 
-## Passos no Stripe Dashboard
+## Variaveis de ambiente
 
-1. Criar conta em https://stripe.com (ou usar conta existente)
-2. **Produtos → Criar produto** para cada plano:
-   - Solo: preço único R$ 150,00
-   - Pro: preço recorrente R$ 500,00 / mês
-   - Premium: preço recorrente R$ 1.000,00 / mês
-3. Copiar o `price_...` de cada produto → preencher as env vars acima
-4. **Developers → Webhooks → Add endpoint**:
-   - URL: `https://seu-dominio.com.br/api/webhooks/stripe`
-   - Eventos a escutar:
-     - `checkout.session.completed`
-     - `invoice.payment_succeeded`
-     - `invoice.payment_failed`
-     - `customer.subscription.deleted`
-     - `customer.subscription.updated`
-5. Copiar o **Signing secret** → preencher `STRIPE_WEBHOOK_SECRET`
+Configure no Vercel em Production e, para teste local, em `apps/web/.env.local`.
 
-## Arquivos já implementados
+| Variavel | Valor / origem |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | Stripe Dashboard -> Developers -> API keys (`sk_test_...` ou `sk_live_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard -> Developers -> Webhooks -> Signing secret (`whsec_...`) |
+| `STRIPE_PRICE_SOLO` | Price unico do Solo. Teste criado: `price_1TTrnlDF917sGAMhDmPD7jWF` |
+| `STRIPE_PRICE_PRO` | `price_1TTqJADF917sGAMhCbMl43h2` |
+| `STRIPE_PRICE_PREMIUM` | `price_1TTqM1DF917sGAMhiEAuF9m1` |
+| `NEXT_PUBLIC_APP_URL` | URL publica do sistema |
 
-| Arquivo                                                   | Função                                                         |
-| --------------------------------------------------------- | -------------------------------------------------------------- |
-| `apps/web/src/lib/stripe.ts`                              | Cliente Stripe servidor                                        |
-| `apps/web/src/app/api/stripe/create-checkout/route.ts`    | Cria sessão de pagamento                                       |
-| `apps/web/src/app/api/webhooks/stripe/route.ts`           | Recebe eventos e atualiza assinaturas                          |
-| `apps/web/src/app/plans/checkout-button.tsx`              | Botão de checkout (client component)                           |
-| `apps/web/src/app/plans/page.tsx`                         | Página de planos com botões reais                              |
-| `supabase/migrations/20260423140000_stripe_price_ids.sql` | Campos stripe_price_id, stripe_customer_id, status solo_active |
+Importante: o Price do Solo acima foi criado em modo teste (`livemode: false`). Para cobranca real, crie o equivalente em modo live e use o Price ID live junto com `sk_live_...`.
 
-## Comportamento por plano após pagamento
+## Produtos e precos
 
-| Plano   | Modo Stripe           | Ao pagar                      | Ao cancelar                  |
-| ------- | --------------------- | ----------------------------- | ---------------------------- |
-| Solo    | Pagamento único       | `solo_active` por 120 dias    | Não se aplica                |
-| Pro     | Assinatura recorrente | `pro_active`, renova todo mês | `canceled` ao fim do período |
-| Premium | Assinatura recorrente | `pro_active`, renova todo mês | `canceled` ao fim do período |
+| Plano | Produto Stripe | Price | Tipo |
+| --- | --- | --- | --- |
+| Solo | `prod_USl9wY641ZCe4J` | `price_1TTrnlDF917sGAMhDmPD7jWF` | Pagamento unico R$ 150 por 3 meses |
+| Pro | `prod_USlqtZc2Nx5X5d` | `price_1TTqJADF917sGAMhCbMl43h2` | Assinatura mensal R$ 500 |
+| Premium | `prod_USltU1gxorMHvb` | `price_1TTqM1DF917sGAMhiEAuF9m1` | Assinatura mensal R$ 2.000 |
+
+Nao use `price_1TTpdZDF917sGAMhZKeF1qdm` no sistema: ele e recorrente trimestral e nao corresponde ao Solo definido.
+
+## Webhook
+
+URL:
+
+```text
+https://seu-dominio.com.br/api/webhooks/stripe
+```
+
+Eventos:
+
+- `checkout.session.completed`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+- `customer.subscription.deleted`
+- `customer.subscription.updated`
+
+## Arquivos da integracao
+
+| Arquivo | Funcao |
+| --- | --- |
+| `apps/web/src/lib/stripe.ts` | Cliente Stripe e Price IDs por env |
+| `apps/web/src/app/api/stripe/create-checkout/route.ts` | Cria sessao de checkout |
+| `apps/web/src/app/api/stripe/customer-portal/route.ts` | Cria sessao do Customer Portal |
+| `apps/web/src/app/api/webhooks/stripe/route.ts` | Recebe eventos Stripe e atualiza assinaturas |
+| `apps/web/src/app/plans/checkout-button.tsx` | Botao client-side de checkout |
+| `apps/web/src/app/plans/page.tsx` | Pagina de planos |
+
+## Comportamento por plano
+
+| Plano | Modo Stripe | Ao pagar |
+| --- | --- | --- |
+| Solo | `payment` | `solo_active` por 90 dias |
+| Pro | `subscription` | `pro_active`, com `plan_code = pro` |
+| Premium | `subscription` | `pro_active`, com `plan_code = premium` |
+
+O status ativo de Pro e Premium e compartilhado para preservar compatibilidade. A diferenca entre planos deve ser lida por `plan_code`.
 
 ## Teste local com Stripe CLI
 
@@ -53,3 +73,5 @@
 stripe login
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
+
+Copie o `whsec_...` mostrado pelo Stripe CLI para `STRIPE_WEBHOOK_SECRET` no ambiente local.

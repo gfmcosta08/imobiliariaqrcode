@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 
+import { BillingPortalButton } from "./billing-portal-button";
 import { PremiumLeadRoutingForm } from "./premium-lead-routing-form";
 import { ProfileForm } from "./profile-form";
 
@@ -23,6 +24,8 @@ export default async function ProfilePage() {
       .maybeSingle(),
     supabase.from("subscriptions").select("plan_code, status, updated_at").maybeSingle(),
   ]);
+  const paidPlanCodes = ["solo", "pro", "premium"];
+  const canManageBilling = paidPlanCodes.includes(subscription?.plan_code ?? "");
 
   return (
     <div className="min-h-screen bg-white">
@@ -67,7 +70,7 @@ export default async function ProfilePage() {
             <div>
               <dt className="text-xs text-gray-400">Plano atual</dt>
               <dd className="mt-1 text-sm font-medium text-gray-900">
-                {(subscription?.plan_code ?? "free").toUpperCase()}
+                {(subscription?.plan_code ?? "sem plano").toUpperCase()}
               </dd>
             </div>
             <div>
@@ -85,12 +88,15 @@ export default async function ProfilePage() {
               </dd>
             </div>
           </dl>
-          <Link
-            href="/plans"
-            className="mt-5 inline-block border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
-          >
-            Ver planos →
-          </Link>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/plans"
+              className="inline-block border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+            >
+              Ver planos →
+            </Link>
+            {canManageBilling ? <BillingPortalButton /> : null}
+          </div>
         </div>
 
         {/* Editar dados de contato */}

@@ -16,11 +16,11 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
 });
 
 // IDs dos preços cadastrados no Stripe Dashboard.
-// Preencha após criar os produtos/preços no painel do Stripe.
+// Configure valores de teste com sk_test e valores de produção com sk_live.
 export const STRIPE_PRICES = {
-  solo: process.env.STRIPE_PRICE_SOLO ?? "", // pagamento único R$ 150
+  solo: process.env.STRIPE_PRICE_SOLO ?? "", // pagamento único R$ 150 por 3 meses
   pro: process.env.STRIPE_PRICE_PRO ?? "", // recorrente mensal R$ 500
-  premium: process.env.STRIPE_PRICE_PREMIUM ?? "", // recorrente mensal R$ 1.000
+  premium: process.env.STRIPE_PRICE_PREMIUM ?? "", // recorrente mensal R$ 2.000
 } as const;
 
 export type StripePlanCode = keyof typeof STRIPE_PRICES;

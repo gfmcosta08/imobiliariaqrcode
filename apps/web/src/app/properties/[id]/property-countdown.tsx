@@ -38,7 +38,8 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
   }, [expiresAt]);
 
   // Planos que exigem pagamento para reativar (não reativam por edição)
-  const requiresPayment = !planCode || planCode === "free" || planCode === "solo";
+  const requiresPayment =
+    !planCode || planCode === "free" || planCode === "trial" || planCode === "solo";
 
   const bottomContent = useMemo(() => {
     if (!tick.isExpired) {
@@ -51,7 +52,7 @@ export function PropertyCountdown({ expiresAt, planCode }: CountdownProps) {
       const message =
         planCode === "solo"
           ? "Seu plano Solo expirou. Renove para continuar anunciando."
-          : "Sua cortesia expirou. Assine um plano para continuar anunciando.";
+          : "Seu teste expirou. Assine um plano para continuar anunciando.";
       const buttonLabel = planCode === "solo" ? "Renovar plano" : "Ver planos e assinar";
 
       return (

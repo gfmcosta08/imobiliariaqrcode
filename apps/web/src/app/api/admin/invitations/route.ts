@@ -101,12 +101,56 @@ export async function POST() {
 
   // Criar imóvel fantasma — usa 'draft' para compatibilidade com constraint original.
   // Quando a migration 20260422010000 for aplicada em prod, trocar para 'reserved'.
+  const now = new Date();
+  const trialEnd = new Date(now.getTime() + 30 * 86400 * 1000);
+
+  const { error: trialError } = await supabase.from("subscriptions").upsert(
+    {
+      account_id: broker.account_id,
+      plan_code: "trial",
+      status: "trial_active",
+      billing_provider: null,
+      provider_customer_id: null,
+      provider_subscription_id: null,
+      current_period_start: now.toISOString(),
+      current_period_end: trialEnd.toISOString(),
+      canceled_at: null,
+      updated_at: now.toISOString(),
+    },
+    { onConflict: "account_id" },
+  );
+
+  if (trialError) {
+    await supabase.auth.admin.deleteUser(authUserId);
+    return NextResponse.json(
+      { ok: false, error: "trial_create_failed", detail: trialError.message },
+      { status: 500 },
+    );
+  }
+
+  const { error: accountTrialError } = await supabase
+    .from("accounts")
+    .update({
+      trial_started_at: now.toISOString(),
+      trial_used_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("id", broker.account_id);
+
+  if (accountTrialError) {
+    await supabase.auth.admin.deleteUser(authUserId);
+    return NextResponse.json(
+      { ok: false, error: "trial_account_update_failed", detail: accountTrialError.message },
+      { status: 500 },
+    );
+  }
+
   const { data: property, error: propError } = await supabase
     .from("properties")
     .insert({
       account_id: broker.account_id,
       broker_id: broker.id,
-      origin_plan_code: "free",
+      origin_plan_code: "trial",
       listing_status: "draft",
       property_type: "residential",
       property_subtype: "apartment",

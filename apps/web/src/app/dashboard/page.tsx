@@ -103,7 +103,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-xs text-gray-400">Plano</p>
               <p className="mt-1 text-sm font-medium text-gray-800">
-                {subscription?.plan_code?.toUpperCase() ?? "FREE"}{" "}
+                {subscription?.plan_code?.toUpperCase() ?? "SEM PLANO"}{" "}
                 <span className="text-gray-400">({subscription?.status ?? "—"})</span>
               </p>
             </div>
