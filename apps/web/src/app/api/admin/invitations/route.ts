@@ -22,7 +22,7 @@ async function generateUniqueLoginCode(
   throw new Error("Nao foi possivel gerar um login_code unico");
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   // Verificar autenticação e role admin
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -52,6 +52,13 @@ export async function POST() {
   if (profile?.role !== "admin") {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
+
+  const body = await req.json().catch(() => ({})) as {
+    property_count?: number;
+    expiration_days?: number;
+  };
+  const propertyCount = Math.min(Math.max(1, body.property_count ?? 1), 10);
+  const expirationDays = Math.min(Math.max(1, body.expiration_days ?? 30), 365);
 
   // Gerar credenciais temporárias
   const loginCode = await generateUniqueLoginCode(supabase);
@@ -99,52 +106,68 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "broker_setup_timeout" }, { status: 500 });
   }
 
-  // Criar imóvel fantasma — usa 'draft' para compatibilidade com constraint original.
-  // Quando a migration 20260422010000 for aplicada em prod, trocar para 'reserved'.
-  const { data: property, error: propError } = await supabase
-    .from("properties")
-    .insert({
-      account_id: broker.account_id,
-      broker_id: broker.id,
-      origin_plan_code: "free",
-      listing_status: "draft",
-      property_type: "residential",
-      property_subtype: "apartment",
-      purpose: "sale",
-      title: null,
-      description: "",
-      city: "A preencher",
-      state: "A preencher",
-    })
-    .select("id")
-    .single();
+  // Criar imóveis fantasmas (propertyCount vezes)
+  const propertyIds: string[] = [];
+  let firstPropertyId: string | null = null;
+  let firstQrToken: string | null = null;
 
-  if (propError || !property) {
-    await supabase.auth.admin.deleteUser(authUserId);
-    return NextResponse.json(
-      { ok: false, error: "property_create_failed", detail: propError?.message },
-      { status: 500 },
-    );
+  for (let pi = 0; pi < propertyCount; pi++) {
+    const { data: property, error: propError } = await supabase
+      .from("properties")
+      .insert({
+        account_id: broker.account_id,
+        broker_id: broker.id,
+        origin_plan_code: "free",
+        listing_status: "draft",
+        property_type: "residential",
+        property_subtype: "apartment",
+        purpose: "sale",
+        title: null,
+        description: "",
+        city: "A preencher",
+        state: "A preencher",
+      })
+      .select("id")
+      .single();
+
+    if (propError || !property) {
+      await supabase.auth.admin.deleteUser(authUserId);
+      return NextResponse.json(
+        { ok: false, error: "property_create_failed", detail: propError?.message },
+        { status: 500 },
+      );
+    }
+
+    propertyIds.push(property.id as string);
+    if (pi === 0) firstPropertyId = property.id as string;
   }
 
-  // Buscar QR token gerado automaticamente pelo trigger after_property_insert_qr
-  let qrToken: string | null = null;
+  // Buscar QR token do primeiro imóvel
   for (let i = 0; i < 5; i++) {
     await new Promise((r) => setTimeout(r, 300));
     const { data } = await supabase
       .from("property_qrcodes")
       .select("qr_token")
-      .eq("property_id", property.id)
+      .eq("property_id", firstPropertyId!)
       .eq("is_active", true)
       .maybeSingle();
     if (data?.qr_token) {
-      qrToken = data.qr_token as string;
+      firstQrToken = data.qr_token as string;
       break;
     }
   }
 
+  // Atualizar validade da assinatura se customizada
+  if (expirationDays !== 30) {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + expirationDays);
+    await supabase
+      .from("subscriptions")
+      .update({ current_period_end: endDate.toISOString() })
+      .eq("account_id", broker.account_id);
+  }
+
   // Hash simples do access_code para armazenar (sem bcrypt no edge — usar SHA-256 básico)
-  // Em produção recomenda-se bcrypt via pgcrypto; aqui usamos hash reversível por simplicidade
   const encoder = new TextEncoder();
   const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(accessCode));
   const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -156,7 +179,10 @@ export async function POST() {
     access_code_hash: accessCodeHash,
     temp_auth_user_id: authUserId,
     temp_email: tempEmail,
-    property_id: property.id,
+    property_id: firstPropertyId,
+    property_ids: propertyIds,
+    property_count: propertyCount,
+    expiration_days_configured: expirationDays,
     status: "pending",
   });
 
@@ -169,13 +195,14 @@ export async function POST() {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const qrUrl = qrToken ? `${appUrl}/q/${qrToken}` : null;
+  const qrUrl = firstQrToken ? `${appUrl}/q/${firstQrToken}` : null;
 
   return NextResponse.json({
     ok: true,
     login_code: loginCode,
     access_code: accessCode,
     qr_url: qrUrl,
-    property_id: property.id,
+    property_id: firstPropertyId,
+    property_count: propertyCount,
   });
 }

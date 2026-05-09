@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
+import { QuickCreateButton } from "./quick-create-button";
 
 export default async function PropertiesPage() {
   const supabase = await createClient();
@@ -18,12 +19,7 @@ export default async function PropertiesPage() {
             <h1 className="text-3xl font-bold text-gray-900">Imóveis</h1>
             <p className="mt-1 text-sm text-gray-500">Gerencie seus imóveis e QR Codes.</p>
           </div>
-          <Link
-            href="/properties/new"
-            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-          >
-            + Novo imóvel
-          </Link>
+          <QuickCreateButton />
         </div>
 
         {error ? (
