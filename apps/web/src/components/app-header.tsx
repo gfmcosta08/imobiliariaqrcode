@@ -20,12 +20,12 @@ export function AppHeader({ active, isAdmin }: { active?: string; isAdmin?: bool
 
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
-        <Link href="/dashboard">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-8 py-4">
+        <Link href="/dashboard" className="shrink-0">
           <span className="text-sm font-bold uppercase tracking-widest text-gray-900">IMOBQR</span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="order-3 flex w-full flex-wrap items-center gap-x-6 gap-y-2 md:order-2 md:w-auto md:gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -41,7 +41,7 @@ export function AppHeader({ active, isAdmin }: { active?: string; isAdmin?: bool
           ))}
         </nav>
 
-        <form action={signOut}>
+        <form action={signOut} className="order-2 md:order-3">
           <button
             type="submit"
             className="border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:border-gray-500 hover:text-gray-900"

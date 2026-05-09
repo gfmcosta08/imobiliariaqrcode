@@ -64,8 +64,14 @@ export default async function DashboardPage() {
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/properties"
+            href="/properties/new"
             className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Cadastrar imóvel
+          </Link>
+          <Link
+            href="/properties"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
           >
             Meus Imóveis
           </Link>

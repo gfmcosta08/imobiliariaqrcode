@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/app-header";
+import Link from "next/link";
 import type { StripePlanCode } from "@/lib/stripe";
 
 import { CheckoutButton } from "./checkout-button";
@@ -87,6 +88,20 @@ export default function PlansPage() {
         <p className="mt-1 text-sm text-gray-500">
           Escolha entre testar por 30 dias ou contratar um plano.
         </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/properties/new"
+            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Cadastrar imóvel
+          </Link>
+          <Link
+            href="/properties"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+          >
+            Meus imóveis
+          </Link>
+        </div>
 
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div className={cardClass(false)}>
