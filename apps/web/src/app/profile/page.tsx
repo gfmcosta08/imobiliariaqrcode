@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 
+import { PremiumLeadRoutingForm } from "./premium-lead-routing-form";
 import { ProfileForm } from "./profile-form";
 
 export default async function ProfilePage() {
@@ -104,6 +105,18 @@ export default async function ProfilePage() {
               email={user.email ?? ""}
             />
           </div>
+        </div>
+
+        {/* Corretores Premium */}
+        <div className="mt-4 border border-gray-200 p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Corretores Premium
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Cadastre ate 4 corretores adicionais para o round-robin. O corretor dos dados de
+            contato continua como #1.
+          </p>
+          <PremiumLeadRoutingForm />
         </div>
       </main>
     </div>
