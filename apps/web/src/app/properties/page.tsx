@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
+import { QuickCreateButton } from "./quick-create-button";
 
 export default async function PropertiesPage() {
   const supabase = await createClient();
@@ -13,17 +14,20 @@ export default async function PropertiesPage() {
     <div className="min-h-screen bg-white">
       <AppHeader active="/properties" />
       <main className="mx-auto max-w-6xl px-8 py-12">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Imóveis</h1>
-            <p className="mt-1 text-sm text-gray-500">Gerencie seus imóveis e QR Codes.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Imoveis</h1>
+            <p className="mt-1 text-sm text-gray-500">Gerencie seus imoveis e QR Codes.</p>
           </div>
-          <Link
-            href="/properties/new"
-            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-          >
-            + Novo imóvel
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <QuickCreateButton />
+            <Link
+              href="/properties/new"
+              className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
+            >
+              Cadastrar manualmente
+            </Link>
+          </div>
         </div>
 
         {error ? (
@@ -35,13 +39,10 @@ export default async function PropertiesPage() {
         <ul className="mt-8 space-y-3">
           {(props ?? []).length === 0 ? (
             <li className="border border-dashed border-gray-300 p-12 text-center">
-              <p className="text-sm text-gray-500">Nenhum imóvel ainda.</p>
-              <Link
-                href="/properties/new"
-                className="mt-4 inline-block bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-              >
-                Cadastrar o primeiro
-              </Link>
+              <p className="text-sm text-gray-500">Nenhum imovel ainda.</p>
+              <div className="mt-4 flex justify-center">
+                <QuickCreateButton />
+              </div>
             </li>
           ) : (
             props?.map((p) => (
@@ -56,12 +57,12 @@ export default async function PropertiesPage() {
                       <span className="text-xs font-normal text-gray-400">({p.public_id})</span>
                     </p>
                     <p className="mt-1 text-sm text-gray-500">
-                      {p.city ?? "Cidade não informada"} / {p.state ?? "UF"} ·{" "}
-                      <span className="text-gray-400">{p.listing_status}</span> ·{" "}
+                      {p.city ?? "Cidade nao informada"} / {p.state ?? "UF"} -{" "}
+                      <span className="text-gray-400">{p.listing_status}</span> -{" "}
                       <span className="text-gray-400">plano: {p.origin_plan_code}</span>
                     </p>
                   </div>
-                  <span className="mt-2 text-sm font-medium text-black sm:mt-0">Abrir →</span>
+                  <span className="mt-2 text-sm font-medium text-black sm:mt-0">Abrir</span>
                 </Link>
               </li>
             ))
