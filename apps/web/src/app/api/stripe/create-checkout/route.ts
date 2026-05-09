@@ -1,17 +1,11 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { stripe, STRIPE_PRICES, type StripePlanCode } from "@/lib/stripe";
+import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } },
-  );
+  const supabaseUser = await createClient();
 
   const {
     data: { user },
