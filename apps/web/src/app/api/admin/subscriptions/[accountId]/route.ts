@@ -16,6 +16,17 @@ export async function PATCH(
     status?: string;
   };
 
+  if (
+    body.current_period_end !== undefined &&
+    body.current_period_end !== null &&
+    Number.isNaN(new Date(body.current_period_end).getTime())
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_current_period_end", detail: "Informe uma data valida." },
+      { status: 400 },
+    );
+  }
+
   const { supabase, userId } = admin;
   const { data: before } = await supabase
     .from("subscriptions")

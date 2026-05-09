@@ -19,6 +19,17 @@ export async function PATCH(
     listing_status?: string;
   };
 
+  if (
+    body.expires_at !== undefined &&
+    body.expires_at !== null &&
+    Number.isNaN(new Date(body.expires_at).getTime())
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_expires_at", detail: "Informe uma data valida." },
+      { status: 400 },
+    );
+  }
+
   const { supabase, userId } = admin;
   const { data: before } = await supabase
     .from("properties")

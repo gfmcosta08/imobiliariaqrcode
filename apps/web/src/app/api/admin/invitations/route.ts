@@ -32,8 +32,22 @@ export async function POST(req: Request) {
     property_count?: number;
     expiration_days?: number;
   };
-  const propertyCount = Math.min(Math.max(1, body.property_count ?? 1), 10);
-  const expirationDays = Math.min(Math.max(1, body.expiration_days ?? 30), 365);
+  const propertyCount = Number(body.property_count ?? 1);
+  const expirationDays = Number(body.expiration_days ?? 30);
+
+  if (!Number.isInteger(propertyCount) || propertyCount < 1) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_property_count", detail: "Informe um inteiro maior ou igual a 1." },
+      { status: 400 },
+    );
+  }
+
+  if (!Number.isInteger(expirationDays) || expirationDays < 1) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_expiration_days", detail: "Informe um inteiro maior ou igual a 1." },
+      { status: 400 },
+    );
+  }
 
   const loginCode = await generateUniqueLoginCode(supabase);
   const accessCode = randomSixDigits();

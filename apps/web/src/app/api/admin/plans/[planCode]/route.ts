@@ -18,6 +18,17 @@ export async function PATCH(
     has_auto_expiration?: boolean;
   };
 
+  const positiveIntegerFields = ["expiration_days", "max_active_properties", "max_brokers"] as const;
+  for (const field of positiveIntegerFields) {
+    const value = body[field];
+    if (value !== undefined && value !== null && (!Number.isInteger(value) || value < 1)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_plan_config", detail: `${field} deve ser nulo ou inteiro maior ou igual a 1.` },
+        { status: 400 },
+      );
+    }
+  }
+
   const { supabase, userId } = admin;
   const { data: before } = await supabase
     .from("plans")
