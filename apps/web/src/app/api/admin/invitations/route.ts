@@ -1,6 +1,5 @@
+import { getAdminContext } from "@/lib/admin-auth";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 function randomSixDigits(): string {
@@ -22,44 +21,24 @@ async function generateUniqueLoginCode(
   throw new Error("Nao foi possivel gerar um login_code unico");
 }
 
-export async function POST() {
-  // Verificar autenticação e role admin
-  const cookieStore = await cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const supabaseUser = createServerClient(url, anon, {
-    cookies: {
-      getAll: () => cookieStore.getAll(),
-      setAll: () => {},
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabaseUser.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+export async function POST(req: Request) {
+  const admin = await getAdminContext();
+  if (!admin.ok) {
+    return NextResponse.json({ ok: false, error: admin.error }, { status: admin.status });
   }
 
-  const supabase = createServiceRoleClient();
+  const { supabase } = admin;
+  const body = (await req.json().catch(() => ({}))) as {
+    property_count?: number;
+    expiration_days?: number;
+  };
+  const propertyCount = Math.min(Math.max(1, body.property_count ?? 1), 10);
+  const expirationDays = Math.min(Math.max(1, body.expiration_days ?? 30), 365);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
-  }
-
-  // Gerar credenciais temporárias
   const loginCode = await generateUniqueLoginCode(supabase);
   const accessCode = randomSixDigits();
   const tempEmail = `tmp-${loginCode}-${Date.now()}@opencode.internal`;
 
-  // Criar usuário temporário no Supabase Auth
-  // O trigger handle_new_user cria automaticamente account/profile/broker/subscription
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email: tempEmail,
     password: accessCode,
@@ -78,9 +57,8 @@ export async function POST() {
   }
 
   const authUserId = authData.user.id;
-
-  // Aguardar o trigger handle_new_user processar (retry de busca do profile)
   let broker: { id: string; account_id: string } | null = null;
+
   for (let i = 0; i < 5; i++) {
     await new Promise((r) => setTimeout(r, 300));
     const { data } = await supabase
@@ -99,10 +77,8 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "broker_setup_timeout" }, { status: 500 });
   }
 
-  // Criar imóvel fantasma — usa 'draft' para compatibilidade com constraint original.
-  // Quando a migration 20260422010000 for aplicada em prod, trocar para 'reserved'.
   const now = new Date();
-  const trialEnd = new Date(now.getTime() + 30 * 86400 * 1000);
+  const trialEnd = new Date(now.getTime() + expirationDays * 86400 * 1000);
 
   const { error: trialError } = await supabase.from("subscriptions").upsert(
     {
@@ -145,62 +121,69 @@ export async function POST() {
     );
   }
 
-  const { data: property, error: propError } = await supabase
-    .from("properties")
-    .insert({
-      account_id: broker.account_id,
-      broker_id: broker.id,
-      origin_plan_code: "trial",
-      listing_status: "draft",
-      property_type: "residential",
-      property_subtype: "apartment",
-      purpose: "sale",
-      title: null,
-      description: "",
-      city: "A preencher",
-      state: "A preencher",
-    })
-    .select("id")
-    .single();
+  const propertyIds: string[] = [];
+  let firstPropertyId: string | null = null;
+  let firstQrToken: string | null = null;
 
-  if (propError || !property) {
-    await supabase.auth.admin.deleteUser(authUserId);
-    return NextResponse.json(
-      { ok: false, error: "property_create_failed", detail: propError?.message },
-      { status: 500 },
-    );
+  for (let index = 0; index < propertyCount; index++) {
+    const { data: property, error: propError } = await supabase
+      .from("properties")
+      .insert({
+        account_id: broker.account_id,
+        broker_id: broker.id,
+        origin_plan_code: "trial",
+        listing_status: "draft",
+        property_type: "residential",
+        property_subtype: "apartment",
+        purpose: "sale",
+        title: null,
+        description: "",
+        city: "A preencher",
+        state: "A preencher",
+      })
+      .select("id")
+      .single();
+
+    if (propError || !property) {
+      await supabase.auth.admin.deleteUser(authUserId);
+      return NextResponse.json(
+        { ok: false, error: "property_create_failed", detail: propError?.message },
+        { status: 500 },
+      );
+    }
+
+    propertyIds.push(property.id as string);
+    if (index === 0) firstPropertyId = property.id as string;
   }
 
-  // Buscar QR token gerado automaticamente pelo trigger after_property_insert_qr
-  let qrToken: string | null = null;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 5 && firstPropertyId; i++) {
     await new Promise((r) => setTimeout(r, 300));
     const { data } = await supabase
       .from("property_qrcodes")
       .select("qr_token")
-      .eq("property_id", property.id)
+      .eq("property_id", firstPropertyId)
       .eq("is_active", true)
       .maybeSingle();
     if (data?.qr_token) {
-      qrToken = data.qr_token as string;
+      firstQrToken = data.qr_token as string;
       break;
     }
   }
 
-  // Hash simples do access_code para armazenar (sem bcrypt no edge — usar SHA-256 básico)
-  // Em produção recomenda-se bcrypt via pgcrypto; aqui usamos hash reversível por simplicidade
   const encoder = new TextEncoder();
   const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(accessCode));
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const accessCodeHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
-  // Registrar convite
   const { error: inviteError } = await supabase.from("broker_invitations").insert({
     login_code: loginCode,
     access_code_hash: accessCodeHash,
     temp_auth_user_id: authUserId,
     temp_email: tempEmail,
-    property_id: property.id,
+    property_id: firstPropertyId,
+    property_ids: propertyIds,
+    property_count: propertyCount,
+    expiration_days_configured: expirationDays,
     status: "pending",
   });
 
@@ -213,13 +196,14 @@ export async function POST() {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const qrUrl = qrToken ? `${appUrl}/q/${qrToken}` : null;
+  const qrUrl = firstQrToken ? `${appUrl}/q/${firstQrToken}` : null;
 
   return NextResponse.json({
     ok: true,
     login_code: loginCode,
     access_code: accessCode,
     qr_url: qrUrl,
-    property_id: property.id,
+    property_id: firstPropertyId,
+    property_count: propertyCount,
   });
 }

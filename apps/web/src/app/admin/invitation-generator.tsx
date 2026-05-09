@@ -8,6 +8,7 @@ type InvitationResult = {
   access_code: string;
   qr_url: string;
   property_id: string;
+  property_count: number;
 };
 
 type ApiError = { ok: false; error: string; detail?: string };
@@ -17,6 +18,8 @@ function qrImageUrl(data: string): string {
 }
 
 export function InvitationGenerator() {
+  const [propertyCount, setPropertyCount] = useState(1);
+  const [expirationDays, setExpirationDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<InvitationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,11 @@ export function InvitationGenerator() {
     setResult(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/invitations", { method: "POST" });
+      const res = await fetch("/api/admin/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ property_count: propertyCount, expiration_days: expirationDays }),
+      });
       const data = (await res.json()) as InvitationResult & ApiError & { ok: boolean };
       if (!data.ok) {
         const err = data as ApiError;
@@ -59,10 +66,41 @@ export function InvitationGenerator() {
       {!result ? (
         <div className="mt-5">
           <p className="text-sm text-gray-600">
-            Clique para gerar um QR Code + credenciais de acesso para entregar impresso a um
+            Configure e gere um QR Code + credenciais de acesso para entregar impresso a um
             corretor.
           </p>
+
+          <div className="mt-4 flex flex-wrap gap-4">
+            <label className="block">
+              <span className="text-xs text-gray-500">Nº de imóveis (1–10)</span>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={propertyCount}
+                onChange={(e) =>
+                  setPropertyCount(Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))
+                }
+                className="mt-1 block w-24 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-500">Validade (dias, 1–365)</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={expirationDays}
+                onChange={(e) =>
+                  setExpirationDays(Math.min(365, Math.max(1, parseInt(e.target.value) || 30)))
+                }
+                className="mt-1 block w-28 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </label>
+          </div>
+
           {error && <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2">{error}</p>}
+
           <button
             onClick={handleGenerate}
             disabled={loading}
@@ -110,6 +148,11 @@ export function InvitationGenerator() {
                 <p className="mt-4 text-xs text-gray-400">
                   Acesse: <span className="font-medium">{window.location.origin}/convite</span>
                 </p>
+                {result.property_count > 1 && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {result.property_count} imóveis + QR Codes criados neste convite.
+                  </p>
+                )}
               </div>
             </div>
           </div>

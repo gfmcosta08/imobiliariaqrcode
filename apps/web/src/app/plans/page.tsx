@@ -1,30 +1,31 @@
-import { AppHeader } from "@/components/app-header";
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
+import { createClient } from "@/lib/supabase/server";
 import type { StripePlanCode } from "@/lib/stripe";
 
 import { CheckoutButton } from "./checkout-button";
 import { TrialButton } from "./trial-button";
 
-type PaidPlan = {
-  code: StripePlanCode;
-  name: string;
-  price: string;
-  suffix: string;
-  note: string;
-  featured: boolean;
-  label: string;
+type PlanDisplay = {
+  plan_code: "trial" | StripePlanCode;
+  display_name: string;
+  display_price: string;
+  display_suffix: string;
+  display_note: string;
+  display_label: string;
+  display_featured: boolean;
   features: string[];
 };
 
-const paidPlans: PaidPlan[] = [
+const DEFAULT_PLANS: PlanDisplay[] = [
   {
-    code: "solo",
-    name: "Solo",
-    price: "R$ 150",
-    suffix: " trimestral",
-    note: "Validade: 3 meses",
-    featured: false,
-    label: "Contratar Solo",
+    plan_code: "trial",
+    display_name: "Teste",
+    display_price: "R$ 0",
+    display_suffix: " por 30 dias",
+    display_note: "Sem cobranca Stripe",
+    display_label: "Comecar teste",
+    display_featured: false,
     features: [
       "1 anuncio ativo",
       "1 placa QR Code inclusa",
@@ -33,13 +34,28 @@ const paidPlans: PaidPlan[] = [
     ],
   },
   {
-    code: "pro",
-    name: "Pro",
-    price: "R$ 500",
-    suffix: "/mes",
-    note: "Renovacao mensal automatica",
-    featured: true,
-    label: "Assinar Pro",
+    plan_code: "solo",
+    display_name: "Solo",
+    display_price: "R$ 150",
+    display_suffix: " trimestral",
+    display_note: "Validade: 3 meses",
+    display_label: "Contratar Solo",
+    display_featured: false,
+    features: [
+      "1 anuncio ativo",
+      "1 placa QR Code inclusa",
+      "Bot WhatsApp automatico",
+      "Captura de leads",
+    ],
+  },
+  {
+    plan_code: "pro",
+    display_name: "Pro",
+    display_price: "R$ 500",
+    display_suffix: "/mes",
+    display_note: "Renovacao mensal automatica",
+    display_label: "Assinar Pro",
+    display_featured: true,
     features: [
       "Multiplos imoveis",
       "Kit inicial: 10 placas QR Code",
@@ -47,13 +63,13 @@ const paidPlans: PaidPlan[] = [
     ],
   },
   {
-    code: "premium",
-    name: "Premium",
-    price: "R$ 2.000",
-    suffix: "/mes",
-    note: "Renovacao mensal automatica",
-    featured: false,
-    label: "Assinar Premium",
+    plan_code: "premium",
+    display_name: "Premium",
+    display_price: "R$ 2.000",
+    display_suffix: "/mes",
+    display_note: "Renovacao mensal automatica",
+    display_label: "Assinar Premium",
+    display_featured: false,
     features: [
       "Multiplos imoveis",
       "5 corretores",
@@ -62,6 +78,8 @@ const paidPlans: PaidPlan[] = [
     ],
   },
 ];
+
+const PLAN_ORDER = ["trial", "solo", "pro", "premium"];
 
 function cardClass(featured = false) {
   return featured ? "border-2 border-black p-8" : "border border-gray-200 p-8";
@@ -73,13 +91,30 @@ function eyebrowClass(featured = false) {
     : "text-xs font-bold uppercase tracking-widest text-gray-400";
 }
 
-function secondaryButtonClass(featured = false) {
+function buttonClass(featured = false) {
   return featured
     ? "mt-8 inline-block bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
     : "mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-500 disabled:opacity-50";
 }
 
-export default function PlansPage() {
+async function getPlans(): Promise<PlanDisplay[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("plan_display_config").select("*");
+  if (error || !data?.length) return DEFAULT_PLANS;
+
+  const byCode = new Map(DEFAULT_PLANS.map((plan) => [plan.plan_code, plan]));
+  for (const plan of data as PlanDisplay[]) {
+    byCode.set(plan.plan_code, plan);
+  }
+
+  return Array.from(byCode.values()).sort(
+    (a, b) => PLAN_ORDER.indexOf(a.plan_code) - PLAN_ORDER.indexOf(b.plan_code),
+  );
+}
+
+export default async function PlansPage() {
+  const plans = await getPlans();
+
   return (
     <div className="min-h-screen bg-white">
       <AppHeader active="/plans" />
@@ -93,60 +128,46 @@ export default function PlansPage() {
             href="/properties/new"
             className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
-            Cadastrar imóvel
+            Cadastrar imovel
           </Link>
           <Link
             href="/properties"
             className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
           >
-            Meus imóveis
+            Meus imoveis
           </Link>
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={cardClass(false)}>
-            <p className={eyebrowClass(false)}>Plano</p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-900">Teste</h2>
-            <p className="mt-1 text-3xl font-bold text-gray-900">
-              R$ 0<span className="text-base font-normal text-gray-400"> por 30 dias</span>
-            </p>
-            <p className="mt-2 text-xs text-gray-400">Sem cobranca Stripe</p>
-            <ul className="mt-6 space-y-3 text-sm text-gray-600">
-              {[
-                "1 anuncio ativo",
-                "1 placa QR Code inclusa",
-                "Bot WhatsApp automatico",
-                "Captura de leads",
-              ].map((feature) => (
-                <li key={feature} className="flex items-start gap-2">
-                  <span className="text-black">✓</span> {feature}
-                </li>
-              ))}
-            </ul>
-            <TrialButton className={secondaryButtonClass(false)} />
-          </div>
-
-          {paidPlans.map((plan) => (
-            <div key={plan.code} className={cardClass(plan.featured)}>
-              <p className={eyebrowClass(plan.featured)}>Plano</p>
-              <h2 className="mt-2 text-2xl font-bold text-gray-900">{plan.name}</h2>
+          {plans.map((plan) => (
+            <div key={plan.plan_code} className={cardClass(plan.display_featured)}>
+              <p className={eyebrowClass(plan.display_featured)}>Plano</p>
+              <h2 className="mt-2 text-2xl font-bold text-gray-900">{plan.display_name}</h2>
               <p className="mt-1 text-3xl font-bold text-gray-900">
-                {plan.price}
-                <span className="text-base font-normal text-gray-400">{plan.suffix}</span>
+                {plan.display_price}
+                <span className="text-base font-normal text-gray-400">
+                  {plan.display_suffix}
+                </span>
               </p>
-              <p className="mt-2 text-xs text-gray-400">{plan.note}</p>
+              {plan.display_note ? (
+                <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p>
+              ) : null}
               <ul className="mt-6 space-y-3 text-sm text-gray-600">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
-                    <span className="text-black">✓</span> {feature}
+                    <span className="text-black">OK</span> {feature}
                   </li>
                 ))}
               </ul>
-              <CheckoutButton
-                planCode={plan.code}
-                label={plan.label}
-                className={secondaryButtonClass(plan.featured)}
-              />
+              {plan.plan_code === "trial" ? (
+                <TrialButton className={buttonClass(plan.display_featured)} />
+              ) : (
+                <CheckoutButton
+                  planCode={plan.plan_code}
+                  label={plan.display_label}
+                  className={buttonClass(plan.display_featured)}
+                />
+              )}
             </div>
           ))}
         </div>
