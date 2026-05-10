@@ -16,6 +16,7 @@ export async function PATCH(
     display_price?: string;
     display_suffix?: string;
     display_note?: string;
+    display_description?: string;
     display_label?: string;
     display_featured?: boolean;
     features?: string[];

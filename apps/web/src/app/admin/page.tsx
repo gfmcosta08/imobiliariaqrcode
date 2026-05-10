@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { InvitationGenerator } from "./invitation-generator";
-import { PlansDisplayEditor } from "./plans-display-editor";
-import { PlansConfigEditor } from "./plans-config-editor";
+import { PlansEditor } from "./plans-editor";
 import { SubscriptionsManager } from "./subscriptions-manager";
 import { PropertiesManager } from "./properties-manager";
 
@@ -40,31 +39,17 @@ export default async function AdminPage() {
           </p>
         </div>
 
-        {/* Planos — Exibição */}
+        {/* Planos */}
         <section>
-          <h2 className="text-lg font-bold text-gray-900">Conteúdo dos planos</h2>
+          <h2 className="text-lg font-bold text-gray-900">Planos</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Edite o texto, preço exibido e benefícios que aparecem na página /plans.
-            Alterações valem imediatamente para todos. O valor cobrado pelo Stripe não é
-            alterado aqui.
+            Edite em uma unica tela o conteudo publico e as variaveis tecnicas de cada plano.
+            O preco exibido nao altera o valor cobrado pelo Stripe.
           </p>
           <div className="mt-6">
-            <PlansDisplayEditor />
+            <PlansEditor />
           </div>
         </section>
-
-        {/* Planos — Configuração operacional */}
-        <section>
-          <h2 className="text-lg font-bold text-gray-900">Configuração dos planos</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Variáveis técnicas: validade em dias, máximo de imóveis e corretores. Não afeta
-            assinaturas já ativas.
-          </p>
-          <div className="mt-6">
-            <PlansConfigEditor />
-          </div>
-        </section>
-
         {/* Assinaturas */}
         <section>
           <h2 className="text-lg font-bold text-gray-900">Assinaturas</h2>

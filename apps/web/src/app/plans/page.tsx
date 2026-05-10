@@ -12,6 +12,7 @@ type PlanDisplay = {
   display_price: string;
   display_suffix: string;
   display_note: string;
+  display_description: string;
   display_label: string;
   display_featured: boolean;
   features: string[];
@@ -24,11 +25,12 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 0",
     display_suffix: " por 30 dias",
     display_note: "Sem cobranca Stripe",
+    display_description: "Teste gratuito para validar o atendimento por QR Code e WhatsApp automatico.",
     display_label: "Comecar teste",
     display_featured: false,
     features: [
       "1 anuncio ativo",
-      "1 placa QR Code inclusa",
+      "1 QR Code ativo por 30 dias",
       "Bot WhatsApp automatico",
       "Captura de leads",
     ],
@@ -39,6 +41,7 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 150",
     display_suffix: " trimestral",
     display_note: "Validade: 3 meses",
+    display_description: "Plano trimestral para manter um anuncio ativo com QR Code e captura de leads.",
     display_label: "Contratar Solo",
     display_featured: false,
     features: [
@@ -54,6 +57,7 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 500",
     display_suffix: "/mes",
     display_note: "Renovacao mensal automatica",
+    display_description: "Plano mensal para operar varios imoveis com leads ilimitados.",
     display_label: "Assinar Pro",
     display_featured: true,
     features: [
@@ -68,6 +72,7 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 2.000",
     display_suffix: "/mes",
     display_note: "Renovacao mensal automatica",
+    display_description: "Plano mensal para equipes com multiplos corretores e roteamento de leads.",
     display_label: "Assinar Premium",
     display_featured: false,
     features: [
@@ -104,7 +109,14 @@ async function getPlans(): Promise<PlanDisplay[]> {
 
   const byCode = new Map(DEFAULT_PLANS.map((plan) => [plan.plan_code, plan]));
   for (const plan of data as PlanDisplay[]) {
-    byCode.set(plan.plan_code, plan);
+    if (PLAN_ORDER.includes(plan.plan_code)) {
+      const fallback = byCode.get(plan.plan_code);
+      byCode.set(plan.plan_code, {
+        ...fallback,
+        ...plan,
+        display_description: plan.display_description ?? fallback?.display_description ?? "",
+      });
+    }
   }
 
   return Array.from(byCode.values()).sort(
@@ -151,6 +163,11 @@ export default async function PlansPage() {
               </p>
               {plan.display_note ? (
                 <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p>
+              ) : null}
+              {plan.display_description ? (
+                <p className="mt-4 text-sm leading-6 text-gray-600">
+                  {plan.display_description}
+                </p>
               ) : null}
               <ul className="mt-6 space-y-3 text-sm text-gray-600">
                 {plan.features.map((feature) => (
