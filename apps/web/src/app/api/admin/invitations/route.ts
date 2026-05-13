@@ -92,33 +92,33 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
-  const trialEnd = new Date(now.getTime() + expirationDays * 86400 * 1000);
+  const freePeriodEnd = new Date(now.getTime() + expirationDays * 86400 * 1000);
 
-  const { error: trialError } = await supabase.from("subscriptions").upsert(
+  const { error: subscriptionError } = await supabase.from("subscriptions").upsert(
     {
       account_id: broker.account_id,
-      plan_code: "trial",
-      status: "trial_active",
+      plan_code: "free",
+      status: "free",
       billing_provider: null,
       provider_customer_id: null,
       provider_subscription_id: null,
       current_period_start: now.toISOString(),
-      current_period_end: trialEnd.toISOString(),
+      current_period_end: freePeriodEnd.toISOString(),
       canceled_at: null,
       updated_at: now.toISOString(),
     },
     { onConflict: "account_id" },
   );
 
-  if (trialError) {
+  if (subscriptionError) {
     await supabase.auth.admin.deleteUser(authUserId);
     return NextResponse.json(
-      { ok: false, error: "trial_create_failed", detail: trialError.message },
+      { ok: false, error: "subscription_create_failed", detail: subscriptionError.message },
       { status: 500 },
     );
   }
 
-  const { error: accountTrialError } = await supabase
+  const { error: accountStateError } = await supabase
     .from("accounts")
     .update({
       trial_started_at: now.toISOString(),
@@ -127,10 +127,10 @@ export async function POST(req: Request) {
     })
     .eq("id", broker.account_id);
 
-  if (accountTrialError) {
+  if (accountStateError) {
     await supabase.auth.admin.deleteUser(authUserId);
     return NextResponse.json(
-      { ok: false, error: "trial_account_update_failed", detail: accountTrialError.message },
+      { ok: false, error: "account_state_update_failed", detail: accountStateError.message },
       { status: 500 },
     );
   }
@@ -145,7 +145,7 @@ export async function POST(req: Request) {
       .insert({
         account_id: broker.account_id,
         broker_id: broker.id,
-        origin_plan_code: "trial",
+        origin_plan_code: "free",
         listing_status: "draft",
         property_type: "residential",
         property_subtype: "apartment",

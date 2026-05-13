@@ -3,11 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 const ACTIVE_SUB_STATUSES = [
-  "trial_active",
+  "free",
   "solo_active",
   "pro_pending_activation",
   "pro_active",
-  "premium_active",
 ];
 
 export async function POST() {

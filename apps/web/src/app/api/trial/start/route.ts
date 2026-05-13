@@ -51,11 +51,7 @@ export async function POST() {
     .eq("account_id", account.id)
     .maybeSingle();
 
-  if (
-    subscription?.status === "solo_active" ||
-    (subscription?.status === "pro_active" &&
-      (subscription.plan_code === "pro" || subscription.plan_code === "premium"))
-  ) {
+  if (subscription?.status === "solo_active" || subscription?.status === "pro_active") {
     return NextResponse.json(
       { error: "Conta ja possui um plano pago ativo." },
       { status: 409 },
@@ -68,8 +64,8 @@ export async function POST() {
   const { error: upsertError } = await admin.from("subscriptions").upsert(
     {
       account_id: account.id,
-      plan_code: "trial",
-      status: "trial_active",
+      plan_code: "free",
+      status: "free",
       billing_provider: null,
       provider_customer_id: null,
       provider_subscription_id: null,
@@ -100,8 +96,8 @@ export async function POST() {
 
   return NextResponse.json({
     ok: true,
-    plan_code: "trial",
-    status: "trial_active",
+    plan_code: "free",
+    status: "free",
     current_period_end: periodEnd.toISOString(),
   });
 }

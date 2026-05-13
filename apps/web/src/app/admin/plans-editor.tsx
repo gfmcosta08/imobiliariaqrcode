@@ -18,7 +18,6 @@ type PlanConfig = {
   code: string;
   expiration_days: number | null;
   max_active_properties: number | null;
-  max_brokers: number | null;
   has_auto_expiration: boolean;
 };
 
@@ -30,12 +29,11 @@ type ApiResponse = {
   error?: string;
 };
 
-const PLAN_ORDER = ["trial", "solo", "pro", "premium"];
+const PLAN_ORDER = ["free", "solo", "pro"];
 const PLAN_LABEL: Record<string, string> = {
-  trial: "Teste",
+  free: "Free",
   solo: "Solo",
   pro: "Pro",
-  premium: "Premium",
 };
 
 function sortPlans<T extends { plan_code?: string; code?: string }>(plans: T[]) {
@@ -68,7 +66,6 @@ function mergePlans(display: PlanDisplay[], config: PlanConfig[]): PlanForm[] {
         code: plan.plan_code,
         expiration_days: technical?.expiration_days ?? null,
         max_active_properties: technical?.max_active_properties ?? null,
-        max_brokers: technical?.max_brokers ?? null,
         has_auto_expiration: technical?.has_auto_expiration ?? false,
       };
     });
@@ -141,7 +138,6 @@ export function PlansEditor() {
           body: JSON.stringify({
             expiration_days: form.expiration_days,
             max_active_properties: form.max_active_properties,
-            max_brokers: form.max_brokers,
             has_auto_expiration: form.has_auto_expiration,
           }),
         }),
@@ -186,8 +182,8 @@ export function PlansEditor() {
                   Editando: {PLAN_LABEL[plan.plan_code] ?? plan.plan_code}
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
-                  O preco exibido muda somente o texto publico. A cobranca real continua
-                  usando os Price IDs configurados no Stripe/Vercel.
+                  O preco exibido muda somente o texto publico. Checkout online esta
+                  temporariamente desativado.
                 </p>
               </div>
 
@@ -302,17 +298,6 @@ export function PlansEditor() {
                       }
                     />
                   </label>
-                  <label className="block">
-                    <span className="text-xs text-gray-500">Maximo de corretores</span>
-                    <input
-                      type="number"
-                      min={1}
-                      className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-                      value={form.max_brokers ?? ""}
-                      placeholder="sem limite"
-                      onChange={(e) => setField("max_brokers", parseNullableInt(e.target.value))}
-                    />
-                  </label>
                   <label className="mt-6 flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -371,8 +356,7 @@ export function PlansEditor() {
                 <p className="mt-2 text-xs text-gray-400">
                   {plan.features.length} beneficio(s) - botao: &quot;{plan.display_label}&quot; -
                   validade: {formatLimit(plan.expiration_days)} - imoveis:{" "}
-                  {formatLimit(plan.max_active_properties)} - corretores:{" "}
-                  {formatLimit(plan.max_brokers)}
+                  {formatLimit(plan.max_active_properties)}
                 </p>
               </div>
               <button

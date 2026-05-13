@@ -13,7 +13,7 @@ export async function GET() {
       supabase.from("plan_display_config").select("*").order("plan_code"),
       supabase
         .from("plans")
-        .select("code, expiration_days, max_active_properties, max_brokers, has_auto_expiration")
+        .select("code, expiration_days, max_active_properties, has_auto_expiration")
         .order("code"),
     ]);
 

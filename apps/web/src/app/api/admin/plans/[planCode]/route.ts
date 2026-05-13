@@ -14,11 +14,10 @@ export async function PATCH(
   const body = (await req.json()) as {
     expiration_days?: number | null;
     max_active_properties?: number | null;
-    max_brokers?: number | null;
     has_auto_expiration?: boolean;
   };
 
-  const positiveIntegerFields = ["expiration_days", "max_active_properties", "max_brokers"] as const;
+  const positiveIntegerFields = ["expiration_days", "max_active_properties"] as const;
   for (const field of positiveIntegerFields) {
     const value = body[field];
     if (value !== undefined && value !== null && (!Number.isInteger(value) || value < 1)) {
@@ -32,7 +31,7 @@ export async function PATCH(
   const { supabase, userId } = admin;
   const { data: before } = await supabase
     .from("plans")
-    .select("expiration_days, max_active_properties, max_brokers, has_auto_expiration")
+    .select("expiration_days, max_active_properties, has_auto_expiration")
     .eq("code", planCode)
     .maybeSingle();
 

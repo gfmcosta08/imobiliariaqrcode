@@ -19,17 +19,15 @@ type Subscription = {
 
 const STATUSES = [
   "free",
-  "trial_active",
   "solo_active",
   "pro_pending_activation",
   "pro_active",
-  "premium_active",
   "past_due",
   "canceled",
   "expired",
 ];
 
-const PLANS = ["trial", "solo", "pro", "premium"];
+const PLANS = ["free", "solo", "pro"];
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
