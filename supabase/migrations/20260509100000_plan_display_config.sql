@@ -44,49 +44,72 @@ create policy "admin_write_plan_display_config"
 
 -- Seed: valores atuais hardcoded de apps/web/src/app/plans/page.tsx
 -- Garante que a página /plans funcione imediatamente após a migration.
+with seed(plan_code, display_name, display_price, display_suffix, display_note, display_label, display_featured, features) as (
+  values
+    (
+      'trial',
+      'Teste',
+      'R$ 0',
+      ' por 30 dias',
+      'Sem cobranca Stripe',
+      'Comecar teste',
+      false,
+      array['1 anuncio ativo', '1 QR Code ativo por 30 dias', 'Bot WhatsApp automatico', 'Captura de leads']
+    ),
+    (
+      'free',
+      'Free',
+      'R$ 0',
+      ' sem recorrencia',
+      'Plano legado',
+      'Plano Free',
+      false,
+      array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
+    ),
+    (
+      'solo',
+      'Solo',
+      'R$ 150',
+      ' trimestral',
+      'Validade: 3 meses',
+      'Contratar Solo',
+      false,
+      array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
+    ),
+    (
+      'pro',
+      'Pro',
+      'R$ 500',
+      '/mes',
+      'Renovacao mensal automatica',
+      'Assinar Pro',
+      true,
+      array['Multiplos imoveis', 'Kit inicial: 10 placas QR Code', 'Bot WhatsApp + leads ilimitados']
+    ),
+    (
+      'premium',
+      'Premium',
+      'R$ 2.000',
+      '/mes',
+      'Renovacao mensal automatica',
+      'Assinar Premium',
+      false,
+      array['Multiplos imoveis', '5 corretores', 'Kit inicial: 20 placas QR Code', 'Bot WhatsApp + leads ilimitados']
+    )
+)
 insert into public.plan_display_config
   (plan_code, display_name, display_price, display_suffix, display_note, display_label, display_featured, features)
-values
-  (
-    'trial',
-    'Teste',
-    'R$ 0',
-    ' por 30 dias',
-    'Sem cobrança Stripe',
-    'Começar teste',
-    false,
-    array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
-  ),
-  (
-    'solo',
-    'Solo',
-    'R$ 150',
-    ' trimestral',
-    'Validade: 3 meses',
-    'Contratar Solo',
-    false,
-    array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
-  ),
-  (
-    'pro',
-    'Pro',
-    'R$ 500',
-    '/mes',
-    'Renovacao mensal automatica',
-    'Assinar Pro',
-    true,
-    array['Multiplos imoveis', 'Kit inicial: 10 placas QR Code', 'Bot WhatsApp + leads ilimitados']
-  ),
-  (
-    'premium',
-    'Premium',
-    'R$ 2.000',
-    '/mes',
-    'Renovacao mensal automatica',
-    'Assinar Premium',
-    false,
-    array['Multiplos imoveis', '5 corretores', 'Kit inicial: 20 placas QR Code', 'Bot WhatsApp + leads ilimitados']
-  )
+select
+  seed.plan_code,
+  seed.display_name,
+  seed.display_price,
+  seed.display_suffix,
+  seed.display_note,
+  seed.display_label,
+  seed.display_featured,
+  seed.features
+from seed
+join public.plans p on p.code = seed.plan_code
 on conflict (plan_code) do nothing;
 
 -- ============================================================
