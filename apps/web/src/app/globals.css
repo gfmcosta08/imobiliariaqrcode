@@ -52,3 +52,28 @@ a:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+@media print {
+  body.printing-qr-plate * {
+    visibility: hidden;
+  }
+
+  body.printing-qr-plate .qr-print-area,
+  body.printing-qr-plate .qr-print-area * {
+    visibility: visible;
+  }
+
+  body.printing-qr-plate .qr-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    margin: 0;
+  }
+
+  body.printing-qr-plate .qr-screen-only {
+    display: none;
+  }
+}

@@ -9,6 +9,7 @@ import { updatePropertyDetails } from "../actions";
 import { PropertyEditorForm } from "../property-editor-form";
 import { MediaSection } from "./media-section";
 import { PropertyCountdown } from "./property-countdown";
+import { QrPrintCard } from "./qr-print-card";
 import { PropertySimilarSection } from "./property-similar-section";
 import { StatusForm } from "./status-form";
 
@@ -177,26 +178,12 @@ export default async function PropertyDetailPage(props: PageProps) {
 
         {/* QR Code */}
         {publicQrUrl ? (
-          <div className="mt-6 border border-gray-200 p-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
-              QR Code ativo
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Leituras acumuladas: <span className="font-semibold text-gray-900">{qrReads}</span>
-            </p>
-            <div className="mt-5 flex flex-col items-start gap-4 sm:flex-row">
-              <div className="border border-gray-200 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicQrUrl)}`}
-                  alt="QR Code do imóvel"
-                  width={200}
-                  height={200}
-                />
-              </div>
-              <p className="max-w-full break-all text-xs text-gray-400">{publicQrUrl}</p>
-            </div>
-          </div>
+          <QrPrintCard
+            publicId={property.public_id}
+            internalCode={property.internal_code}
+            publicQrUrl={publicQrUrl}
+            qrReads={qrReads}
+          />
         ) : (
           <p className="mt-6 text-sm text-amber-700">
             Nenhum QR ativo encontrado para este imóvel.
