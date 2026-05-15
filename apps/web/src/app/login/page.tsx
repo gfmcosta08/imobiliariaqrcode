@@ -139,7 +139,12 @@ export default function LoginPage() {
         if (!claimRes.ok || !claimData.ok) {
           const msgs: Record<string, string> = {
             invalid_credentials: "Login ou senha incorretos. Verifique os dados e tente novamente.",
-            invitation_already_used: "Este convite ja foi utilizado.",
+            invitation_already_activated:
+              "Este convite ja foi ativado. Entre com o e-mail e a senha criados no cadastro.",
+            invitation_completed:
+              "Este convite ja foi concluido. Entre com o e-mail e a senha criados no cadastro.",
+            invitation_already_used:
+              "Este convite ja foi utilizado. Entre com o e-mail e a senha criados no cadastro.",
             invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
           };
           setError(msgs[claimData.error ?? ""] ?? "Erro ao validar convite cortesia.");
@@ -234,12 +239,18 @@ export default function LoginPage() {
               {mode === "signup" ? (
                 <>
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="signup-full-name"
+                      className="mb-1.5 block text-sm font-medium text-gray-700"
+                    >
                       Nome completo
                     </label>
                     <input
+                      id="signup-full-name"
+                      name="fullName"
                       type="text"
                       autoComplete="name"
+                      data-testid="signup-full-name"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
@@ -247,12 +258,18 @@ export default function LoginPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="signup-whatsapp"
+                      className="mb-1.5 block text-sm font-medium text-gray-700"
+                    >
                       WhatsApp
                     </label>
                     <input
+                      id="signup-whatsapp"
+                      name="whatsapp"
                       type="tel"
                       autoComplete="tel"
+                      data-testid="signup-whatsapp"
                       required
                       placeholder="+55 11 99999-0000"
                       value={whatsapp}
@@ -264,13 +281,16 @@ export default function LoginPage() {
               ) : null}
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-gray-700">
                   {mode === "login" ? "E-mail ou codigo de convite" : "E-mail"}
                 </label>
                 <input
+                  id="login-identifier"
+                  name="email"
                   type={mode === "login" ? "text" : "email"}
                   inputMode={mode === "login" ? "text" : "email"}
-                  autoComplete="email"
+                  autoComplete={mode === "login" ? "username" : "email"}
+                  data-testid="login-identifier"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -287,7 +307,9 @@ export default function LoginPage() {
               {mode !== "forgot" ? (
                 <div>
                   <div className="mb-1.5 flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">Senha</label>
+                    <label htmlFor="login-password" className="text-sm font-medium text-gray-700">
+                      Senha
+                    </label>
                     {mode === "login" ? (
                       <button
                         type="button"
@@ -300,8 +322,11 @@ export default function LoginPage() {
                   </div>
                   <div className="relative">
                     <input
+                      id="login-password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      data-testid="login-password"
                       required
                       minLength={6}
                       value={password}
@@ -311,6 +336,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      data-testid="login-toggle-password"
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-700"
                       aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                     >
@@ -329,6 +355,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
+                data-testid="login-submit"
                 className="w-full bg-black py-3.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
               >
                 {loading

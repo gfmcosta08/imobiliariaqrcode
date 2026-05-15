@@ -86,12 +86,23 @@ type PropertyEditorFormProps = {
 const inputClass =
   "rounded-none border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950";
 
-function SubmitButton(props: { mode: "create" | "edit" }) {
+function fieldId(name: string): string {
+  return `property-${name}`;
+}
+
+function testId(name: string): string {
+  return `property-${name}`;
+}
+
+function SubmitButton(props: { mode: "create" | "edit"; placement?: "top" | "bottom" }) {
   const { pending } = useFormStatus();
+  const action = props.mode === "create" ? "create" : "edit";
+  const placement = props.placement ?? "bottom";
   return (
     <button
       type="submit"
       disabled={pending}
+      data-testid={`property-submit-${action}-${placement}`}
       className="rounded-none bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
     >
       {pending ? "Salvando..." : props.mode === "create" ? "Salvar imóvel" : "Salvar alterações"}
@@ -181,11 +192,21 @@ function onAreaBlur(e: FormEvent<HTMLInputElement>) {
   input.value = formatAreaInput(input.value);
 }
 
-function FieldLabel(props: { label: string; children: ReactNode }) {
+function FieldLabel(props: {
+  label: string;
+  children: ReactNode;
+  htmlFor?: string;
+  hint?: string;
+  required?: boolean;
+}) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-zinc-800 dark:text-zinc-200">{props.label}</span>
+    <label htmlFor={props.htmlFor} className="flex flex-col gap-1 text-sm">
+      <span className="font-medium text-zinc-800 dark:text-zinc-200">
+        {props.label}
+        {props.required ? <span className="ml-1 text-red-600">*</span> : null}
+      </span>
       {props.children}
+      {props.hint ? <span className="text-xs text-zinc-500 dark:text-zinc-400">{props.hint}</span> : null}
     </label>
   );
 }
@@ -195,7 +216,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
   const initial = props.initial ?? {};
 
   return (
-    <form action={formAction} className="mt-8 space-y-8">
+    <form action={formAction} className="mt-8 space-y-8" data-testid="property-editor-form">
       {props.mode === "edit" && initial.id ? (
         <input type="hidden" name="property_id" value={initial.id} />
       ) : null}
@@ -206,26 +227,43 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
         </p>
       ) : null}
 
+      <div className="sticky top-0 z-20 -mx-1 border border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            Edite os dados do anuncio e salve sem precisar rolar ate o fim.
+          </p>
+          <SubmitButton mode={props.mode} placement="top" />
+        </div>
+      </div>
+
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Dados Básicos</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldLabel label="ID do Imóvel (automático)">
+          <FieldLabel label="ID do Imóvel (automático)" htmlFor={fieldId("public_id")}>
             <input
+              id={fieldId("public_id")}
+              data-testid={testId("public_id")}
               disabled
               value={initial.public_id ?? "Será gerado automaticamente"}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Código Interno">
+          <FieldLabel label="Código Interno" htmlFor={fieldId("internal_code")}>
             <input
+              id={fieldId("internal_code")}
               name="internal_code"
+              autoComplete="off"
+              data-testid={testId("internal_code")}
               defaultValue={initial.internal_code ?? ""}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Tipo de Imóvel">
+          <FieldLabel label="Tipo de Imóvel" htmlFor={fieldId("property_type")}>
             <select
+              id={fieldId("property_type")}
               name="property_type"
+              autoComplete="off"
+              data-testid={testId("property_type")}
               defaultValue={initial.property_type ?? ""}
               className={inputClass}
             >
@@ -237,9 +275,12 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               ))}
             </select>
           </FieldLabel>
-          <FieldLabel label="Subtipo de Imóvel">
+          <FieldLabel label="Subtipo de Imóvel" htmlFor={fieldId("property_subtype")}>
             <select
+              id={fieldId("property_subtype")}
               name="property_subtype"
+              autoComplete="off"
+              data-testid={testId("property_subtype")}
               defaultValue={initial.property_subtype ?? ""}
               className={inputClass}
             >
@@ -251,17 +292,27 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               ))}
             </select>
           </FieldLabel>
-          <FieldLabel label="Finalidade">
-            <select name="purpose" defaultValue={initial.purpose ?? ""} className={inputClass}>
+          <FieldLabel label="Finalidade" htmlFor={fieldId("purpose")}>
+            <select
+              id={fieldId("purpose")}
+              name="purpose"
+              autoComplete="off"
+              data-testid={testId("purpose")}
+              defaultValue={initial.purpose ?? ""}
+              className={inputClass}
+            >
               <option value="">Não informado</option>
               <option value="sale">Venda</option>
               <option value="rent">Aluguel</option>
               <option value="season">Temporada</option>
             </select>
           </FieldLabel>
-          <FieldLabel label="Status do Imóvel">
+          <FieldLabel label="Status do Imóvel" htmlFor={fieldId("listing_status")}>
             <select
+              id={fieldId("listing_status")}
               name="listing_status"
+              autoComplete="off"
+              data-testid={testId("listing_status")}
               defaultValue={initial.listing_status ?? "draft"}
               className={inputClass}
             >
@@ -285,20 +336,33 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Anúncio</h2>
         <div className="mt-4 grid grid-cols-1 gap-4">
-          <FieldLabel label="Título do Anúncio">
-            <input name="title" defaultValue={initial.title ?? ""} className={inputClass} />
+          <FieldLabel label="Título do Anúncio" htmlFor={fieldId("title")}>
+            <input
+              id={fieldId("title")}
+              name="title"
+              autoComplete="off"
+              data-testid={testId("title")}
+              defaultValue={initial.title ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
-          <FieldLabel label="Descrição Completa">
+          <FieldLabel label="Descrição Completa" htmlFor={fieldId("full_description")}>
             <textarea
+              id={fieldId("full_description")}
               name="full_description"
+              autoComplete="off"
+              data-testid={testId("full_description")}
               rows={5}
               defaultValue={initial.full_description ?? ""}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Diferenciais do Imóvel">
+          <FieldLabel label="Diferenciais do Imóvel" htmlFor={fieldId("highlights")}>
             <textarea
+              id={fieldId("highlights")}
               name="highlights"
+              autoComplete="off"
+              data-testid={testId("highlights")}
               rows={3}
               defaultValue={initial.highlights ?? ""}
               className={inputClass}
@@ -310,33 +374,49 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Valores</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <FieldLabel label="Preço de Venda">
+          <FieldLabel label="Preço de Venda" htmlFor={fieldId("sale_price")}>
             <input
+              id={fieldId("sale_price")}
               name="sale_price"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("sale_price")}
               defaultValue={formatCurrencyFromNumber(initial.sale_price)}
               onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Valor de Aluguel/Temporada">
+          <FieldLabel label="Valor de Aluguel/Temporada" htmlFor={fieldId("rent_price")}>
             <input
+              id={fieldId("rent_price")}
               name="rent_price"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("rent_price")}
               defaultValue={formatCurrencyFromNumber(initial.rent_price)}
               onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Valor do Condomínio">
+          <FieldLabel label="Valor do Condomínio" htmlFor={fieldId("condo_fee")}>
             <input
+              id={fieldId("condo_fee")}
               name="condo_fee"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("condo_fee")}
               defaultValue={formatCurrencyFromNumber(initial.condo_fee)}
               onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Valor do IPTU">
+          <FieldLabel label="Valor do IPTU" htmlFor={fieldId("iptu_amount")}>
             <input
+              id={fieldId("iptu_amount")}
               name="iptu_amount"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("iptu_amount")}
               defaultValue={formatCurrencyFromNumber(initial.iptu_amount)}
               onBlur={onCurrencyBlur}
               className={inputClass}
@@ -380,17 +460,25 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
           Áreas e Cômodos
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FieldLabel label="Área Total (m²)">
+          <FieldLabel label="Área Total (m²)" htmlFor={fieldId("total_area_m2")}>
             <input
+              id={fieldId("total_area_m2")}
               name="total_area_m2"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("total_area_m2")}
               defaultValue={formatAreaFromNumber(initial.total_area_m2)}
               onBlur={onAreaBlur}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Área Construída (m²)">
+          <FieldLabel label="Área Construída (m²)" htmlFor={fieldId("built_area_m2")}>
             <input
+              id={fieldId("built_area_m2")}
               name="built_area_m2"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("built_area_m2")}
               defaultValue={formatAreaFromNumber(initial.built_area_m2)}
               onBlur={onAreaBlur}
               className={inputClass}
@@ -404,9 +492,13 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Número de Quartos">
+          <FieldLabel label="Número de Quartos" htmlFor={fieldId("bedrooms")}>
             <input
+              id={fieldId("bedrooms")}
               name="bedrooms"
+              inputMode="numeric"
+              autoComplete="off"
+              data-testid={testId("bedrooms")}
               defaultValue={initial.bedrooms == null ? "" : String(initial.bedrooms)}
               className={inputClass}
             />
@@ -418,16 +510,24 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Número de Banheiros">
+          <FieldLabel label="Número de Banheiros" htmlFor={fieldId("bathrooms")}>
             <input
+              id={fieldId("bathrooms")}
               name="bathrooms"
+              inputMode="numeric"
+              autoComplete="off"
+              data-testid={testId("bathrooms")}
               defaultValue={initial.bathrooms == null ? "" : String(initial.bathrooms)}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Número de Vagas de Garagem">
+          <FieldLabel label="Número de Vagas de Garagem" htmlFor={fieldId("parking_spaces")}>
             <input
+              id={fieldId("parking_spaces")}
               name="parking_spaces"
+              inputMode="numeric"
+              autoComplete="off"
+              data-testid={testId("parking_spaces")}
               defaultValue={initial.parking_spaces == null ? "" : String(initial.parking_spaces)}
               className={inputClass}
             />
@@ -501,9 +601,12 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
       <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Endereço</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldLabel label="Endereço Completo">
+          <FieldLabel label="Endereço Completo" htmlFor={fieldId("full_address")}>
             <input
+              id={fieldId("full_address")}
               name="full_address"
+              autoComplete="street-address"
+              data-testid={testId("full_address")}
               defaultValue={initial.full_address ?? ""}
               className={inputClass}
             />
@@ -522,18 +625,35 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Bairro">
+          <FieldLabel label="Bairro" htmlFor={fieldId("neighborhood")}>
             <input
+              id={fieldId("neighborhood")}
               name="neighborhood"
+              autoComplete="address-level3"
+              data-testid={testId("neighborhood")}
               defaultValue={initial.neighborhood ?? ""}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Cidade">
-            <input name="city" defaultValue={initial.city ?? ""} className={inputClass} />
+          <FieldLabel label="Cidade" htmlFor={fieldId("city")}>
+            <input
+              id={fieldId("city")}
+              name="city"
+              autoComplete="address-level2"
+              data-testid={testId("city")}
+              defaultValue={initial.city ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
-          <FieldLabel label="Estado (UF)">
-            <input name="state" defaultValue={initial.state ?? ""} className={inputClass} />
+          <FieldLabel label="Estado (UF)" htmlFor={fieldId("state")}>
+            <input
+              id={fieldId("state")}
+              name="state"
+              autoComplete="address-level1"
+              data-testid={testId("state")}
+              defaultValue={initial.state ?? ""}
+              className={inputClass}
+            />
           </FieldLabel>
           <FieldLabel label="CEP">
             <input
@@ -542,29 +662,50 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Localização do imóvel *">
+          <FieldLabel
+            label="Localização do imóvel"
+            htmlFor={fieldId("location_map_url")}
+            required
+            hint="Campo obrigatorio: cole o link de localização do imóvel no mapa, como Google Maps."
+          >
             <input
+              id={fieldId("location_map_url")}
               name="location_map_url"
               type="url"
               required
+              autoComplete="url"
+              data-testid={testId("location_map_url")}
               placeholder="https://maps.google.com/..."
               defaultValue={initial.location_map_url ?? ""}
               className={inputClass}
             />
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Cole o link de localização do imóvel no mapa, como Google Maps.
-            </p>
           </FieldLabel>
-          <FieldLabel label="Latitude">
+          <FieldLabel
+            label="Latitude"
+            htmlFor={fieldId("latitude")}
+            hint="Campo tecnico opcional. Preencha somente se souber a coordenada."
+          >
             <input
+              id={fieldId("latitude")}
               name="latitude"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("latitude")}
               defaultValue={initial.latitude == null ? "" : String(initial.latitude)}
               className={inputClass}
             />
           </FieldLabel>
-          <FieldLabel label="Longitude">
+          <FieldLabel
+            label="Longitude"
+            htmlFor={fieldId("longitude")}
+            hint="Campo tecnico opcional. Preencha somente se souber a coordenada."
+          >
             <input
+              id={fieldId("longitude")}
               name="longitude"
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid={testId("longitude")}
               defaultValue={initial.longitude == null ? "" : String(initial.longitude)}
               className={inputClass}
             />

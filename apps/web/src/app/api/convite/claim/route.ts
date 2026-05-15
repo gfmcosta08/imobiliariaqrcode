@@ -33,6 +33,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
   }
 
+  if (invitation.status === "claimed") {
+    return NextResponse.json({ ok: false, error: "invitation_already_activated" }, { status: 409 });
+  }
+
+  if (invitation.status === "completed") {
+    return NextResponse.json({ ok: false, error: "invitation_completed" }, { status: 409 });
+  }
+
   if (invitation.status !== "pending") {
     return NextResponse.json({ ok: false, error: "invitation_already_used" }, { status: 401 });
   }

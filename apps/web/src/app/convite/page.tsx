@@ -33,7 +33,12 @@ export default function ConvitePage() {
       if (!data.ok) {
         const msgs: Record<string, string> = {
           invalid_credentials: "Login ou senha incorretos. Verifique os dados e tente novamente.",
-          invitation_already_used: "Este convite ja foi utilizado.",
+          invitation_already_activated:
+            "Este convite ja foi ativado. Entre com o e-mail e a senha criados no cadastro.",
+          invitation_completed:
+            "Este convite ja foi concluido. Entre com o e-mail e a senha criados no cadastro.",
+          invitation_already_used:
+            "Este convite ja foi utilizado. Entre com o e-mail e a senha criados no cadastro.",
           invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
         };
         setError(msgs[data.error ?? ""] ?? "Erro inesperado. Tente novamente.");
@@ -70,8 +75,11 @@ export default function ConvitePage() {
             </label>
             <input
               id="loginCode"
+              name="loginCode"
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
+              data-testid="invite-login-code"
               pattern="[0-9]{6}"
               maxLength={6}
               required
@@ -88,8 +96,11 @@ export default function ConvitePage() {
             </label>
             <input
               id="accessCode"
+              name="accessCode"
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
+              data-testid="invite-access-code"
               pattern="[0-9]{6}"
               maxLength={6}
               required
@@ -105,6 +116,7 @@ export default function ConvitePage() {
           <button
             type="submit"
             disabled={loading || loginCode.length !== 6 || accessCode.length !== 6}
+            data-testid="invite-submit"
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             {loading ? "Verificando..." : "Ativar meu anuncio"}
