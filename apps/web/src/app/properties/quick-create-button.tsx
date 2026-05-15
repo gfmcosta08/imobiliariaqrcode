@@ -7,6 +7,7 @@ type QuickCreateResult = {
   ok: boolean;
   property_id?: string;
   error?: string;
+  detail?: string;
 };
 
 export function QuickCreateButton() {
@@ -23,10 +24,18 @@ export function QuickCreateButton() {
       if (!data.ok || !data.property_id) {
         const msg =
           data.error === "plan_limit_reached"
-            ? "Limite de imóveis ativos do plano atingido."
+            ? "Limite de imoveis ativos do plano atingido."
             : data.error === "no_active_plan"
               ? "Sem plano ativo."
-              : "Erro ao criar imóvel.";
+              : data.error === "broker_not_found"
+                ? "Corretor nao encontrado para o usuario logado."
+                : data.error === "unauthorized"
+                  ? "Sessao expirada. Faca login novamente."
+                  : data.error === "property_create_failed"
+                    ? `Falha ao salvar anuncio: ${data.detail ?? "erro no banco"}`
+                    : data.error === "quick_create_exception"
+                      ? `Falha no servidor de teste: ${data.detail ?? "erro interno"}`
+                      : "Erro ao criar imovel.";
         setError(msg);
         return;
       }

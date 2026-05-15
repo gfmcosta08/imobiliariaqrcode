@@ -2,6 +2,13 @@ import { getAdminContext } from "@/lib/admin-auth";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { NextResponse } from "next/server";
 
+type PostgrestLikeError = {
+  code?: string | null;
+  details?: string | null;
+  hint?: string | null;
+  message: string;
+};
+
 function randomSixDigits(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -19,6 +26,51 @@ async function generateUniqueLoginCode(
     if (!data) return code;
   }
   throw new Error("Nao foi possivel gerar um login_code unico");
+}
+
+function isMissingTrialColumn(error: PostgrestLikeError | null): boolean {
+  if (!error) return false;
+  const haystack = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+  return (
+    haystack.includes("trial_started_at") ||
+    haystack.includes("trial_used_at") ||
+    haystack.includes("column") && haystack.includes("accounts")
+  );
+}
+
+async function updateAccountTrialState(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  accountId: string,
+  nowIso: string,
+): Promise<{ ok: true; degraded: boolean } | { ok: false; error: PostgrestLikeError }> {
+  const firstTry = await supabase
+    .from("accounts")
+    .update({
+      trial_started_at: nowIso,
+      trial_used_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", accountId);
+
+  if (!firstTry.error) {
+    return { ok: true, degraded: false };
+  }
+
+  const firstError = firstTry.error as PostgrestLikeError;
+  if (!isMissingTrialColumn(firstError)) {
+    return { ok: false, error: firstError };
+  }
+
+  const fallbackTry = await supabase
+    .from("accounts")
+    .update({ updated_at: nowIso })
+    .eq("id", accountId);
+
+  if (fallbackTry.error) {
+    return { ok: false, error: fallbackTry.error as PostgrestLikeError };
+  }
+
+  return { ok: true, degraded: true };
 }
 
 export async function POST(req: Request) {
@@ -118,20 +170,18 @@ export async function POST(req: Request) {
     );
   }
 
-  const { error: accountStateError } = await supabase
-    .from("accounts")
-    .update({
-      trial_started_at: now.toISOString(),
-      trial_used_at: now.toISOString(),
-      updated_at: now.toISOString(),
-    })
-    .eq("id", broker.account_id);
-
-  if (accountStateError) {
+  const accountState = await updateAccountTrialState(supabase, broker.account_id, now.toISOString());
+  if (!accountState.ok) {
     await supabase.auth.admin.deleteUser(authUserId);
     return NextResponse.json(
-      { ok: false, error: "account_state_update_failed", detail: accountStateError.message },
+      { ok: false, error: "account_state_update_failed", detail: accountState.error.message },
       { status: 500 },
+    );
+  }
+  if (accountState.degraded) {
+    console.warn(
+      "[admin/invitations] accounts trial columns ausentes; fallback aplicado para continuar geracao de cortesia",
+      { accountId: broker.account_id },
     );
   }
 
@@ -220,4 +270,70 @@ export async function POST(req: Request) {
     property_id: firstPropertyId,
     property_count: propertyCount,
   });
+}
+
+export async function DELETE(req: Request) {
+  const admin = await getAdminContext();
+  if (!admin.ok) {
+    return NextResponse.json({ ok: false, error: admin.error }, { status: admin.status });
+  }
+
+  const invitationId = new URL(req.url).searchParams.get("id")?.trim();
+  if (!invitationId) {
+    return NextResponse.json(
+      { ok: false, error: "missing_invitation_id" },
+      { status: 400 },
+    );
+  }
+
+  const { supabase } = admin;
+  const { data: invitation, error: loadError } = await supabase
+    .from("broker_invitations")
+    .select("id, status")
+    .eq("id", invitationId)
+    .maybeSingle();
+
+  if (loadError) {
+    return NextResponse.json(
+      { ok: false, error: "invitation_load_failed", detail: loadError.message },
+      { status: 500 },
+    );
+  }
+
+  if (!invitation) {
+    return NextResponse.json({ ok: false, error: "invitation_not_found" }, { status: 404 });
+  }
+
+  if (invitation.status !== "pending") {
+    return NextResponse.json(
+      { ok: false, error: "invitation_not_pending" },
+      { status: 409 },
+    );
+  }
+
+  const tryCancel = async (status: "canceled" | "expired") =>
+    supabase
+      .from("broker_invitations")
+      .update({ status })
+      .eq("id", invitationId)
+      .eq("status", "pending");
+
+  let finalStatus: "canceled" | "expired" = "canceled";
+  let { error: updateError } = await tryCancel("canceled");
+
+  // Fallback de compatibilidade: ambientes sem a migration de "canceled"
+  // continuam funcionais usando "expired", sem quebrar o painel.
+  if (updateError && updateError.code === "23514") {
+    finalStatus = "expired";
+    ({ error: updateError } = await tryCancel("expired"));
+  }
+
+  if (updateError) {
+    return NextResponse.json(
+      { ok: false, error: "invitation_cancel_failed", detail: updateError.message },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, id: invitationId, status: finalStatus });
 }

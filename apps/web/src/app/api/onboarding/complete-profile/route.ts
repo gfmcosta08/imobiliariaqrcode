@@ -64,5 +64,19 @@ export async function POST(req: NextRequest) {
     })
     .eq("profile_id", user.id);
 
+  const { error: invitationError } = await admin
+    .from("broker_invitations")
+    .update({
+      status: "claimed",
+      claimed_at: new Date().toISOString(),
+      claimed_by_profile_id: user.id,
+    })
+    .eq("temp_auth_user_id", user.id)
+    .eq("status", "pending");
+
+  if (invitationError) {
+    return NextResponse.json({ error: invitationError.message }, { status: 500 });
+  }
+
   return NextResponse.json({ ok: true });
 }

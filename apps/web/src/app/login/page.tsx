@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup" | "forgot";
+type InviteClaimResponse = {
+  ok: boolean;
+  error?: string;
+  access_token?: string;
+  refresh_token?: string;
+};
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -110,8 +116,54 @@ export default function LoginPage() {
         return;
       }
 
-      // login
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      // login: aceita e-mail normal ou credenciais numéricas de cortesia
+      const loginInput = email.trim();
+      const isInviteCode = /^\d{6}$/.test(loginInput);
+
+      if (isInviteCode) {
+        if (!/^\d{6}$/.test(password.trim())) {
+          setError("Para convite cortesia, a senha deve ter 6 numeros.");
+          return;
+        }
+
+        const claimRes = await fetch("/api/convite/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            login_code: loginInput,
+            access_code: password.trim(),
+          }),
+        });
+
+        const claimData = (await claimRes.json()) as InviteClaimResponse;
+        if (!claimRes.ok || !claimData.ok) {
+          const msgs: Record<string, string> = {
+            invalid_credentials: "Login ou senha incorretos. Verifique os dados e tente novamente.",
+            invitation_already_used: "Este convite ja foi utilizado.",
+            invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
+          };
+          setError(msgs[claimData.error ?? ""] ?? "Erro ao validar convite cortesia.");
+          return;
+        }
+
+        await supabase.auth.setSession({
+          access_token: claimData.access_token!,
+          refresh_token: claimData.refresh_token!,
+        });
+        router.push("/onboarding/complete-profile");
+        router.refresh();
+        return;
+      }
+
+      if (!loginInput.includes("@")) {
+        setError("No login, informe um e-mail valido ou um codigo de convite com 6 numeros.");
+        return;
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: loginInput,
+        password,
+      });
       if (authError) {
         setError(authError.message);
         return;
@@ -212,15 +264,24 @@ export default function LoginPage() {
               ) : null}
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">E-mail</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  {mode === "login" ? "E-mail ou codigo de convite" : "E-mail"}
+                </label>
                 <input
-                  type="email"
+                  type={mode === "login" ? "text" : "email"}
+                  inputMode={mode === "login" ? "text" : "email"}
                   autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder={mode === "login" ? "seu@email.com ou 123456" : "seu@email.com"}
                   className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                 />
+                {mode === "login" ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Convite cortesia: use os 6 numeros de login e os 6 numeros de senha do cartao.
+                  </p>
+                ) : null}
               </div>
 
               {mode !== "forgot" ? (

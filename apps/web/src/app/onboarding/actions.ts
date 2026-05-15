@@ -34,8 +34,9 @@ export async function updateInvitationProperty(
 
   await supabase
     .from("broker_invitations")
-    .update({ status: "claimed", claimed_at: new Date().toISOString() })
-    .eq("property_id", propertyId);
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("property_id", propertyId)
+    .in("status", ["pending", "claimed"]);
 
   redirect("/dashboard");
 }

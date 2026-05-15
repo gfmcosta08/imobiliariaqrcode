@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { uploadMediaFilesForProperty } from "./media-actions";
 
@@ -14,6 +15,7 @@ export async function createProperty(
   formData: FormData,
 ): Promise<CreatePropertyState> {
   const supabase = await createClient();
+  const isProduction = process.env.VERCEL_ENV === "production";
   const payload = buildPropertyPayload(formData);
   const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
   if (locationError) {
@@ -23,9 +25,111 @@ export async function createProperty(
     .getAll("media_files")
     .filter((v): v is File => v instanceof File && v.size > 0);
 
-  const { data, error } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sessao expirada. Faca login novamente." };
+
+  const admin = createServiceRoleClient();
+  let { data: broker } = await admin
+    .from("brokers")
+    .select("id, account_id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  if (!broker && !isProduction) {
+    const fallbackName =
+      (user.user_metadata?.full_name as string | undefined)?.trim() ||
+      user.email?.split("@")[0] ||
+      "Corretor Teste";
+    const fallbackWhatsapp =
+      (user.user_metadata?.whatsapp_number as string | undefined)?.trim() ||
+      `pending-${user.id.replace(/-/g, "")}`;
+
+    let accountId: string | null = null;
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.account_id) {
+      accountId = profile.account_id as string;
+    } else {
+      const { data: accountCreated, error: accountErr } = await admin
+        .from("accounts")
+        .insert({})
+        .select("id")
+        .single();
+      if (accountErr || !accountCreated) {
+        return { error: accountErr?.message ?? "Falha ao criar conta de teste." };
+      }
+      accountId = accountCreated.id as string;
+      const { error: profileErr } = await admin.from("profiles").upsert(
+        {
+          id: user.id,
+          account_id: accountId,
+          email: user.email ?? `${user.id}@preview.local`,
+          full_name: fallbackName,
+          whatsapp_number: fallbackWhatsapp,
+          role: "broker",
+        },
+        { onConflict: "id" },
+      );
+      if (profileErr) return { error: profileErr.message };
+    }
+
+    const { data: brokerCreated, error: brokerErr } = await admin
+      .from("brokers")
+      .upsert(
+        {
+          account_id: accountId,
+          profile_id: user.id,
+          display_name: fallbackName,
+          whatsapp_number: fallbackWhatsapp,
+          status: "active",
+        },
+        { onConflict: "profile_id" },
+      )
+      .select("id, account_id")
+      .single();
+    if (brokerErr || !brokerCreated) return { error: brokerErr?.message ?? "Falha ao criar corretor de teste." };
+    broker = brokerCreated;
+    await admin.from("subscriptions").upsert(
+      {
+        account_id: accountId,
+        plan_code: "free",
+        status: "free",
+      },
+      { onConflict: "account_id" },
+    );
+  }
+  if (!broker) return { error: "Corretor nao encontrado." };
+
+  const { data: subscriptionRow } = await admin
+    .from("subscriptions")
+    .select("plan_code, status")
+    .eq("account_id", broker.account_id)
+    .maybeSingle();
+
+  const activeStatuses = ["free", "solo_active", "pro_pending_activation", "pro_active"];
+  const subscription =
+    subscriptionRow && activeStatuses.includes(subscriptionRow.status)
+      ? subscriptionRow
+      : !isProduction
+        ? { plan_code: "free", status: "free" }
+        : null;
+
+  if (!subscription) {
+    return { error: "Escolha um plano antes de cadastrar imoveis." };
+  }
+
+  const { data, error } = await admin
     .from("properties")
-    .insert(payload)
+    .insert({
+      ...payload,
+      account_id: broker.account_id,
+      broker_id: broker.id,
+      origin_plan_code: subscription.plan_code,
+    })
     .select("id")
     .maybeSingle();
 
