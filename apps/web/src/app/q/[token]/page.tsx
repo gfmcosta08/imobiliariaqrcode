@@ -1,8 +1,102 @@
-import { redirect } from "next/navigation";
-
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { PublicQrClient } from "./public-qr-client";
 
 type PageProps = { params: Promise<{ token: string }> };
+
+type QrResolvePayload = Record<string, unknown>;
+
+function numeric(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+async function resolveQrFromDatabase(token: string): Promise<QrResolvePayload | null> {
+  const supabase = createServiceRoleClient();
+  const { data: row, error } = await supabase
+    .from("property_qrcodes")
+    .select(
+      `
+      qr_token,
+      is_active,
+      properties (
+        id,
+        public_id,
+        listing_status,
+        expires_at,
+        broker_id,
+        title,
+        city,
+        state,
+        purpose,
+        price,
+        sale_price,
+        rent_price
+      )
+    `,
+    )
+    .eq("qr_token", token)
+    .maybeSingle();
+
+  if (error) {
+    console.error("qr database fallback failed", {
+      tokenPrefix: token.slice(0, 8),
+      detail: error.message,
+    });
+    return null;
+  }
+
+  const nested = row?.properties as
+    | Record<string, unknown>
+    | Record<string, unknown>[]
+    | null
+    | undefined;
+  const property = Array.isArray(nested) ? nested[0] : nested;
+
+  if (!row || !property) return { ok: true, state: "not_found" };
+
+  const listingStatus = String(property.listing_status ?? "");
+  const expiresAt = property.expires_at ? new Date(String(property.expires_at)) : null;
+  if (!row.is_active || listingStatus === "removed" || listingStatus === "blocked") {
+    return { ok: true, state: "unavailable", message: "Este anuncio nao esta mais disponivel." };
+  }
+  if (listingStatus === "expired" || (expiresAt && expiresAt < new Date())) {
+    return { ok: true, state: "expired", message: "Este anuncio nao esta mais disponivel." };
+  }
+
+  const brokerId = typeof property.broker_id === "string" ? property.broker_id : "";
+  const { data: broker } = brokerId
+    ? await supabase.from("brokers").select("whatsapp_number").eq("id", brokerId).maybeSingle()
+    : { data: null };
+  const targetPhone =
+    process.env.UAZAPI_BOT_PHONE ?? process.env.WHATSAPP_BOT_PHONE ?? broker?.whatsapp_number ?? null;
+  const publicId = typeof property.public_id === "string" ? property.public_id : "";
+  const leadStartText = encodeURIComponent(`Ola! Tenho interesse no imovel ${publicId} que vi no QRImoveis`);
+  const whatsappLink = targetPhone
+    ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
+    : null;
+  const price = numeric(property.price) ?? numeric(property.sale_price) ?? numeric(property.rent_price);
+
+  return {
+    ok: true,
+    state: "active",
+    property_id: property.id,
+    public_id: publicId,
+    broker_id: brokerId,
+    broker_whatsapp: broker?.whatsapp_number ?? null,
+    whatsapp_link: whatsappLink,
+    listing: {
+      title: property.title ?? null,
+      city: property.city ?? null,
+      state: property.state ?? null,
+      purpose: property.purpose ?? null,
+      price,
+    },
+  };
+}
 
 export default async function PublicQrPage(props: PageProps) {
   const { token } = await props.params;
@@ -20,7 +114,6 @@ export default async function PublicQrPage(props: PageProps) {
 
   let initial: unknown = null;
   let fetchError: string | null = null;
-  let whatsappRedirect: string | null = null;
 
   try {
     const res = await fetch(`${base}/functions/v1/qr-resolve?token=${encodeURIComponent(token)}`, {
@@ -61,11 +154,6 @@ export default async function PublicQrPage(props: PageProps) {
           ok: payload.ok,
         });
       }
-      if (isActive && typeof payload.whatsapp_link === "string" && payload.whatsapp_link) {
-        // Salvar fora do try/catch: redirect() lança exceção interna do Next.js
-        // e seria capturado incorretamente pelo catch abaixo.
-        whatsappRedirect = payload.whatsapp_link;
-      }
       initial = parsed;
     }
   } catch (e) {
@@ -76,8 +164,18 @@ export default async function PublicQrPage(props: PageProps) {
     });
   }
 
-  // redirect() deve ser chamado fora do try/catch
-  if (whatsappRedirect) redirect(whatsappRedirect);
+  if (fetchError) {
+    const fallback = await resolveQrFromDatabase(token);
+    if (fallback) {
+      console.warn("qr-resolve fallback used", {
+        tokenPrefix: token.slice(0, 8),
+        originalError: fetchError,
+      });
+      fetchError = null;
+      initial = fallback;
+    }
+  }
+
 
   return <PublicQrClient token={token} initial={initial} fetchError={fetchError} />;
 }

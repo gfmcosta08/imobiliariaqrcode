@@ -117,7 +117,7 @@ function formatCurrencyFromNumber(v?: number | null): string {
 function formatAreaFromNumber(v?: number | null): string {
   if (v == null || Number.isNaN(v)) return "";
   return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(v);
 }
@@ -136,29 +136,47 @@ function furnishingToInput(v?: string | null, legacy?: boolean | null): string {
   return "";
 }
 
+function parseNaturalDecimal(raw: string): number | null {
+  const cleaned = raw
+    .replace(/[R$\s]/g, "")
+    .replace(/[^\d,.-]/g, "")
+    .trim();
+  if (!cleaned) return null;
+
+  const hasComma = cleaned.includes(",");
+  const dotMatches = cleaned.match(/\./g) ?? [];
+  const lastDotGroup = cleaned.split(".").at(-1) ?? "";
+  const decimalDot = !hasComma && dotMatches.length === 1 && lastDotGroup.length > 0 && lastDotGroup.length <= 2;
+  const normalized = hasComma
+    ? cleaned.replace(/\./g, "").replace(",", ".")
+    : decimalDot
+      ? cleaned
+      : cleaned.replace(/\./g, "");
+  const value = Number.parseFloat(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
 function formatCurrencyInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  const value = Number(digits) / 100;
+  const value = parseNaturalDecimal(raw);
+  if (value == null) return "";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
 function formatAreaInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  const value = Number(digits) / 100;
+  const value = parseNaturalDecimal(raw);
+  if (value == null) return "";
   return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value);
 }
 
-function onCurrencyInput(e: FormEvent<HTMLInputElement>) {
+function onCurrencyBlur(e: FormEvent<HTMLInputElement>) {
   const input = e.currentTarget;
   input.value = formatCurrencyInput(input.value);
 }
 
-function onAreaInput(e: FormEvent<HTMLInputElement>) {
+function onAreaBlur(e: FormEvent<HTMLInputElement>) {
   const input = e.currentTarget;
   input.value = formatAreaInput(input.value);
 }
@@ -296,7 +314,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="sale_price"
               defaultValue={formatCurrencyFromNumber(initial.sale_price)}
-              onInput={onCurrencyInput}
+              onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -304,7 +322,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="rent_price"
               defaultValue={formatCurrencyFromNumber(initial.rent_price)}
-              onInput={onCurrencyInput}
+              onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -312,7 +330,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="condo_fee"
               defaultValue={formatCurrencyFromNumber(initial.condo_fee)}
-              onInput={onCurrencyInput}
+              onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -320,7 +338,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="iptu_amount"
               defaultValue={formatCurrencyFromNumber(initial.iptu_amount)}
-              onInput={onCurrencyInput}
+              onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -328,7 +346,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="other_fees"
               defaultValue={formatCurrencyFromNumber(initial.other_fees)}
-              onInput={onCurrencyInput}
+              onBlur={onCurrencyBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -366,7 +384,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="total_area_m2"
               defaultValue={formatAreaFromNumber(initial.total_area_m2)}
-              onInput={onAreaInput}
+              onBlur={onAreaBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -374,7 +392,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="built_area_m2"
               defaultValue={formatAreaFromNumber(initial.built_area_m2)}
-              onInput={onAreaInput}
+              onBlur={onAreaBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -382,7 +400,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="land_area_m2"
               defaultValue={formatAreaFromNumber(initial.land_area_m2)}
-              onInput={onAreaInput}
+              onBlur={onAreaBlur}
               className={inputClass}
             />
           </FieldLabel>
@@ -528,6 +546,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="location_map_url"
               type="url"
+              required
               placeholder="https://maps.google.com/..."
               defaultValue={initial.location_map_url ?? ""}
               className={inputClass}
@@ -718,7 +737,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
             <input
               name="distance_to_center_km"
               defaultValue={formatAreaFromNumber(initial.distance_to_center_km)}
-              onInput={onAreaInput}
+              onBlur={onAreaBlur}
               className={inputClass}
             />
           </FieldLabel>

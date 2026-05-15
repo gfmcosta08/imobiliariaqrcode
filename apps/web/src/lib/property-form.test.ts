@@ -24,13 +24,30 @@ describe("buildPropertyPayload", () => {
     const fd = new FormData();
     fd.set("sale_price", "1.234.567,89");
     fd.set("total_area_m2", "250,5");
+    fd.set("built_area_m2", "120");
     fd.set("purpose", "sale");
 
     const payload = buildPropertyPayload(fd);
     expect(payload.sale_price).toBeCloseTo(1234567.89);
     expect(payload.total_area_m2).toBeCloseTo(250.5);
+    expect(payload.built_area_m2).toBeCloseTo(120);
     expect(payload.price).toBeCloseTo(1234567.89);
     expect(payload.area_m2).toBeCloseTo(250.5);
+  });
+
+  it("parseia digitacao natural de preco e area sem dividir por centavos", () => {
+    const fd = new FormData();
+    fd.set("sale_price", "850000");
+    fd.set("total_area_m2", "120");
+    fd.set("built_area_m2", "100");
+    fd.set("purpose", "sale");
+
+    const payload = buildPropertyPayload(fd);
+    expect(payload.sale_price).toBe(850000);
+    expect(payload.total_area_m2).toBe(120);
+    expect(payload.built_area_m2).toBe(100);
+    expect(payload.price).toBe(850000);
+    expect(payload.area_m2).toBe(120);
   });
 
   it("suporta finalidade temporada e mobiliado semi", () => {
@@ -45,13 +62,15 @@ describe("buildPropertyPayload", () => {
     expect(payload.price).toBeCloseTo(3500);
   });
 
-  it("permite rascunho sem link de geolocalizacao", () => {
+  it("bloqueia rascunho sem link de geolocalizacao", () => {
     const fd = new FormData();
     fd.set("listing_status", "draft");
 
     const payload = buildPropertyPayload(fd);
     expect(payload.location_map_url).toBeNull();
-    expect(validateLocationMapUrl(payload.listing_status, payload.location_map_url)).toBeNull();
+    expect(validateLocationMapUrl(payload.listing_status, payload.location_map_url)).toBe(
+      "Informe a localização do imóvel.",
+    );
   });
 
   it("bloqueia publicacao sem link de geolocalizacao", () => {

@@ -3,6 +3,16 @@ import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
 import { QuickCreateButton } from "./quick-create-button";
 
+function statusLabel(status: string | null | undefined): string {
+  if (status === "draft") return "Rascunho";
+  if (status === "published") return "Disponivel";
+  if (status === "printed") return "Impresso";
+  if (status === "expired") return "Expirado";
+  if (status === "removed") return "Removido";
+  if (status === "blocked") return "Bloqueado";
+  return status ?? "Nao informado";
+}
+
 export default async function PropertiesPage() {
   const supabase = await createClient();
   const { data: props, error } = await supabase
@@ -58,7 +68,7 @@ export default async function PropertiesPage() {
                     </p>
                     <p className="mt-1 text-sm text-gray-500">
                       {p.city ?? "Cidade nao informada"} / {p.state ?? "UF"} -{" "}
-                      <span className="text-gray-400">{p.listing_status}</span> -{" "}
+                      <span className="text-gray-400">{statusLabel(p.listing_status)}</span> -{" "}
                       <span className="text-gray-400">plano: {p.origin_plan_code}</span>
                     </p>
                   </div>

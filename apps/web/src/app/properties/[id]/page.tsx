@@ -18,6 +18,16 @@ type PageProps = {
   searchParams?: Promise<{ mediaError?: string }>;
 };
 
+function statusLabel(status: string | null | undefined): string {
+  if (status === "draft") return "Rascunho";
+  if (status === "published") return "Disponivel";
+  if (status === "printed") return "Impresso";
+  if (status === "expired") return "Expirado";
+  if (status === "removed") return "Removido";
+  if (status === "blocked") return "Bloqueado";
+  return status ?? "Nao informado";
+}
+
 export default async function PropertyDetailPage(props: PageProps) {
   const { id } = await props.params;
   const query = props.searchParams ? await props.searchParams : undefined;
@@ -117,7 +127,9 @@ export default async function PropertyDetailPage(props: PageProps) {
           <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-xs text-gray-400">Status</dt>
-              <dd className="mt-0.5 font-medium text-gray-900">{property.listing_status}</dd>
+              <dd className="mt-0.5 font-medium text-gray-900">
+                {statusLabel(property.listing_status)}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-gray-400">Plano origem</dt>

@@ -123,17 +123,13 @@ function parseTextList(value: FormDataEntryValue | null): string[] | null {
 }
 
 export function requiresLocationMapUrl(listingStatus: string | null | undefined): boolean {
-  return listingStatus === "published" || listingStatus === "printed";
+  return Boolean(listingStatus);
 }
 
 export function validateLocationMapUrl(
   listingStatus: string | null | undefined,
   locationMapUrl: string | null | undefined,
 ): string | null {
-  if (!requiresLocationMapUrl(listingStatus)) {
-    return null;
-  }
-
   const url = String(locationMapUrl ?? "").trim();
   if (!url) {
     return "Informe a localização do imóvel.";

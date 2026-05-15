@@ -54,26 +54,46 @@ a:focus-visible {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html.printing-qr-plate,
+  body.printing-qr-plate {
+    background: #ffffff !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
   body.printing-qr-plate * {
-    visibility: hidden;
+    display: none !important;
   }
 
   body.printing-qr-plate .qr-print-area,
   body.printing-qr-plate .qr-print-area * {
-    visibility: visible;
+    display: revert !important;
+    visibility: visible !important;
   }
 
   body.printing-qr-plate .qr-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    max-width: none;
-    border: 0;
-    margin: 0;
+    break-after: avoid;
+    break-before: avoid;
+    break-inside: avoid;
+    border: 0 !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    max-width: 150mm !important;
+    padding: 0 !important;
+    page-break-after: avoid;
+    page-break-before: avoid;
+    page-break-inside: avoid;
+    position: static !important;
+    width: 150mm !important;
   }
 
   body.printing-qr-plate .qr-screen-only {
-    display: none;
+    display: none !important;
   }
 }

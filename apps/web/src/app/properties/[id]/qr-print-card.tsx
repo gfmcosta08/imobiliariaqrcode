@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 type QrPrintCardProps = {
   publicId: string | null;
   internalCode: string | null;
@@ -12,18 +14,67 @@ function qrImageUrl(data: string, size = 360): string {
 }
 
 export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: QrPrintCardProps) {
+  const printAreaRef = useRef<HTMLDivElement>(null);
   const printablePublicId = publicId?.trim() || "sem ID";
   const printableInternalCode = internalCode?.trim() || "nao informado";
 
   function handlePrint() {
-    document.body.classList.add("printing-qr-plate");
-    const cleanup = () => {
-      document.body.classList.remove("printing-qr-plate");
-      window.removeEventListener("afterprint", cleanup);
-    };
+    const printArea = printAreaRef.current;
+    if (!printArea) return;
 
-    window.addEventListener("afterprint", cleanup);
-    window.print();
+    const iframe = document.createElement("iframe");
+    iframe.style.border = "0";
+    iframe.style.bottom = "0";
+    iframe.style.height = "0";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.width = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      iframe.remove();
+      return;
+    }
+
+    doc.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Placa ${printablePublicId}</title>
+          <style>
+            @page { size: A4 portrait; margin: 10mm; }
+            * { box-sizing: border-box; }
+            body {
+              align-items: flex-start;
+              background: #fff;
+              color: #111827;
+              display: flex;
+              font-family: Arial, sans-serif;
+              justify-content: center;
+              margin: 0;
+              min-height: auto;
+              padding: 0;
+            }
+            .qr-print-area {
+              border: 0 !important;
+              box-shadow: none !important;
+              margin: 0 auto !important;
+              max-width: 150mm !important;
+              padding: 0 !important;
+              width: 150mm !important;
+            }
+            img { max-width: 100%; }
+          </style>
+        </head>
+        <body>${printArea.outerHTML}</body>
+      </html>`);
+    doc.close();
+
+    window.setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      window.setTimeout(() => iframe.remove(), 1000);
+    }, 500);
   }
 
   return (
@@ -46,27 +97,58 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
         </button>
       </div>
 
-      <div className="qr-print-area mt-5 max-w-[420px] border border-gray-200 bg-white p-5 text-gray-950 shadow-sm print:shadow-none">
-        <div className="mx-auto w-full max-w-[320px]">
-          <div className="relative aspect-square w-full">
+      <div
+        ref={printAreaRef}
+        className="qr-print-area mt-5 max-w-[420px] border border-gray-200 bg-white p-5 text-gray-950 shadow-sm print:shadow-none"
+        style={{
+          background: "#ffffff",
+          color: "#111827",
+          maxWidth: "420px",
+          padding: "20px",
+          width: "100%",
+        }}
+      >
+        <div className="mx-auto w-full max-w-[320px]" style={{ margin: "0 auto", maxWidth: 320, width: "100%" }}>
+          <div className="relative aspect-square w-full" style={{ aspectRatio: "1 / 1", position: "relative", width: "100%" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/qr-sign-logo-black-blue.png"
               alt="Logo da placa do QR"
               className="h-full w-full object-contain"
+              style={{ height: "100%", objectFit: "contain", width: "100%" }}
             />
-            <div className="absolute left-1/2 top-[57%] w-[43%] -translate-x-1/2 -translate-y-1/2 bg-white p-[2.5%]">
+            <div
+              className="absolute left-1/2 top-[57%] w-[43%] -translate-x-1/2 -translate-y-1/2 bg-white p-[2.5%]"
+              style={{
+                background: "#ffffff",
+                left: "50%",
+                padding: "2.5%",
+                position: "absolute",
+                top: "57%",
+                transform: "translate(-50%, -50%)",
+                width: "43%",
+              }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrImageUrl(publicQrUrl)}
                 alt="QR Code do imovel embutido na logo"
                 className="h-full w-full"
+                style={{ height: "100%", width: "100%" }}
               />
             </div>
           </div>
         </div>
 
-        <div className="mt-4 border-t border-gray-200 pt-4 text-sm">
+        <div
+          className="mt-4 border-t border-gray-200 pt-4 text-sm"
+          style={{
+            borderTop: "1px solid #e5e7eb",
+            fontSize: "14px",
+            marginTop: "16px",
+            paddingTop: "16px",
+          }}
+        >
           <p>
             <span className="font-semibold">ID do sistema:</span> {printablePublicId}
           </p>
