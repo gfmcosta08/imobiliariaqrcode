@@ -247,7 +247,6 @@ export default function LoginPage() {
                     </label>
                     <input
                       id="signup-full-name"
-                      name="fullName"
                       type="text"
                       autoComplete="name"
                       data-testid="signup-full-name"
@@ -266,7 +265,6 @@ export default function LoginPage() {
                     </label>
                     <input
                       id="signup-whatsapp"
-                      name="whatsapp"
                       type="tel"
                       autoComplete="tel"
                       data-testid="signup-whatsapp"
@@ -286,7 +284,6 @@ export default function LoginPage() {
                 </label>
                 <input
                   id="login-identifier"
-                  name="email"
                   type={mode === "login" ? "text" : "email"}
                   inputMode={mode === "login" ? "text" : "email"}
                   autoComplete={mode === "login" ? "username" : "email"}
@@ -323,7 +320,6 @@ export default function LoginPage() {
                   <div className="relative">
                     <input
                       id="login-password"
-                      name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                       data-testid="login-password"
