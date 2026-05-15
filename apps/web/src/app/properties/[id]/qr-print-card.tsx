@@ -9,6 +9,11 @@ type QrPrintCardProps = {
   qrReads: number;
 };
 
+const QR_LEFT = "52%";
+const QR_TOP = "60%";
+const QR_WIDTH = "37%";
+const QR_PADDING = "2%";
+
 function qrImageUrl(data: string, size = 360): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
 }
@@ -112,21 +117,21 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
           <div className="relative aspect-square w-full" style={{ aspectRatio: "1 / 1", position: "relative", width: "100%" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/qr-sign-logo-black-blue.png"
+              src="/brand/qr-sign-logo-black-blue-frame.png"
               alt="Logo da placa do QR"
               className="h-full w-full object-contain"
               style={{ height: "100%", objectFit: "contain", width: "100%" }}
             />
             <div
-              className="absolute left-1/2 top-[57%] w-[43%] -translate-x-1/2 -translate-y-1/2 bg-white p-[2.5%]"
+              className="absolute -translate-x-1/2 -translate-y-1/2 bg-white"
               style={{
                 background: "#ffffff",
-                left: "50%",
-                padding: "2.5%",
+                left: QR_LEFT,
+                padding: QR_PADDING,
                 position: "absolute",
-                top: "57%",
+                top: QR_TOP,
                 transform: "translate(-50%, -50%)",
-                width: "43%",
+                width: QR_WIDTH,
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
