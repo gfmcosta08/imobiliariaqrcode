@@ -9,10 +9,10 @@ type QrPrintCardProps = {
   qrReads: number;
 };
 
-const QR_LEFT = "52%";
-const QR_TOP = "60%";
-const QR_WIDTH = "37%";
-const QR_PADDING = "2%";
+const QR_LEFT = "54%";
+const QR_TOP = "55%";
+const QR_WIDTH = "28%";
+const QR_PADDING = "1.5%";
 
 function qrImageUrl(data: string, size = 360): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
@@ -125,6 +125,7 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
               style={{ height: "100%", objectFit: "contain", width: "100%" }}
             />
             <div
+              data-testid="qr-overlay-box"
               className="absolute -translate-x-1/2 -translate-y-1/2 bg-white"
               style={{
                 background: "#ffffff",
