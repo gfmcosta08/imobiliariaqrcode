@@ -171,9 +171,10 @@ test("05 QR, pagina publica, homepage e admin encontram o anuncio", async ({ pag
 
   const qrPage = await context.newPage();
   await qrPage.goto(manualQrUrl);
-  await expect(qrPage.getByText(manualPropertyTitle).or(qrPage.getByText(manualPropertyPublicId))).toBeVisible({
+  await expect(qrPage.getByRole("heading", { name: manualPropertyTitle })).toBeVisible({
     timeout: 15_000,
   });
+  await expect(qrPage.getByText(`Ref. ${manualPropertyPublicId}`)).toBeVisible();
   await expect(qrPage.getByText(/Falha ao validar QR|HTTP 404/i)).toHaveCount(0);
   await qrPage.close();
 
