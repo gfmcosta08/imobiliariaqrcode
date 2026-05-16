@@ -97,9 +97,9 @@ export function MediaSection(props: {
   }
 
   return (
-    <div className="mt-10">
+    <div className="mt-10" data-testid="property-media-section">
       <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Imagens</h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400" data-testid="property-media-count">
         {count}/{props.maxImages} imagens (limite do plano de origem do imovel).
       </p>
 
@@ -114,7 +114,7 @@ export function MediaSection(props: {
           </div>
         )}
         {result?.kind === "sending" && (
-          <p className="mt-3 text-sm text-zinc-500" role="status">
+          <p className="mt-3 text-sm text-zinc-500" role="status" data-testid="property-media-status">
             Enviando {result.count} imagem(ns)...
           </p>
         )}
@@ -122,6 +122,7 @@ export function MediaSection(props: {
           <div
             className="mt-3 flex items-start gap-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
             role="status"
+            data-testid="property-media-success"
           >
             <span className="mt-0.5 shrink-0 text-base">✓</span>
             <span>Upload concluído: {result.uploaded} imagem(ns) enviada(s) com sucesso.</span>
@@ -154,6 +155,7 @@ export function MediaSection(props: {
           return (
             <div
               key={m.id}
+              data-testid="property-media-item"
               className="relative overflow-hidden rounded-none border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
             >
               {url && !broken ? (
@@ -173,6 +175,7 @@ export function MediaSection(props: {
                 type="button"
                 disabled={loading}
                 onClick={() => onDelete(m)}
+                data-testid="property-media-remove"
                 className="absolute right-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
               >
                 Remover
@@ -183,18 +186,20 @@ export function MediaSection(props: {
       </div>
 
       {canAdd ? (
-        <form onSubmit={onSubmit} className="mt-6 space-y-3">
+        <form onSubmit={onSubmit} className="mt-6 space-y-3" data-testid="property-media-upload-form">
           <ImageBatchPicker
             inputName="files"
             label="Selecione varias imagens de uma vez"
             helperText={`Clique em Escolher arquivos e selecione ate ${availableSlots} imagem(ns).`}
             disabled={loading}
             maxFiles={availableSlots}
+            testIdPrefix="property-media-upload"
           />
           <div className="flex items-center gap-3">
             <button
               type="submit"
               disabled={loading}
+              data-testid="property-media-upload-submit"
               className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
             >
               {loading ? "Enviando..." : "Enviar imagens"}

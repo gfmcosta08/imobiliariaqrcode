@@ -235,12 +235,14 @@ export default async function Home({ searchParams }: PageProps) {
               <input
                 type="text"
                 name="q"
+                data-testid="home-hero-search"
                 defaultValue={filters.q}
                 placeholder="Cidade, bairro, codigo ou referencia..."
                 className="min-w-0 flex-1 px-5 py-4 text-sm text-gray-800 outline-none placeholder:text-gray-400"
               />
               <button
                 type="submit"
+                data-testid="home-hero-search-submit"
                 className="flex items-center bg-black px-5 text-white transition hover:bg-zinc-800"
                 aria-label="Buscar"
               >
@@ -267,12 +269,18 @@ export default async function Home({ searchParams }: PageProps) {
           </Link>
         </div>
 
-        <form action="/" method="get" className="mt-8 border border-gray-200 bg-white p-4">
+        <form
+          action="/"
+          method="get"
+          className="mt-8 border border-gray-200 bg-white p-4"
+          data-testid="home-filters-form"
+        >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
               Busca
               <input
                 name="q"
+                data-testid="home-filter-q"
                 defaultValue={filters.q}
                 className="mt-1 w-full border border-gray-200 px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
                 placeholder="Cidade, bairro ou codigo"
@@ -362,7 +370,11 @@ export default async function Home({ searchParams }: PageProps) {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <button type="submit" className="bg-black px-5 py-2.5 text-sm font-medium text-white">
+            <button
+              type="submit"
+              data-testid="home-filters-submit"
+              className="bg-black px-5 py-2.5 text-sm font-medium text-white"
+            >
               Aplicar filtros
             </button>
             <Link
@@ -380,6 +392,7 @@ export default async function Home({ searchParams }: PageProps) {
               <Link
                 key={item.id}
                 href={item.detail_href}
+                data-testid="home-property-card"
                 className="group overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
               >
                 {item.image_url ? (
@@ -524,6 +537,7 @@ function SelectFilter({
       {label}
       <select
         name={name}
+        data-testid={`home-filter-${name}`}
         defaultValue={value}
         className="mt-1 w-full border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none focus:border-gray-900"
       >

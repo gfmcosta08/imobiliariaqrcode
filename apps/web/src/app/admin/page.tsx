@@ -40,7 +40,7 @@ export default async function AdminPage() {
           <p className="mt-1 text-sm text-gray-500">Gerencie planos, assinaturas, anuncios e convites.</p>
         </div>
 
-        <section>
+        <section data-testid="admin-section-plans">
           <h2 className="text-lg font-bold text-gray-900">Planos</h2>
           <p className="mt-1 text-sm text-gray-500">
             Edite em uma unica tela o conteudo publico e as variaveis tecnicas de cada plano.
@@ -51,7 +51,7 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        <section>
+        <section data-testid="admin-section-subscriptions">
           <h2 className="text-lg font-bold text-gray-900">Assinaturas</h2>
           <p className="mt-1 text-sm text-gray-500">
             Busque, filtre e edite manualmente a validade e o status de qualquer assinatura.
@@ -61,7 +61,7 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        <section>
+        <section data-testid="admin-section-properties">
           <h2 className="text-lg font-bold text-gray-900">Anuncios</h2>
           <p className="mt-1 text-sm text-gray-500">
             Busque um anuncio por codigo (IMV-...) ou titulo e edite validade e status.
@@ -72,7 +72,7 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        <section>
+        <section data-testid="admin-section-invitations">
           <h2 className="text-lg font-bold text-gray-900">Convites cortesia</h2>
           <p className="mt-1 text-sm text-gray-500">
             Gere credenciais de acesso para corretores com imoveis e QR Codes pre-criados.

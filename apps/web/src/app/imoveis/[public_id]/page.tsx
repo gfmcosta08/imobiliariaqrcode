@@ -103,10 +103,15 @@ export default async function PublicPropertyPage({ params }: PageProps) {
             <span className="text-sm font-medium text-gray-500">{property.public_id}</span>
           </div>
 
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+          <h1
+            className="mt-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl"
+            data-testid="public-property-title"
+          >
             {property.title || "Imovel disponivel"}
           </h1>
-          <p className="mt-2 text-base text-gray-600">{getLocationLabel(property)}</p>
+          <p className="mt-2 text-base text-gray-600" data-testid="public-property-location">
+            {getLocationLabel(property)}
+          </p>
 
           <div className="mt-8 grid grid-cols-2 gap-5 border-y border-gray-200 py-6 md:grid-cols-4">
             <Fact label="Quartos" value={property.bedrooms ?? "Sob consulta"} />

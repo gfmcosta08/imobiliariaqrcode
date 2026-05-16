@@ -15,6 +15,7 @@ type ImageBatchPickerProps = {
   helperText?: string;
   disabled?: boolean;
   maxFiles?: number;
+  testIdPrefix?: string;
 };
 
 function fileKey(file: File): string {
@@ -24,6 +25,7 @@ function fileKey(file: File): string {
 export function ImageBatchPicker(props: ImageBatchPickerProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<LocalPreview[]>([]);
+  const testIdPrefix = props.testIdPrefix ?? props.inputName;
 
   useEffect(() => {
     return () => {
@@ -91,12 +93,16 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
           type="button"
           disabled={props.disabled}
           onClick={() => inputRef.current?.click()}
+          data-testid={`${testIdPrefix}-choose-files`}
           className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
         >
           Escolher arquivos
         </button>
         <span className="text-sm text-zinc-700 dark:text-zinc-300">{props.label}</span>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+        <span
+          className="text-xs text-zinc-500 dark:text-zinc-400"
+          data-testid={`${testIdPrefix}-selected-count`}
+        >
           {previews.length} selecionada(s)
           {props.maxFiles ? ` / ${props.maxFiles} permitidas` : ""}
         </span>
@@ -106,6 +112,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
         ref={inputRef}
         type="file"
         name={props.inputName}
+        data-testid={`${testIdPrefix}-file-input`}
         accept="image/jpeg,image/png,image/webp,image/gif"
         multiple
         disabled={props.disabled}
@@ -122,6 +129,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
           {previews.map((p) => (
             <div
               key={p.id}
+              data-testid={`${testIdPrefix}-preview`}
               className="relative overflow-hidden rounded-none border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
             >
               {!p.broken ? (
@@ -141,6 +149,7 @@ export function ImageBatchPicker(props: ImageBatchPickerProps) {
                 type="button"
                 disabled={props.disabled}
                 onClick={() => removeOne(p.id)}
+                data-testid={`${testIdPrefix}-remove-preview`}
                 className="absolute right-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
               >
                 Remover

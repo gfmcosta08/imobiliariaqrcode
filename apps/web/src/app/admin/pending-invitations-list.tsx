@@ -79,11 +79,20 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
       {items.length === 0 ? (
         <p className="mt-4 text-sm text-gray-400">Nenhum convite gerado.</p>
       ) : (
-        <ul className="mt-4 divide-y divide-gray-100">
+        <ul className="mt-4 divide-y divide-gray-100" data-testid="admin-invitations-list">
           {items.map((inv) => (
-            <li key={inv.id} className="flex items-center justify-between py-3">
+            <li
+              key={inv.id}
+              className="flex items-center justify-between py-3"
+              data-testid="admin-invitation-item"
+            >
               <div>
-                <span className="text-sm font-mono font-semibold text-gray-900">Login: {inv.login_code}</span>
+                <span
+                  className="text-sm font-mono font-semibold text-gray-900"
+                  data-testid="admin-invitation-login-code"
+                >
+                  Login: {inv.login_code}
+                </span>
                 <span className="ml-4 text-xs text-gray-400">
                   Gerado: {formatDate(inv.generated_at)}
                 </span>
@@ -99,7 +108,10 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className={`text-xs font-semibold uppercase tracking-wide ${statusClass(inv.status)}`}>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wide ${statusClass(inv.status)}`}
+                  data-testid="admin-invitation-status"
+                >
                   {statusLabel(inv.status)}
                 </span>
                 {inv.status === "pending" ? (
@@ -107,6 +119,7 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
                     type="button"
                     onClick={() => handleDelete(inv)}
                     disabled={deletingId === inv.id}
+                    data-testid="admin-invitation-cancel"
                     className="border border-red-300 px-3 py-1 text-xs text-red-700 transition hover:bg-red-50 disabled:opacity-60"
                   >
                     {deletingId === inv.id ? "Cancelando..." : "Cancelar"}

@@ -921,6 +921,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               inputName="media_files"
               label="Selecione até o limite do seu plano"
               helperText="Clique em Escolher arquivos, selecione varias imagens e depois Salvar imóvel."
+              testIdPrefix="property-media-files"
             />
           </div>
         </section>

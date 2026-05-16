@@ -96,6 +96,7 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
         <button
           type="button"
           onClick={handlePrint}
+          data-testid="qr-print-button"
           className="qr-screen-only bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
         >
           Imprimir PDF
@@ -104,6 +105,7 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
 
       <div
         ref={printAreaRef}
+        data-testid="qr-print-area"
         className="qr-print-area mt-5 max-w-[420px] border border-gray-200 bg-white p-5 text-gray-950 shadow-sm print:shadow-none"
         style={{
           background: "#ffffff",
@@ -154,13 +156,15 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
             paddingTop: "16px",
           }}
         >
-          <p>
+          <p data-testid="qr-print-public-id">
             <span className="font-semibold">ID do sistema:</span> {printablePublicId}
           </p>
-          <p className="mt-1">
+          <p className="mt-1" data-testid="qr-print-internal-code">
             <span className="font-semibold">Codigo interno:</span> {printableInternalCode}
           </p>
-          <p className="mt-3 break-all text-xs text-gray-500">{publicQrUrl}</p>
+          <p className="mt-3 break-all text-xs text-gray-500" data-testid="qr-print-public-url">
+            {publicQrUrl}
+          </p>
         </div>
       </div>
     </div>

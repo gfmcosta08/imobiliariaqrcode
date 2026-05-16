@@ -104,10 +104,10 @@ export default async function PropertyDetailPage(props: PageProps) {
             Imóveis
           </Link>
           {" / "}
-          {property.public_id}
+          <span data-testid="property-detail-public-id">{property.public_id}</span>
         </p>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">
-          {property.title ?? property.public_id}
+          <span data-testid="property-detail-title">{property.title ?? property.public_id}</span>
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           {property.city ?? "Cidade não informada"} / {property.state ?? "UF"} ·{" "}

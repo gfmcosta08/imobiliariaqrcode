@@ -81,8 +81,11 @@ export default function CompleteProfilePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
             <input
+              id="onboarding-full-name"
               name="fullName"
               type="text"
+              autoComplete="name"
+              data-testid="onboarding-full-name"
               required
               value={form.fullName}
               onChange={handleChange}
@@ -94,8 +97,11 @@ export default function CompleteProfilePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">E-mail *</label>
             <input
+              id="onboarding-email"
               name="email"
               type="email"
+              autoComplete="email"
+              data-testid="onboarding-email"
               required
               value={form.email}
               onChange={handleChange}
@@ -109,8 +115,11 @@ export default function CompleteProfilePage() {
               WhatsApp (opcional)
             </label>
             <input
+              id="onboarding-whatsapp"
               name="whatsapp"
               type="tel"
+              autoComplete="tel"
+              data-testid="onboarding-whatsapp"
               value={form.whatsapp}
               onChange={handleChange}
               placeholder="(11) 99999-9999"
@@ -121,8 +130,11 @@ export default function CompleteProfilePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha *</label>
             <input
+              id="onboarding-password"
               name="password"
               type="password"
+              autoComplete="new-password"
+              data-testid="onboarding-password"
               required
               minLength={8}
               value={form.password}
@@ -137,8 +149,11 @@ export default function CompleteProfilePage() {
               Confirmar senha *
             </label>
             <input
+              id="onboarding-confirm-password"
               name="confirmPassword"
               type="password"
+              autoComplete="new-password"
+              data-testid="onboarding-confirm-password"
               required
               value={form.confirmPassword}
               onChange={handleChange}
@@ -152,6 +167,7 @@ export default function CompleteProfilePage() {
           <button
             type="submit"
             disabled={loading}
+            data-testid="onboarding-submit"
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors mt-2"
           >
             {loading ? "Salvando..." : "Continuar para o anuncio"}

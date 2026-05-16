@@ -81,6 +81,7 @@ export function InvitationGenerator() {
               <input
                 type="number"
                 min={1}
+                data-testid="admin-invite-property-count"
                 value={propertyCount}
                 onChange={(e) => setPropertyCount(parsePositiveInteger(e.target.value, 1))}
                 className="mt-1 block w-24 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
@@ -91,6 +92,7 @@ export function InvitationGenerator() {
               <input
                 type="number"
                 min={1}
+                data-testid="admin-invite-expiration-days"
                 value={expirationDays}
                 onChange={(e) => setExpirationDays(parsePositiveInteger(e.target.value, 30))}
                 className="mt-1 block w-28 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
@@ -103,13 +105,14 @@ export function InvitationGenerator() {
           <button
             onClick={handleGenerate}
             disabled={loading}
+            data-testid="admin-invite-generate"
             className="mt-5 bg-black px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Gerando..." : "Gerar convite cortesia"}
           </button>
         </div>
       ) : (
-        <div className="mt-5">
+        <div className="mt-5" data-testid="admin-invite-result">
           <div id="print-area" className="border border-gray-200 p-6 print:border-none print:p-0">
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
               <div className="shrink-0">
@@ -131,13 +134,19 @@ export function InvitationGenerator() {
                   <div>
                     <span className="block text-xs text-gray-500">Login</span>
                     <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
+                      <span className="sr-only">Login gerado: </span>
+                      <span data-testid="admin-invite-login-code">
                       {result.login_code}
+                      </span>
                     </span>
                   </div>
                   <div>
                     <span className="block text-xs text-gray-500">Senha</span>
                     <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
+                      <span className="sr-only">Senha gerada: </span>
+                      <span data-testid="admin-invite-access-code">
                       {result.access_code}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -156,6 +165,7 @@ export function InvitationGenerator() {
           <div className="mt-4 flex gap-3 print:hidden">
             <button
               onClick={handlePrint}
+              data-testid="admin-invite-print"
               className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
             >
               Imprimir

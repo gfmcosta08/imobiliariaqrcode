@@ -59,10 +59,11 @@ export default async function PropertiesPage() {
               <li key={p.id}>
                 <Link
                   href={`/properties/${p.id}`}
+                  data-testid="properties-list-item"
                   className="flex flex-col border border-gray-200 bg-white p-5 transition hover:border-gray-400 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-semibold text-gray-900">
+                    <p className="font-semibold text-gray-900" data-testid="properties-list-title">
                       {p.title ?? p.public_id}{" "}
                       <span className="text-xs font-normal text-gray-400">({p.public_id})</span>
                     </p>

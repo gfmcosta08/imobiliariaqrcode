@@ -126,6 +126,7 @@ export function PropertiesManager() {
       <div className="flex gap-3">
         <input
           type="text"
+          data-testid="admin-properties-search"
           placeholder="Buscar por public_id (ex: IMV-2026-...) ou título..."
           className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
           value={query}
@@ -135,6 +136,7 @@ export function PropertiesManager() {
         <button
           onClick={handleSearch}
           disabled={fetching || !query.trim()}
+          data-testid="admin-properties-search-submit"
           className="bg-black px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {fetching ? "Buscando..." : "Buscar"}
@@ -154,6 +156,7 @@ export function PropertiesManager() {
             return (
               <div
                 key={prop.id}
+                data-testid="admin-properties-result"
                 className="border border-gray-200 p-4 flex items-start justify-between gap-4"
               >
                 <div>
@@ -181,6 +184,7 @@ export function PropertiesManager() {
                 </div>
                 <button
                   onClick={() => startEdit(prop)}
+                  data-testid="admin-properties-edit"
                   className="flex-shrink-0 border border-gray-300 px-4 py-1.5 text-xs text-gray-700 transition hover:border-gray-500"
                 >
                   Editar
@@ -199,7 +203,10 @@ export function PropertiesManager() {
 
       {/* Modal de edição */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          data-testid="admin-properties-modal"
+        >
           <div className="w-full max-w-md bg-white p-6 shadow-xl">
             <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">
               Editar anúncio
@@ -212,6 +219,7 @@ export function PropertiesManager() {
               <label className="block">
                 <span className="text-xs text-gray-500">Status</span>
                 <select
+                  data-testid="admin-properties-edit-status"
                   className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
@@ -228,6 +236,7 @@ export function PropertiesManager() {
                 <span className="text-xs text-gray-500">Data de expiração (deixe vazio para sem expiração)</span>
                 <input
                   type="date"
+                  data-testid="admin-properties-edit-expires-at"
                   className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
                   value={editExpiresAt}
                   onChange={(e) => setEditExpiresAt(e.target.value)}
@@ -250,6 +259,7 @@ export function PropertiesManager() {
               <button
                 onClick={handleSave}
                 disabled={saving}
+                data-testid="admin-properties-edit-save"
                 className="bg-black px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
                 {saving ? "Salvando..." : "Salvar"}
