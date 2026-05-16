@@ -218,25 +218,6 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
                     style={{ display: "block", height: "100%", width: "100%" }}
                   />
                 </div>
-                <div
-                  className="absolute left-1/2 top-[1.1%] -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-center text-[10px] font-semibold text-gray-900 shadow-sm"
-                  style={{
-                    background: "rgba(255,255,255,0.92)",
-                    borderRadius: 999,
-                    color: "#111827",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    left: "50%",
-                    maxWidth: "92%",
-                    padding: "4px 10px",
-                    position: "absolute",
-                    top: "1.1%",
-                    transform: "translateX(-50%)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  ID {printablePublicId} | Codigo {printableInternalCode}
-                </div>
               </div>
 
               <div className="qr-screen-only mt-3 border-t border-gray-200 pt-3 text-sm">
