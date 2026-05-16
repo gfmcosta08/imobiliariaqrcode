@@ -4,11 +4,17 @@ import { useState } from "react";
 
 type QrCode = { is_active: boolean };
 type BrokerProfile = { email: string; full_name: string | null };
-type Broker = { profiles: BrokerProfile | null };
+type Broker = {
+  id: string;
+  profile_id: string | null;
+  display_name: string | null;
+  profiles: BrokerProfile | BrokerProfile[] | null;
+};
 type Property = {
   id: string;
   public_id: string | null;
   title: string | null;
+  internal_code: string | null;
   listing_status: string;
   expires_at: string | null;
   city: string | null;
@@ -35,6 +41,12 @@ function fmtDate(iso: string | null) {
 function toDateInputValue(iso: string | null): string {
   if (!iso) return "";
   return iso.slice(0, 10);
+}
+
+function brokerLabel(broker: Broker | null): string {
+  if (!broker) return "Perfil de corretor nao encontrado";
+  const profile = Array.isArray(broker.profiles) ? broker.profiles[0] : broker.profiles;
+  return profile?.email ?? broker.display_name ?? `perfil ${broker.profile_id ?? broker.id}`;
 }
 
 export function PropertiesManager() {
@@ -127,7 +139,7 @@ export function PropertiesManager() {
         <input
           type="text"
           data-testid="admin-properties-search"
-          placeholder="Buscar por public_id (ex: IMV-2026-...) ou título..."
+          placeholder="Buscar por public_id, codigo interno ou titulo..."
           className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -152,7 +164,7 @@ export function PropertiesManager() {
         <div className="space-y-3">
           {results.map((prop) => {
             const qrActive = prop.property_qrcodes?.some((q) => q.is_active);
-            const brokerEmail = prop.brokers?.profiles?.email ?? "—";
+            const brokerEmail = brokerLabel(prop.brokers);
             return (
               <div
                 key={prop.id}
@@ -167,6 +179,11 @@ export function PropertiesManager() {
                         ({prop.public_id})
                       </span>
                     )}
+                    {prop.internal_code ? (
+                      <span className="ml-2 text-xs font-normal text-gray-400">
+                        Cod. interno: {prop.internal_code}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="mt-1 text-sm text-gray-500">
                     {prop.city ?? "—"} / {prop.state ?? "—"} ·{" "}
@@ -197,7 +214,7 @@ export function PropertiesManager() {
 
       {results.length === 0 && !fetching && !fetchError && (
         <p className="text-sm text-gray-400">
-          Busque por public_id (ex: IMV-2026-BD5699) ou parte do título.
+          Busque por public_id (ex: IMV-2026-BD5699), codigo interno ou parte do titulo.
         </p>
       )}
 

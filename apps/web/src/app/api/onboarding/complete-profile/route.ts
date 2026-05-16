@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Atualizar profile e broker no banco
-  await admin
+  const { error: profileError } = await admin
     .from("profiles")
     .update({
       full_name: fullName.trim(),
@@ -55,14 +55,22 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", user.id);
 
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
   const cleanPhone = whatsapp?.replace(/\D/g, "") || null;
-  await admin
+  const { error: brokerError } = await admin
     .from("brokers")
     .update({
       display_name: fullName.trim(),
       whatsapp_number: cleanPhone,
     })
     .eq("profile_id", user.id);
+
+  if (brokerError) {
+    return NextResponse.json({ error: brokerError.message }, { status: 500 });
+  }
 
   const { error: invitationError } = await admin
     .from("broker_invitations")

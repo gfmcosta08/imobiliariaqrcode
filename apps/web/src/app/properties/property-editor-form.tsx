@@ -192,6 +192,14 @@ function onAreaBlur(e: FormEvent<HTMLInputElement>) {
   input.value = formatAreaInput(input.value);
 }
 
+function onLocationInvalid(e: FormEvent<HTMLInputElement>) {
+  e.currentTarget.setCustomValidity("Informe a localização do imóvel.");
+}
+
+function onLocationInput(e: FormEvent<HTMLInputElement>) {
+  e.currentTarget.setCustomValidity("");
+}
+
 function FieldLabel(props: {
   label: string;
   children: ReactNode;
@@ -677,6 +685,8 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               data-testid={testId("location_map_url")}
               placeholder="https://maps.google.com/..."
               defaultValue={initial.location_map_url ?? ""}
+              onInvalid={onLocationInvalid}
+              onInput={onLocationInput}
               className={inputClass}
             />
           </FieldLabel>

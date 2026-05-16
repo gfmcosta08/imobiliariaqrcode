@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 type Profile = { email: string; full_name: string | null };
-type Account = { stripe_customer_id: string | null; profiles: Profile | null };
+type Account = { stripe_customer_id: string | null; profiles: Profile | Profile[] | null };
 type Subscription = {
   id: string;
   account_id: string;
@@ -19,6 +19,7 @@ type Subscription = {
 
 const STATUSES = [
   "free",
+  "trial_active",
   "solo_active",
   "pro_pending_activation",
   "pro_active",
@@ -27,7 +28,7 @@ const STATUSES = [
   "expired",
 ];
 
-const PLANS = ["free", "solo", "pro"];
+const PLANS = ["free", "trial", "solo", "pro", "premium"];
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -37,6 +38,19 @@ function fmtDate(iso: string | null) {
 function toDateInputValue(iso: string | null): string {
   if (!iso) return "";
   return iso.slice(0, 10);
+}
+
+function firstProfile(account: Account | null): Profile | null {
+  const profiles = account?.profiles;
+  return Array.isArray(profiles) ? (profiles[0] ?? null) : (profiles ?? null);
+}
+
+function userLabel(sub: Subscription): { primary: string; secondary: string } {
+  const profile = firstProfile(sub.accounts);
+  return {
+    primary: profile?.email ?? `Conta ${sub.account_id.slice(0, 8)}`,
+    secondary: profile?.full_name ?? "Perfil sem nome/e-mail vinculado",
+  };
 }
 
 export function SubscriptionsManager() {
@@ -199,12 +213,12 @@ export function SubscriptionsManager() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {results.map((sub) => {
-                const p = sub.accounts?.profiles;
+                const user = userLabel(sub);
                 return (
                   <tr key={sub.id}>
                     <td className="py-3 pr-4">
-                      <p className="font-medium text-gray-900">{p?.email ?? "—"}</p>
-                      <p className="text-xs text-gray-400">{p?.full_name ?? ""}</p>
+                      <p className="font-medium text-gray-900">{user.primary}</p>
+                      <p className="text-xs text-gray-400">{user.secondary}</p>
                       {sub.billing_provider === "stripe" && (
                         <p className="text-xs text-amber-600">Stripe — editar com cuidado</p>
                       )}
@@ -244,7 +258,7 @@ export function SubscriptionsManager() {
               Editar assinatura
             </h3>
             <p className="mt-1 text-sm font-medium text-gray-900">
-              {editing.accounts?.profiles?.email ?? editing.account_id}
+              {userLabel(editing).primary}
             </p>
 
             {editing.billing_provider === "stripe" && (

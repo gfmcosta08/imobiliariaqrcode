@@ -45,6 +45,9 @@ export async function GET(req: NextRequest) {
             .includes(search) ||
           String(profile?.full_name ?? "")
             .toLowerCase()
+            .includes(search) ||
+          String(subscription.account_id ?? "")
+            .toLowerCase()
             .includes(search)
         );
       })

@@ -109,7 +109,22 @@ test("02 admin acessa painel e gera convite cortesia", async ({ page }) => {
   expect(inviteAccessCode).toMatch(/^\d{6}$/);
 });
 
-test("03 corretor usa convite completa perfil e publica anuncio inicial", async ({ page }) => {
+test("03 formulario mostra mensagem oficial para localizacao obrigatoria", async ({ page }) => {
+  requireStaging();
+  await login(page, adminEmail, adminPassword);
+  await page.goto("/properties/new");
+  await page.getByTestId("property-title").fill(`QA sem localizacao ${runId}`);
+  await page.getByTestId("property-purpose").selectOption("sale");
+  await page.getByTestId("property-listing_status").selectOption("published");
+  await page.getByTestId("property-submit-create-top").click();
+  await expect(page.getByTestId("property-location_map_url")).toBeFocused();
+  await expect(page.getByTestId("property-location_map_url")).toHaveJSProperty(
+    "validationMessage",
+    "Informe a localização do imóvel.",
+  );
+});
+
+test("04 corretor usa convite completa perfil e publica anuncio inicial", async ({ page }) => {
   requireStaging();
   expect(inviteLoginCode).toMatch(/^\d{6}$/);
 
@@ -137,7 +152,7 @@ test("03 corretor usa convite completa perfil e publica anuncio inicial", async 
   await expect(page.getByTestId("qr-print-internal-code")).toContainText(inviteInternalCode);
 });
 
-test("04 corretor cria segundo anuncio com imagem, QR e dados persistidos", async ({ page }) => {
+test("05 corretor cria segundo anuncio com imagem, QR e dados persistidos", async ({ page }) => {
   requireStaging();
   await login(page, brokerEmail, brokerPassword);
   await page.goto("/properties/new");
@@ -164,7 +179,7 @@ test("04 corretor cria segundo anuncio com imagem, QR e dados persistidos", asyn
   expect(manualQrUrl).toContain("/q/");
 });
 
-test("05 QR, pagina publica, homepage e admin encontram o anuncio", async ({ page, context }) => {
+test("06 QR, pagina publica, homepage e admin encontram o anuncio", async ({ page, context }) => {
   requireStaging();
   expect(manualPropertyPublicId).toMatch(/^IMV-/);
   expect(manualQrUrl).toContain("/q/");
@@ -187,7 +202,10 @@ test("05 QR, pagina publica, homepage e admin encontram o anuncio", async ({ pag
 
   await login(page, adminEmail, adminPassword);
   await page.goto("/admin");
-  await page.getByTestId("admin-properties-search").fill(manualPropertyPublicId);
+  await page.getByTestId("admin-properties-search").fill(manualInternalCode);
   await page.getByTestId("admin-properties-search-submit").click();
-  await expect(page.getByTestId("admin-properties-result").filter({ hasText: manualPropertyPublicId })).toBeVisible();
+  const adminResult = page.getByTestId("admin-properties-result").filter({ hasText: manualPropertyTitle });
+  await expect(adminResult).toBeVisible();
+  await expect(adminResult).toContainText(manualInternalCode);
+  await expect(adminResult).toContainText(brokerEmail);
 });
