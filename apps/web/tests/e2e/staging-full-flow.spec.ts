@@ -7,6 +7,7 @@ const writeEnabled = process.env.E2E_STAGING_WRITE === "1";
 const runId = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 const brokerEmail = `corretor.qa.${runId}@teste.com`;
 const brokerPassword = `TesteQA123!${runId.slice(-4)}`;
+const brokerWhatsapp = `7199${runId.slice(-8)}`;
 const invitePropertyTitle = `QA Convite ${runId}`;
 const inviteInternalCode = `QA-CONV-${runId}`;
 const manualPropertyTitle = `QA Manual ${runId}`;
@@ -136,7 +137,7 @@ test("04 corretor usa convite completa perfil e publica anuncio inicial", async 
 
   await page.getByTestId("onboarding-full-name").fill("Corretor QA Staging");
   await page.getByTestId("onboarding-email").fill(brokerEmail);
-  await page.getByTestId("onboarding-whatsapp").fill("71999990000");
+  await page.getByTestId("onboarding-whatsapp").fill(brokerWhatsapp);
   await page.getByTestId("onboarding-password").fill(brokerPassword);
   await page.getByTestId("onboarding-confirm-password").fill(brokerPassword);
   await page.getByTestId("onboarding-submit").click();

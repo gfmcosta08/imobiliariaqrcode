@@ -28,6 +28,15 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createServiceRoleClient();
+  const friendlyDatabaseError = (message: string) => {
+    if (message.includes("profiles_whatsapp_number_key")) {
+      return "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco.";
+    }
+    if (message.includes("profiles_email_key")) {
+      return "Este e-mail ja esta cadastrado em outra conta.";
+    }
+    return message;
+  };
 
   // Atualizar email e senha via Admin API (sem confirmação do email antigo)
   const { error: updateAuthError } = await admin.auth.admin.updateUserById(user.id, {
@@ -56,7 +65,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id);
 
   if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
+    return NextResponse.json({ error: friendlyDatabaseError(profileError.message) }, { status: 400 });
   }
 
   const cleanPhone = whatsapp?.replace(/\D/g, "") || null;
@@ -69,7 +78,7 @@ export async function POST(req: NextRequest) {
     .eq("profile_id", user.id);
 
   if (brokerError) {
-    return NextResponse.json({ error: brokerError.message }, { status: 500 });
+    return NextResponse.json({ error: friendlyDatabaseError(brokerError.message) }, { status: 400 });
   }
 
   const { error: invitationError } = await admin
