@@ -51,9 +51,9 @@ const PLATE_TEMPLATES: PlateTemplate[] = [
     printPage: "A4 landscape",
     printWidth: "297mm",
     qrBox: {
-      left: "4.9%",
-      top: "16.6%",
-      width: "44.9%",
+      left: "5.5%",
+      top: "16%",
+      width: "42.5%",
     },
   },
 ];
