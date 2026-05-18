@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { AppHeader } from "@/components/app-header";
 
 import { updatePropertyDetails } from "../actions";
@@ -33,6 +34,7 @@ export default async function PropertyDetailPage(props: PageProps) {
   const query = props.searchParams ? await props.searchParams : undefined;
   const mediaError = query?.mediaError ? decodeURIComponent(query.mediaError) : null;
   const supabase = await createClient();
+  const serviceRole = createServiceRoleClient();
 
   const { data: property, error } = await supabase
     .from("properties")
@@ -60,7 +62,7 @@ export default async function PropertyDetailPage(props: PageProps) {
 
   const signedUrls: Record<string, string> = {};
   for (const media of mediaRows ?? []) {
-    const { data: signed, error: signError } = await supabase.storage
+    const { data: signed, error: signError } = await serviceRole.storage
       .from("property-media")
       .createSignedUrl(media.storage_path, 3600);
     if (!signError && signed?.signedUrl) signedUrls[media.id] = signed.signedUrl;

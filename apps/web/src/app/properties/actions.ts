@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
-import { uploadMediaFilesForProperty } from "./media-actions";
 
 export type CreatePropertyState = { error?: string } | null;
 
@@ -21,10 +20,6 @@ export async function createProperty(
   if (locationError) {
     return { error: locationError };
   }
-  const files = formData
-    .getAll("media_files")
-    .filter((v): v is File => v instanceof File && v.size > 0);
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -118,8 +113,22 @@ export async function createProperty(
         ? { plan_code: "free", status: "free" }
         : null;
 
-  if (!subscription) {
-    return { error: "Escolha um plano antes de cadastrar imoveis." };
+  let ensuredSubscription = subscription;
+  if (!ensuredSubscription) {
+    // In preview/dev, ensure a default FREE subscription exists so QA can create listings.
+    if (!isProduction) {
+      await admin.from("subscriptions").upsert(
+        {
+          account_id: broker.account_id,
+          plan_code: "free",
+          status: "free",
+        },
+        { onConflict: "account_id" },
+      );
+      ensuredSubscription = { plan_code: "free", status: "free" };
+    } else {
+      return { error: "Escolha um plano antes de cadastrar imoveis." };
+    }
   }
 
   const { data, error } = await admin
@@ -128,7 +137,7 @@ export async function createProperty(
       ...payload,
       account_id: broker.account_id,
       broker_id: broker.id,
-      origin_plan_code: subscription.plan_code,
+      origin_plan_code: ensuredSubscription.plan_code,
     })
     .select("id")
     .maybeSingle();
@@ -139,13 +148,21 @@ export async function createProperty(
 
   revalidatePath("/properties");
   if (data?.id) {
-    if (files.length) {
-      const upload = await uploadMediaFilesForProperty(data.id, files);
-      if (upload.failed.length) {
-        const msg = `Enviadas: ${upload.uploaded}. Falhas: ${upload.failed.length}.`;
-        redirect(`/properties/${data.id}?mediaError=${encodeURIComponent(msg)}`);
-      }
+    // Guarantee a readable /q/{token} even when DB trigger lags in preview/test.
+    const { data: activeQr } = await admin
+      .from("property_qrcodes")
+      .select("id")
+      .eq("property_id", data.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!activeQr) {
+      await admin.from("property_qrcodes").insert({
+        property_id: data.id,
+        qr_token: crypto.randomUUID(),
+        is_active: true,
+      });
     }
+
     redirect(`/properties/${data.id}`);
   }
   return null;
@@ -166,7 +183,6 @@ export async function updatePropertyDetails(
   if (locationError) {
     return { error: locationError };
   }
-
   const { error } = await supabase.from("properties").update(payload).eq("id", propertyId);
   if (error) {
     return { error: error.message };

@@ -62,6 +62,16 @@ describe("buildPropertyPayload", () => {
     expect(payload.price).toBeCloseTo(3500);
   });
 
+  it("normaliza valores legados de tipo e subtipo para as opcoes do formulario", () => {
+    const fd = new FormData();
+    fd.set("property_type", "residential");
+    fd.set("property_subtype", "apartment");
+
+    const payload = buildPropertyPayload(fd);
+    expect(payload.property_type).toBe("Residencial");
+    expect(payload.property_subtype).toBe("Apartamento");
+  });
+
   it("bloqueia rascunho sem link de geolocalizacao", () => {
     const fd = new FormData();
     fd.set("listing_status", "draft");

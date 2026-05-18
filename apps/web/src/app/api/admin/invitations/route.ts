@@ -38,6 +38,57 @@ function isMissingTrialColumn(error: PostgrestLikeError | null): boolean {
   );
 }
 
+async function ensureBrokerForInvitation(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  authUserId: string,
+  tempEmail: string,
+): Promise<{ id: string; account_id: string } | null> {
+  const { data: existing } = await supabase
+    .from("brokers")
+    .select("id, account_id")
+    .eq("profile_id", authUserId)
+    .maybeSingle();
+  if (existing) return existing as { id: string; account_id: string };
+
+  const { data: accountCreated, error: accountErr } = await supabase
+    .from("accounts")
+    .insert({})
+    .select("id")
+    .single();
+  if (accountErr || !accountCreated) return null;
+
+  const pendingWhatsapp = `pending-${authUserId.replace(/-/g, "")}`.slice(0, 40);
+  const { error: profileErr } = await supabase.from("profiles").upsert(
+    {
+      id: authUserId,
+      account_id: accountCreated.id,
+      email: tempEmail,
+      full_name: "Corretor Cortesia",
+      whatsapp_number: pendingWhatsapp,
+      role: "broker",
+    },
+    { onConflict: "id" },
+  );
+  if (profileErr) return null;
+
+  const { data: brokerCreated, error: brokerErr } = await supabase
+    .from("brokers")
+    .upsert(
+      {
+        account_id: accountCreated.id,
+        profile_id: authUserId,
+        display_name: "Corretor Cortesia",
+        whatsapp_number: pendingWhatsapp,
+        status: "active",
+      },
+      { onConflict: "profile_id" },
+    )
+    .select("id, account_id")
+    .single();
+  if (brokerErr || !brokerCreated) return null;
+  return brokerCreated as { id: string; account_id: string };
+}
+
 async function updateAccountTrialState(
   supabase: ReturnType<typeof createServiceRoleClient>,
   accountId: string,
@@ -123,20 +174,7 @@ export async function POST(req: Request) {
   }
 
   const authUserId = authData.user.id;
-  let broker: { id: string; account_id: string } | null = null;
-
-  for (let i = 0; i < 5; i++) {
-    await new Promise((r) => setTimeout(r, 300));
-    const { data } = await supabase
-      .from("brokers")
-      .select("id, account_id")
-      .eq("profile_id", authUserId)
-      .maybeSingle();
-    if (data) {
-      broker = data as { id: string; account_id: string };
-      break;
-    }
-  }
+  const broker = await ensureBrokerForInvitation(supabase, authUserId, tempEmail);
 
   if (!broker) {
     await supabase.auth.admin.deleteUser(authUserId);
@@ -197,8 +235,8 @@ export async function POST(req: Request) {
         broker_id: broker.id,
         origin_plan_code: "free",
         listing_status: "draft",
-        property_type: "residential",
-        property_subtype: "apartment",
+        property_type: "Residencial",
+        property_subtype: "Apartamento",
         purpose: "sale",
         title: null,
         description: "",

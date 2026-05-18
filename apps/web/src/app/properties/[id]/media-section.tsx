@@ -1,11 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
 
-import { ImageBatchPicker } from "../image-batch-picker";
-import { deletePropertyMedia, uploadPropertyMedia } from "../media-actions";
+import { deletePropertyMedia } from "../media-actions";
 
 type MediaRow = {
   id: string;
@@ -14,12 +12,14 @@ type MediaRow = {
   status: string;
 };
 
-type UploadResult =
-  | { kind: "sending"; count: number }
-  | { kind: "success"; uploaded: number }
-  | { kind: "partial"; uploaded: number; failed: { name: string; error: string }[] }
-  | { kind: "error"; message: string }
-  | null;
+type LocalMedia = MediaRow & { signedUrl?: string | null };
+type UploadItem = {
+  id: string;
+  name: string;
+  previewUrl: string;
+  status: "sending" | "success" | "error";
+  error?: string;
+};
 
 export function MediaSection(props: {
   propertyId: string;
@@ -28,18 +28,23 @@ export function MediaSection(props: {
   maxImages: number;
 }) {
   const router = useRouter();
-  const [result, setResult] = useState<UploadResult>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const [media, setMedia] = useState<LocalMedia[]>(
+    props.media.map((item) => ({ ...item, signedUrl: props.signedUrls[item.id] })),
+  );
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [brokenIds, setBrokenIds] = useState<Record<string, boolean>>({});
-  const noticeRef = useRef<HTMLDivElement>(null);
-  const count = props.media.filter((m) => m.status !== "deleted").length;
-  const availableSlots = Math.max(0, props.maxImages - count);
-  const canAdd = availableSlots > 0;
 
   const mediaVisible = useMemo(
-    () => props.media.filter((m) => m.status !== "deleted"),
-    [props.media],
+    () => media.filter((item) => item.status !== "deleted"),
+    [media],
   );
+  const count = mediaVisible.length;
+  const availableSlots = Math.max(0, props.maxImages - count);
+  const canAdd = availableSlots > 0;
 
   function scrollToNotice() {
     setTimeout(
@@ -48,51 +53,103 @@ export function MediaSection(props: {
     );
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setResult(null);
-    const formData = new FormData(e.currentTarget);
-    const files = formData.getAll("files").filter((v) => v instanceof File && v.size > 0);
-    if (!files.length) {
-      setResult({ kind: "error", message: "Selecione pelo menos uma imagem." });
-      return;
-    }
-    setLoading(true);
-    setResult({ kind: "sending", count: files.length });
-    formData.set("propertyId", props.propertyId);
+  async function uploadSingleFile(file: File, uploadId: string) {
+    const body = new FormData();
+    body.append("files", file);
 
-    const res = await uploadPropertyMedia(formData);
-    setLoading(false);
+    try {
+      const response = await fetch(`/api/properties/${encodeURIComponent(props.propertyId)}/media`, {
+        method: "POST",
+        body,
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        uploaded?: Array<{ id: string; storage_path: string; signedUrl?: string | null }>;
+        failed?: Array<{ name: string; error: string }>;
+      };
 
-    if (res && "error" in res && res.error) {
-      setResult({ kind: "error", message: res.error });
-      scrollToNotice();
-      return;
-    }
-
-    if (res && "uploaded" in res) {
-      const failedItems = Array.isArray(res.failed) ? res.failed : [];
-      const uploadedCount = res.uploaded ?? 0;
-      if (failedItems.length > 0) {
-        setResult({ kind: "partial", uploaded: uploadedCount, failed: failedItems });
-      } else {
-        setResult({ kind: "success", uploaded: uploadedCount });
+      if (!response.ok || !payload.uploaded?.length) {
+        const error = payload.error ?? payload.failed?.[0]?.error ?? "Falha ao enviar imagem.";
+        setUploads((current) =>
+          current.map((item) => (item.id === uploadId ? { ...item, status: "error", error } : item)),
+        );
+        return;
       }
-      e.currentTarget.reset();
-      scrollToNotice();
-      router.refresh();
+
+      const uploaded = payload.uploaded[0];
+      setMedia((current) => [
+        ...current,
+        {
+          id: uploaded.id,
+          storage_path: uploaded.storage_path,
+          mime_type: file.type,
+          status: "ready",
+          signedUrl: uploaded.signedUrl ?? null,
+        },
+      ]);
+      setUploads((current) =>
+        current.map((item) => (item.id === uploadId ? { ...item, status: "success" } : item)),
+      );
+    } catch (error) {
+      setUploads((current) =>
+        current.map((item) =>
+          item.id === uploadId
+            ? {
+                ...item,
+                status: "error",
+                error: error instanceof Error ? error.message : "Falha ao enviar imagem.",
+              }
+            : item,
+        ),
+      );
     }
   }
 
-  async function onDelete(media: MediaRow) {
-    setResult(null);
-    setLoading(true);
-    const res = await deletePropertyMedia(props.propertyId, media.id, media.storage_path);
-    setLoading(false);
-    if (res && "error" in res && res.error) {
-      setResult({ kind: "error", message: res.error });
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setNotice(null);
+    const selected = Array.from(e.currentTarget.files ?? []).filter((file) => file.size > 0);
+    e.currentTarget.value = "";
+    if (!selected.length) return;
+
+    if (availableSlots <= 0) {
+      setNotice("Limite de imagens atingido para este plano.");
+      scrollToNotice();
       return;
     }
+
+    const accepted = selected.slice(0, availableSlots);
+    const skipped = selected.length - accepted.length;
+    if (skipped > 0) {
+      setNotice(`${skipped} imagem(ns) ficaram fora do limite de ${props.maxImages}.`);
+      scrollToNotice();
+    }
+
+    const uploadItems = accepted.map((file) => ({
+      id: crypto.randomUUID(),
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      status: "sending" as const,
+    }));
+
+    setUploads((current) => [...uploadItems, ...current]);
+    setLoading(true);
+    for (let index = 0; index < accepted.length; index += 1) {
+      await uploadSingleFile(accepted[index], uploadItems[index].id);
+    }
+    setLoading(false);
+    router.refresh();
+  }
+
+  async function onDelete(item: MediaRow) {
+    setNotice(null);
+    setLoading(true);
+    const res = await deletePropertyMedia(props.propertyId, item.id, item.storage_path);
+    setLoading(false);
+    if (res && "error" in res && res.error) {
+      setNotice(res.error);
+      return;
+    }
+    setMedia((current) => current.filter((mediaItem) => mediaItem.id !== item.id));
     router.refresh();
   }
 
@@ -104,57 +161,29 @@ export function MediaSection(props: {
       </p>
 
       <div ref={noticeRef}>
-        {result?.kind === "error" && (
+        {notice ? (
           <div
-            className="mt-3 flex items-start gap-2 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="mt-3 flex items-start gap-2 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
             role="alert"
           >
-            <span className="mt-0.5 shrink-0 text-base">✗</span>
-            <span>{result.message}</span>
+            <span className="mt-0.5 shrink-0 text-base">!</span>
+            <span>{notice}</span>
           </div>
-        )}
-        {result?.kind === "sending" && (
+        ) : null}
+        {loading ? (
           <p className="mt-3 text-sm text-zinc-500" role="status" data-testid="property-media-status">
-            Enviando {result.count} imagem(ns)...
+            Enviando imagem(ns) automaticamente...
           </p>
-        )}
-        {result?.kind === "success" && (
-          <div
-            className="mt-3 flex items-start gap-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-            role="status"
-            data-testid="property-media-success"
-          >
-            <span className="mt-0.5 shrink-0 text-base">✓</span>
-            <span>Upload concluído: {result.uploaded} imagem(ns) enviada(s) com sucesso.</span>
-          </div>
-        )}
-        {result?.kind === "partial" && (
-          <div
-            className="mt-3 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-            role="status"
-          >
-            <p className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0 text-base">⚠</span>
-              <span>
-                {result.uploaded} imagem(ns) enviada(s). {result.failed.length} falha(s):
-              </span>
-            </p>
-            <ul className="mt-1 list-disc pl-8 text-xs">
-              {result.failed.map((f) => (
-                <li key={f.name}>{f.name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {mediaVisible.map((m) => {
-          const url = props.signedUrls[m.id];
-          const broken = brokenIds[m.id] === true;
+        {mediaVisible.map((item) => {
+          const url = item.signedUrl ?? props.signedUrls[item.id];
+          const broken = brokenIds[item.id] === true;
           return (
             <div
-              key={m.id}
+              key={item.id}
               data-testid="property-media-item"
               className="relative overflow-hidden rounded-none border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
             >
@@ -164,7 +193,7 @@ export function MediaSection(props: {
                   src={url}
                   alt=""
                   className="h-40 w-full object-cover"
-                  onError={() => setBrokenIds((curr) => ({ ...curr, [m.id]: true }))}
+                  onError={() => setBrokenIds((current) => ({ ...current, [item.id]: true }))}
                 />
               ) : (
                 <div className="flex h-40 items-center justify-center px-2 text-center text-xs text-zinc-500">
@@ -174,7 +203,7 @@ export function MediaSection(props: {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => onDelete(m)}
+                onClick={() => onDelete(item)}
                 data-testid="property-media-remove"
                 className="absolute right-2 top-2 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
               >
@@ -185,28 +214,62 @@ export function MediaSection(props: {
         })}
       </div>
 
-      {canAdd ? (
-        <form onSubmit={onSubmit} className="mt-6 space-y-3" data-testid="property-media-upload-form">
-          <ImageBatchPicker
-            inputName="files"
-            label="Selecione varias imagens de uma vez"
-            helperText={`Clique em Escolher arquivos e selecione ate ${availableSlots} imagem(ns).`}
-            disabled={loading}
-            maxFiles={availableSlots}
-            testIdPrefix="property-media-upload"
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              data-testid="property-media-upload-submit"
-              className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+      {uploads.length ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="property-media-upload-status-list">
+          {uploads.map((item) => (
+            <div
+              key={item.id}
+              className="overflow-hidden border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
             >
-              {loading ? "Enviando..." : "Enviar imagens"}
-            </button>
-            {loading && <span className="text-xs text-zinc-500">Aguarde, fazendo upload...</span>}
-          </div>
-        </form>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.previewUrl} alt="" className="h-28 w-full object-cover" />
+              <div className="p-2 text-xs">
+                <p className="truncate text-zinc-700 dark:text-zinc-200">{item.name}</p>
+                <p
+                  className={
+                    item.status === "success"
+                      ? "text-emerald-700"
+                      : item.status === "error"
+                        ? "text-red-700"
+                        : "text-zinc-500"
+                  }
+                >
+                  {item.status === "success"
+                    ? "Enviada"
+                    : item.status === "error"
+                      ? `Falhou: ${item.error}`
+                      : "Enviando..."}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {canAdd ? (
+        <div className="mt-6 space-y-2" data-testid="property-media-upload-form">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            className="hidden"
+            onChange={onFileChange}
+            data-testid="property-media-files-input"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => inputRef.current?.click()}
+            data-testid="property-media-files-button"
+            className="rounded-none bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Escolher arquivos
+          </button>
+          <p className="text-xs text-zinc-500">
+            Selecione ate {availableSlots} imagem(ns). O upload comeca automaticamente apos confirmar a selecao.
+          </p>
+        </div>
       ) : (
         <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">
           Limite de imagens atingido. Remova uma imagem ou faca upgrade para PRO.

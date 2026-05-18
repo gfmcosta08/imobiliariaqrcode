@@ -91,26 +91,33 @@ export default function LoginPage() {
       }
 
       if (mode === "signup") {
-        const { data, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName.trim() || undefined,
-              whatsapp_number: whatsapp.trim() || undefined,
-            },
-          },
+        const normalizedEmail = email.trim().toLowerCase();
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password,
+            fullName,
+            whatsapp: whatsapp.replace(/\D/g, ""),
+          }),
         });
-        if (authError) {
-          setError(authError.message);
+
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !data.ok) {
+          setError(data.error ?? "Erro ao criar conta.");
           return;
         }
-        if (!data.session) {
-          setInfo(
-            "Cadastro realizado! Verifique seu e-mail para confirmar a conta antes de entrar.",
-          );
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message);
           return;
         }
+
         router.push("/dashboard");
         router.refresh();
         return;

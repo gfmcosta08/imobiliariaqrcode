@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  // Identificar o usuário autenticado
   const supabaseUser = createServerClient(url, anon, {
     cookies: { getAll: () => cookieStore.getAll() },
   });
@@ -18,13 +17,17 @@ export async function POST(req: NextRequest) {
   } = await supabaseUser.auth.getUser();
 
   if (authError || !user) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   }
 
   const { fullName, email, whatsapp, password } = await req.json();
+  const normalizedName = String(fullName ?? "").trim();
+  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const normalizedWhatsapp = String(whatsapp ?? "").replace(/\D/g, "");
+  const safeWhatsapp = normalizedWhatsapp || `pending-${user.id.replace(/-/g, "")}`.slice(0, 40);
 
-  if (!fullName?.trim() || !email?.trim() || !password) {
-    return NextResponse.json({ error: "Dados obrigatórios ausentes" }, { status: 400 });
+  if (!normalizedName || !normalizedEmail || !password) {
+    return NextResponse.json({ error: "Dados obrigatorios ausentes" }, { status: 400 });
   }
 
   const admin = createServiceRoleClient();
@@ -38,29 +41,55 @@ export async function POST(req: NextRequest) {
     return message;
   };
 
-  // Atualizar email e senha via Admin API (sem confirmação do email antigo)
+  const { data: duplicatedEmail } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .neq("id", user.id)
+    .maybeSingle();
+  if (duplicatedEmail) {
+    return NextResponse.json({ error: "Este e-mail ja esta cadastrado em outra conta." }, { status: 400 });
+  }
+
+  if (normalizedWhatsapp) {
+    const { data: duplicatedWhatsapp } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("whatsapp_number", normalizedWhatsapp)
+      .neq("id", user.id)
+      .maybeSingle();
+    if (duplicatedWhatsapp) {
+      return NextResponse.json(
+        { error: "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco." },
+        { status: 400 },
+      );
+    }
+  }
+
   const { error: updateAuthError } = await admin.auth.admin.updateUserById(user.id, {
-    email: email.trim(),
+    email: normalizedEmail,
     password,
     email_confirm: true,
     user_metadata: {
-      full_name: fullName.trim(),
-      whatsapp_number: whatsapp?.replace(/\D/g, "") || undefined,
+      full_name: normalizedName,
+      whatsapp_number: safeWhatsapp,
       must_complete_profile: false,
     },
   });
 
   if (updateAuthError) {
-    return NextResponse.json({ error: updateAuthError.message }, { status: 400 });
+    const msg = updateAuthError.message.toLowerCase().includes("already registered")
+      ? "Este e-mail ja esta cadastrado em outra conta."
+      : `Falha ao atualizar usuario: ${updateAuthError.message}`;
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  // Atualizar profile e broker no banco
   const { error: profileError } = await admin
     .from("profiles")
     .update({
-      full_name: fullName.trim(),
-      email: email.trim(),
-      whatsapp_number: whatsapp?.replace(/\D/g, "") || null,
+      full_name: normalizedName,
+      email: normalizedEmail,
+      whatsapp_number: safeWhatsapp,
     })
     .eq("id", user.id);
 
@@ -68,12 +97,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: friendlyDatabaseError(profileError.message) }, { status: 400 });
   }
 
-  const cleanPhone = whatsapp?.replace(/\D/g, "") || null;
   const { error: brokerError } = await admin
     .from("brokers")
     .update({
-      display_name: fullName.trim(),
-      whatsapp_number: cleanPhone,
+      display_name: normalizedName,
+      whatsapp_number: safeWhatsapp,
     })
     .eq("profile_id", user.id);
 

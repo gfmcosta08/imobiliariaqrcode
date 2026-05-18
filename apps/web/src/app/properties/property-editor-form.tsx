@@ -10,8 +10,8 @@ import {
   CITY_REGIONS,
   SUN_POSITIONS,
 } from "@/lib/property-options";
+import { normalizePropertySubtype, normalizePropertyType } from "@/lib/property-form";
 import type { CreatePropertyState } from "./actions";
-import { ImageBatchPicker } from "./image-batch-picker";
 
 type PropertyFormInitial = {
   id?: string;
@@ -272,7 +272,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               name="property_type"
               autoComplete="off"
               data-testid={testId("property_type")}
-              defaultValue={initial.property_type ?? ""}
+              defaultValue={normalizePropertyType(initial.property_type) ?? ""}
               className={inputClass}
             >
               <option value="">Não informado</option>
@@ -289,7 +289,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
               name="property_subtype"
               autoComplete="off"
               data-testid={testId("property_subtype")}
-              defaultValue={initial.property_subtype ?? ""}
+              defaultValue={normalizePropertySubtype(initial.property_subtype) ?? ""}
               className={inputClass}
             >
               <option value="">Não informado</option>
@@ -621,14 +621,20 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
           </FieldLabel>
           <FieldLabel label="Número">
             <input
+              id={fieldId("street_number")}
               name="street_number"
+              autoComplete="address-line2"
+              data-testid={testId("street_number")}
               defaultValue={initial.street_number ?? ""}
               className={inputClass}
             />
           </FieldLabel>
           <FieldLabel label="Complemento">
             <input
+              id={fieldId("address_complement")}
               name="address_complement"
+              autoComplete="address-line2"
+              data-testid={testId("address_complement")}
               defaultValue={initial.address_complement ?? ""}
               className={inputClass}
             />
@@ -665,7 +671,10 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
           </FieldLabel>
           <FieldLabel label="CEP">
             <input
+              id={fieldId("postal_code")}
               name="postal_code"
+              autoComplete="postal-code"
+              data-testid={testId("postal_code")}
               defaultValue={initial.postal_code ?? ""}
               className={inputClass}
             />
@@ -921,24 +930,7 @@ export function PropertyEditorForm(props: PropertyEditorFormProps) {
         </FieldLabel>
       </section>
 
-      {props.mode === "create" ? (
-        <section className="rounded-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-            Imagens do Imóvel
-          </h2>
-          <div className="mt-3">
-            <ImageBatchPicker
-              inputName="media_files"
-              label="Selecione até o limite do seu plano"
-              helperText="Clique em Escolher arquivos, selecione varias imagens e depois Salvar imóvel."
-              testIdPrefix="property-media-files"
-            />
-          </div>
-        </section>
-      ) : null}
-
       <div className="flex items-center gap-4">
-        <SubmitButton mode={props.mode} />
         <p className="text-sm">
           <Link href="/properties" className="text-zinc-600 underline dark:text-zinc-400">
             Cancelar

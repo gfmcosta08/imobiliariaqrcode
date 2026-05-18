@@ -61,9 +61,50 @@
   city_region: string | null;
 };
 
+const PROPERTY_TYPE_ALIASES: Record<string, string> = {
+  residential: "Residencial",
+  comercial: "Comercial",
+  commercial: "Comercial",
+  industrial: "Industrial",
+  rural: "Rural",
+  terreno: "Terreno",
+  land: "Terreno",
+};
+
+const PROPERTY_SUBTYPE_ALIASES: Record<string, string> = {
+  apartment: "Apartamento",
+  apartamento: "Apartamento",
+  casa: "Casa",
+  house: "Casa",
+  cobertura: "Cobertura",
+  kitnet: "Kitnet/Studio",
+  studio: "Kitnet/Studio",
+  sobrado: "Sobrado",
+  loja: "Loja",
+  lote: "Lote",
+  land: "Lote",
+};
+
 function nullableText(value: FormDataEntryValue | null): string | null {
   const txt = String(value ?? "").trim();
   return txt === "" ? null : txt;
+}
+
+function normalizeOption(
+  value: FormDataEntryValue | string | null | undefined,
+  aliases: Record<string, string>,
+): string | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  return aliases[text.toLowerCase()] ?? text;
+}
+
+export function normalizePropertyType(value: string | null | undefined): string | null {
+  return normalizeOption(value, PROPERTY_TYPE_ALIASES);
+}
+
+export function normalizePropertySubtype(value: string | null | undefined): string | null {
+  return normalizeOption(value, PROPERTY_SUBTYPE_ALIASES);
 }
 
 function parseDecimalInput(value: FormDataEntryValue | null): number | null {
@@ -179,8 +220,8 @@ export function buildPropertyPayload(formData: FormData): PropertyFormPayload {
   const payload: PropertyFormPayload = {
     title: nullableText(formData.get("title")),
     internal_code: nullableText(formData.get("internal_code")),
-    property_type: nullableText(formData.get("property_type")),
-    property_subtype: nullableText(formData.get("property_subtype")),
+    property_type: normalizePropertyType(nullableText(formData.get("property_type"))),
+    property_subtype: normalizePropertySubtype(nullableText(formData.get("property_subtype"))),
     purpose,
     listing_status,
     city: nullableText(formData.get("city")),

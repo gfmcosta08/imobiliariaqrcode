@@ -9,69 +9,81 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  let body: { login_code?: string; access_code?: string };
   try {
-    body = (await request.json()) as { login_code?: string; access_code?: string };
-  } catch {
-    return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    let body: { login_code?: string; access_code?: string };
+    try {
+      body = (await request.json()) as { login_code?: string; access_code?: string };
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    }
+
+    const { login_code, access_code } = body;
+    if (!login_code || !access_code) {
+      return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
+    }
+
+    const supabase = createServiceRoleClient();
+
+    const { data: invitation } = await supabase
+      .from("broker_invitations")
+      .select("id, access_code_hash, temp_email, expires_at, status")
+      .eq("login_code", login_code)
+      .maybeSingle();
+
+    if (!invitation) {
+      return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
+    }
+
+    if (invitation.status === "claimed") {
+      return NextResponse.json(
+        { ok: false, error: "invitation_already_activated" },
+        { status: 409 },
+      );
+    }
+
+    if (invitation.status === "completed") {
+      return NextResponse.json({ ok: false, error: "invitation_completed" }, { status: 409 });
+    }
+
+    if (invitation.status !== "pending") {
+      return NextResponse.json({ ok: false, error: "invitation_already_used" }, { status: 401 });
+    }
+
+    const now = new Date();
+    const expiresAt = invitation.expires_at ? new Date(String(invitation.expires_at)) : null;
+    if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt < now) {
+      await supabase.from("broker_invitations").update({ status: "expired" }).eq("id", invitation.id);
+      return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 401 });
+    }
+
+    const inputHash = await sha256Hex(access_code);
+    if (inputHash !== invitation.access_code_hash) {
+      return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
+    }
+
+    if (!invitation.temp_email) {
+      return NextResponse.json({ ok: false, error: "invitation_invalid_state" }, { status: 409 });
+    }
+
+    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: invitation.temp_email,
+      password: access_code,
+    });
+
+    if (signInError || !sessionData.session) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_credentials", detail: signInError?.message },
+        { status: 401 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+    });
+  } catch (error) {
+    console.error("convite claim fatal error", error);
+    return NextResponse.json({ ok: false, error: "claim_unexpected_error" }, { status: 500 });
   }
-
-  const { login_code, access_code } = body;
-  if (!login_code || !access_code) {
-    return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
-  }
-
-  const supabase = createServiceRoleClient();
-
-  const { data: invitation } = await supabase
-    .from("broker_invitations")
-    .select("id, access_code_hash, temp_email, expires_at, status")
-    .eq("login_code", login_code)
-    .maybeSingle();
-
-  if (!invitation) {
-    return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
-  }
-
-  if (invitation.status === "claimed") {
-    return NextResponse.json({ ok: false, error: "invitation_already_activated" }, { status: 409 });
-  }
-
-  if (invitation.status === "completed") {
-    return NextResponse.json({ ok: false, error: "invitation_completed" }, { status: 409 });
-  }
-
-  if (invitation.status !== "pending") {
-    return NextResponse.json({ ok: false, error: "invitation_already_used" }, { status: 401 });
-  }
-
-  const now = new Date();
-  if (new Date(invitation.expires_at as string) < now) {
-    await supabase.from("broker_invitations").update({ status: "expired" }).eq("id", invitation.id);
-    return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 401 });
-  }
-
-  const inputHash = await sha256Hex(access_code);
-  if (inputHash !== invitation.access_code_hash) {
-    return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
-  }
-
-  // Autenticar o usuário temporário para obter a session
-  const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
-    email: invitation.temp_email as string,
-    password: access_code,
-  });
-
-  if (signInError || !sessionData.session) {
-    return NextResponse.json(
-      { ok: false, error: "auth_failed", detail: signInError?.message },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    access_token: sessionData.session.access_token,
-    refresh_token: sessionData.session.refresh_token,
-  });
 }
