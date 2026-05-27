@@ -25,12 +25,17 @@ type PlateTemplate = {
   };
 };
 
+const BLANK_LOGO_INTERIOR =
+  process.env.NEXT_PUBLIC_QR_PLATE_BLANK_LOGO_INTERIOR === "true";
+
 const PLATE_TEMPLATES: PlateTemplate[] = [
   {
     id: "vertical",
     label: "Placa vertical",
     helper: "Formato vertical para placa de imobiliaria.",
-    src: "/brand/qr-sign-template-vertical.jpeg",
+    src: BLANK_LOGO_INTERIOR
+      ? "/brand/qr-sign-template-vertical-logo-blank.jpeg"
+      : "/brand/qr-sign-template-vertical.jpeg",
     aspectRatio: "2110 / 2984",
     maxWidth: 420,
     printPage: "A4 portrait",
@@ -45,7 +50,9 @@ const PLATE_TEMPLATES: PlateTemplate[] = [
     id: "horizontal",
     label: "Placa A4 horizontal",
     helper: "Formato A4 horizontal para impressao rapida.",
-    src: "/brand/qr-sign-template-a4-horizontal.jpeg",
+    src: BLANK_LOGO_INTERIOR
+      ? "/brand/qr-sign-template-a4-horizontal-logo-blank.jpeg"
+      : "/brand/qr-sign-template-a4-horizontal.jpeg",
     aspectRatio: "2984 / 2110",
     maxWidth: 680,
     printPage: "A4 landscape",
@@ -150,8 +157,8 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
             Leituras acumuladas: <span className="font-semibold text-gray-900">{qrReads}</span>
           </p>
           <p className="mt-2 max-w-2xl text-sm text-gray-500">
-            O QR grande identifica este anuncio. O QR pequeno dentro da casinha e apenas ilustrativo
-            e permanece fixo na arte.
+            O QR grande na area superior identifica este anuncio e e o unico escaneavel da placa.
+            A casinha da marca permanece sem QR fixo na arte.
           </p>
         </div>
       </div>
