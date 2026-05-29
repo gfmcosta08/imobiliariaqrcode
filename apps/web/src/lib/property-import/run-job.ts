@@ -21,7 +21,14 @@ export type ImportJobItemResult = {
   images_uploaded?: number;
 };
 
-function summarizeImportFailure(results: ImportJobItemResult[]): string {
+function isBlockedListingTitle(title: string | null | undefined): boolean {
+  const t = (title ?? "").trim().toLowerCase();
+  if (!t) return true;
+  return (
+    /^olx - o maior site/.test(t) ||
+    /^vivanci imobili[aá]ria - im[oó]veis em/.test(t)
+  );
+}
   const errors = results.map((r) => r.error).filter(Boolean) as string[];
   if (errors.length === 0) return "Nenhum imóvel importado com sucesso.";
 
@@ -125,11 +132,13 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
       }
 
       const listing = listingFromResult(item);
-      if (!listing || !listing.title?.trim()) {
+      if (!listing || !listing.title?.trim() || isBlockedListingTitle(listing.title)) {
         results.push({
           source_url: sourceUrl,
           status: "error",
-          error: "listing_empty_or_unavailable",
+          error: isBlockedListingTitle(listing?.title)
+            ? "site_blocked_cloudflare"
+            : "listing_empty_or_unavailable",
         });
         processed += 1;
         await admin
