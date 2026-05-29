@@ -72,6 +72,9 @@ describe("isPropertyDetailPathname", () => {
     expect(isPropertyDetailPathname("/imovel/casa-terrea-bertaville/14015")).toBe(true);
     expect(isPropertyDetailPathname("/property/luxury-apartment/12345")).toBe(true);
     expect(isPropertyDetailPathname("/imoveis")).toBe(false);
+    expect(isPropertyDetailPathname("/imoveis/a-venda/palmas-to")).toBe(false);
+    expect(isPropertyDetailPathname("/imovel/apartamento-a-venda-palmas-to-id-5")).toBe(true);
+    expect(isPropertyDetailPathname("/imovel/0808")).toBe(true);
   });
 
   it("reconhece anúncio único OLX", () => {
@@ -95,5 +98,12 @@ describe("inferImportMode", () => {
     expect(inferImportMode(olx)).toBe("single");
     expect(inferImportMode(listing)).toBe("listing");
     expect(inferImportMode(home)).toBe("homepage");
+
+    const logosPhp = new URL(
+      "https://www.logos-to.com.br/detalhes-imovel.php?imovel=1746&finalidade=1",
+    );
+    const imperioListing = new URL("https://www.imperionegociosimob.com.br/imoveis/a-venda/palmas-to");
+    expect(inferImportMode(logosPhp)).toBe("single");
+    expect(inferImportMode(imperioListing)).toBe("listing");
   });
 });

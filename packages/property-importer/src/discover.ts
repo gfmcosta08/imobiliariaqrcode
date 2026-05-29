@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 
-import { isPropertyDetailPathname, looksLikeSingleListingUrl, LISTING_FALLBACK_PATHS, MAX_PROPERTIES_PER_IMPORT } from "./constants";
+import { looksLikeSingleListingUrl, LISTING_FALLBACK_PATHS, MAX_PROPERTIES_PER_IMPORT } from "./constants";
 import { fetchRenderedHtmlFromExtrator } from "./extrator-client";
 import { isPropertyDetailUrl, validateImportUrl } from "./ssrf";
 
@@ -36,7 +36,7 @@ export function parsePropertyLinksFromHtml(base: URL, html: string, max: number)
     const abs = toAbsolute(base, href);
     if (!abs) return;
     const parsed = new URL(abs);
-    if (!isPropertyDetailPathname(parsed.pathname)) return;
+    if (!isPropertyDetailUrl(parsed)) return;
     const normalized = normalizeDiscoveredUrl(abs);
     if (!normalized || seen.has(normalized)) return;
     seen.add(normalized);

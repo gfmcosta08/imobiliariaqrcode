@@ -1,4 +1,4 @@
-import { isPropertyDetailPathname } from "./constants";
+import { isPropertyDetailUrlLike } from "./constants";
 import {
   getImportUrlPolicy,
   hostnameMatchesAllowlist,
@@ -78,7 +78,7 @@ export function validatePilotImportUrl(raw: string) {
 }
 
 export function isPropertyDetailUrl(url: URL): boolean {
-  return isPropertyDetailPathname(url.pathname);
+  return isPropertyDetailUrlLike(url);
 }
 
 export function inferImportMode(url: URL): "single" | "listing" | "homepage" {

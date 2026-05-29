@@ -16,6 +16,15 @@ function isKnownPropertyCdnHost(hostname: string): boolean {
   if (host.endsWith(".cloudfront.net")) return true;
   if (host.endsWith(".digitaloceanspaces.com")) return true;
   if (host.endsWith(".supabase.co")) return true;
+  if (host === "jetimob.com" || host.endsWith(".jetimob.com")) return true;
+  if (host.endsWith(".jetimob.com.br")) return true;
+  if (host.endsWith(".vistahost.com.br")) return true;
+  if (host.endsWith(".imovelweb.com.br")) return true;
+  if (host.endsWith(".olx.com.br")) return true;
+  if (host.endsWith(".zapimoveis.com.br")) return true;
+  if (host.endsWith(".staticflickr.com")) return true;
+  if (host.endsWith(".unreel.me")) return true;
+  if (host.endsWith(".imgbroker.com.br")) return true;
   return false;
 }
 
@@ -45,6 +54,9 @@ export function propertyImportImageScore(raw: string): number {
   if (/storage\.googleapis\.com.*kenlo/i.test(lower)) return 85;
   if (/managing-images\.kenlo\.io/i.test(lower)) return 85;
   if (/supabase\.co.*\/storage\/v1\/object\/public\/.*imoveis-fotos/i.test(lower)) return 90;
+  if (/jetimob\.com/i.test(lower)) return 88;
+  if (/vistahost\.com\.br/i.test(lower)) return 88;
+  if (/imovelweb\.com\.br/i.test(lower)) return 85;
   if (/\.(jpe?g|webp|png)(\?|$)/i.test(lower)) return 40;
   return 0;
 }

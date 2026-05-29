@@ -18,6 +18,18 @@ describe("parsePropertyLinksFromHtml", () => {
       "https://vivanci.com/imovel/0534",
     ]);
   });
+
+  it("extrai detalhes-imovel.php (Logos)", () => {
+    const base = new URL("https://www.logos-to.com.br/");
+    const html = `
+      <a href="detalhes-imovel.php?imovel=1746&finalidade=1">A</a>
+      <a href="/imoveis">Listagem</a>
+    `;
+    const urls = parsePropertyLinksFromHtml(base, html, 10);
+    expect(urls).toEqual([
+      "https://www.logos-to.com.br/detalhes-imovel.php?imovel=1746&finalidade=1",
+    ]);
+  });
 });
 
 describe("discoverPropertyUrls SPA fallback", () => {
