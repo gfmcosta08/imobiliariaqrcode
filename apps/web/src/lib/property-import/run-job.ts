@@ -21,6 +21,22 @@ export type ImportJobItemResult = {
   images_uploaded?: number;
 };
 
+function summarizeImportFailure(results: ImportJobItemResult[]): string {
+  const errors = results.map((r) => r.error).filter(Boolean) as string[];
+  if (errors.length === 0) return "Nenhum imóvel importado com sucesso.";
+
+  if (errors.every((e) => e.includes("site_blocked_cloudflare"))) {
+    return "site_blocked_cloudflare";
+  }
+  if (errors.every((e) => e === "listing_empty_or_unavailable")) {
+    return "all_listings_empty_or_unavailable";
+  }
+  if (errors.some((e) => e.includes("site_blocked_cloudflare"))) {
+    return "Alguns anúncios foram bloqueados (Cloudflare). Tente outro portal ou importe manualmente.";
+  }
+  return "Nenhum imóvel importado com sucesso.";
+}
+
 export async function runPropertyImportJob(jobId: string): Promise<void> {
   const admin = createServiceRoleClient();
   const extratorBase = getPropertyExtractorBaseUrl();
@@ -193,7 +209,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
       .from("property_import_jobs")
       .update({
         status: okCount > 0 ? "completed" : "failed",
-        error_message: okCount > 0 ? null : "Nenhum imóvel importado com sucesso.",
+        error_message: okCount > 0 ? null : summarizeImportFailure(results),
         processed_count: processed,
         results,
         updated_at: new Date().toISOString(),

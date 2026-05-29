@@ -43,6 +43,9 @@ function humanizeImportError(message: string): string {
   if (message === "site_blocked_cloudflare" || message.includes("site_blocked_cloudflare")) {
     return "A OLX bloqueou a importação automática neste servidor. Cole manualmente os dados ou use outro portal.";
   }
+  if (message === "all_listings_empty_or_unavailable") {
+    return "Encontramos links na página, mas nenhum anúncio pôde ser lido. Tente a URL direta de um imóvel (/imovel/...) ou outro portal.";
+  }
   return message;
 }
 
