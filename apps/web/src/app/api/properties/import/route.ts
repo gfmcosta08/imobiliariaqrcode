@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 
 import {
   inferImportMode,
+  MAX_PROPERTIES_PER_IMPORT,
   validateImportUrl,
 } from "@imobiliariaqrcode/property-importer";
 
@@ -17,8 +18,31 @@ import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
 
+const SOURCE_URLS_SEPARATOR = "\n";
+
 function json(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status });
+}
+
+function parseUrlList(raw: unknown): string[] | null {
+  if (Array.isArray(raw)) {
+    const items = raw
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => clampString(item, { maxLength: 2048, trim: true }))
+      .filter(Boolean);
+    return items.length > 0 ? items : null;
+  }
+  const single = clampString(raw, { maxLength: 2048, trim: true });
+  return single ? [single] : null;
+}
+
+function inferCombinedImportMode(
+  validatedUrls: URL[],
+): "single" | "listing" | "homepage" {
+  const modes = validatedUrls.map((url) => inferImportMode(url));
+  if (modes.includes("homepage")) return "homepage";
+  if (modes.includes("listing")) return "listing";
+  return "single";
 }
 
 export async function POST(request: Request) {
@@ -34,23 +58,46 @@ export async function POST(request: Request) {
     });
   }
 
-  const parsed = await parseJsonObjectWithLimit(request, { maxBytes: 4_096 });
+  const parsed = await parseJsonObjectWithLimit(request, { maxBytes: 24_576 });
   if (!parsed.ok) return parsed.response;
 
-  const unknown = rejectUnknownKeys(parsed.value, ["url"]);
+  const unknown = rejectUnknownKeys(parsed.value, ["url", "urls"]);
   if (unknown) {
     return json(400, { ok: false, error: "unexpected_field", field: unknown });
   }
 
-  const url = clampString(parsed.value.url, { maxLength: 2048, trim: true });
-  if (!url) {
+  const hasUrl = parsed.value.url !== undefined;
+  const hasUrls = parsed.value.urls !== undefined;
+  if (hasUrl && hasUrls) {
+    return json(400, { ok: false, error: "ambiguous_url_fields" });
+  }
+
+  const urlList = parseUrlList(hasUrls ? parsed.value.urls : parsed.value.url);
+  if (!urlList) {
+    return json(400, { ok: false, error: "missing_url" });
+  }
+  if (urlList.length > MAX_PROPERTIES_PER_IMPORT) {
+    return json(400, { ok: false, error: "too_many_urls", max: MAX_PROPERTIES_PER_IMPORT });
+  }
+
+  const validatedUrls: URL[] = [];
+  const seen = new Set<string>();
+  for (const raw of urlList) {
+    const urlCheck = validateImportUrl(raw);
+    if (!urlCheck.ok) {
+      return json(400, { ok: false, error: urlCheck.error, url: raw });
+    }
+    const key = urlCheck.url.toString();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    validatedUrls.push(urlCheck.url);
+  }
+
+  if (validatedUrls.length === 0) {
     return json(400, { ok: false, error: "missing_url" });
   }
 
-  const urlCheck = validateImportUrl(url);
-  if (!urlCheck.ok) {
-    return json(400, { ok: false, error: urlCheck.error });
-  }
+  const storedSourceUrl = validatedUrls.map((u) => u.toString()).join(SOURCE_URLS_SEPARATOR);
 
   const userClient = await createClient();
   const {
@@ -66,7 +113,7 @@ export async function POST(request: Request) {
     return json(resolved.status, { ok: false, error: resolved.error });
   }
 
-  const mode = inferImportMode(urlCheck.url);
+  const mode = inferCombinedImportMode(validatedUrls);
 
   const { data: job, error: insertErr } = await admin
     .from("property_import_jobs")
@@ -75,7 +122,7 @@ export async function POST(request: Request) {
       broker_id: resolved.broker.id,
       origin_plan_code: resolved.planCode,
       created_by: user.id,
-      source_url: url,
+      source_url: storedSourceUrl,
       mode,
       status: "pending",
     })

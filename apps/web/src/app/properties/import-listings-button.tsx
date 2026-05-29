@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const MAX_URL_FIELDS = 10;
+
 type ImportStartResponse = {
   ok: boolean;
   job_id?: string;
@@ -49,10 +51,14 @@ function humanizeImportError(message: string): string {
   return message;
 }
 
+function emptyUrlFields(): string[] {
+  return [""];
+}
+
 export function ImportListingsButton({ enabled }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState("");
+  const [urls, setUrls] = useState<string[]>(emptyUrlFields);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
@@ -66,6 +72,30 @@ export function ImportListingsButton({ enabled }: Props) {
   }, []);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  function resetDialog() {
+    stopPolling();
+    setOpen(false);
+    setLoading(false);
+    setJob(null);
+    setError(null);
+    setUrls(emptyUrlFields());
+  }
+
+  function addUrlField() {
+    setUrls((prev) => (prev.length >= MAX_URL_FIELDS ? prev : [...prev, ""]));
+  }
+
+  function removeUrlField(index: number) {
+    setUrls((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function updateUrlField(index: number, value: string) {
+    setUrls((prev) => prev.map((item, i) => (i === index ? value : item)));
+  }
 
   async function pollJob(jobId: string) {
     const res = await fetch(`/api/properties/import/${jobId}`);
@@ -86,7 +116,8 @@ export function ImportListingsButton({ enabled }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!url.trim()) return;
+    const trimmed = urls.map((u) => u.trim()).filter(Boolean);
+    if (trimmed.length === 0) return;
     setLoading(true);
     setError(null);
     setJob(null);
@@ -96,7 +127,7 @@ export function ImportListingsButton({ enabled }: Props) {
       const res = await fetch("/api/properties/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ urls: trimmed }),
       });
       const data = (await res.json()) as ImportStartResponse;
       if (!data.ok || !data.job_id) {
@@ -107,7 +138,9 @@ export function ImportListingsButton({ enabled }: Props) {
               ? data.detail ?? "Serviço de extração não configurado no staging."
               : data.error === "host_not_allowed"
                 ? "URL inválida ou não permitida para importação."
-                : data.error ?? "Não foi possível iniciar a importação.";
+                : data.error === "too_many_urls"
+                  ? `Máximo de ${MAX_URL_FIELDS} URLs por importação.`
+                  : data.error ?? "Não foi possível iniciar a importação.";
         setError(msg);
         setLoading(false);
         return;
@@ -148,26 +181,56 @@ export function ImportListingsButton({ enabled }: Props) {
               Importar anúncios (homologação)
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Cole a URL de um imóvel, de uma listagem ou da página inicial de qualquer site
-              imobiliário (HTTPS). Máximo 10 imóveis; todos entram como rascunho sem mapa até você
-              informar a geolocalização.
+              Cole uma ou mais URLs de imóveis, listagens ou páginas iniciais de sites
+              imobiliários (HTTPS). Máximo {MAX_URL_FIELDS} URLs e {MAX_URL_FIELDS} imóveis; todos
+              entram como rascunho sem mapa até você informar a geolocalização.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-              <label className="block text-sm font-medium text-gray-700" htmlFor="import-url">
-                URL do site imobiliário
-              </label>
-              <input
-                id="import-url"
-                type="url"
-                required
-                placeholder="https://www.exemplo.com.br/imovel/..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="w-full border border-gray-300 px-3 py-2 text-sm"
-                disabled={loading}
-                data-testid="import-listings-url"
-              />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">URLs do site imobiliário</span>
+                <button
+                  type="button"
+                  onClick={addUrlField}
+                  disabled={loading || urls.length >= MAX_URL_FIELDS}
+                  className="border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
+                  aria-label="Adicionar URL"
+                  data-testid="import-listings-add-url"
+                >
+                  +
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {urls.map((url, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      id={index === 0 ? "import-url" : undefined}
+                      type="url"
+                      required={index === 0}
+                      placeholder="https://www.exemplo.com.br/imovel/..."
+                      value={url}
+                      onChange={(e) => updateUrlField(index, e.target.value)}
+                      className="min-w-0 flex-1 border border-gray-300 px-3 py-2 text-sm"
+                      disabled={loading}
+                      data-testid={index === 0 ? "import-listings-url" : `import-listings-url-${index}`}
+                    />
+                    {urls.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removeUrlField(index)}
+                        disabled={loading}
+                        className="border border-gray-300 px-2 py-2 text-sm disabled:opacity-50"
+                        aria-label={`Remover URL ${index + 1}`}
+                        data-testid={`import-listings-remove-url-${index}`}
+                      >
+                        −
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
@@ -179,13 +242,7 @@ export function ImportListingsButton({ enabled }: Props) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    stopPolling();
-                    setOpen(false);
-                    setLoading(false);
-                    setJob(null);
-                    setError(null);
-                  }}
+                  onClick={resetDialog}
                   className="border border-gray-300 px-4 py-2 text-sm"
                 >
                   Fechar

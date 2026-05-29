@@ -3,6 +3,7 @@ import {
   extractListingsFromUrls,
   listingFromResult,
   mapExtratorListingToPropertyPayload,
+  MAX_PROPERTIES_PER_IMPORT,
   validateImportUrl,
   inferImportMode,
 } from "@imobiliariaqrcode/property-importer";
@@ -28,6 +29,18 @@ function isBlockedListingTitle(title: string | null | undefined): boolean {
     /^olx - o maior site/.test(t) ||
     /^vivanci imobili[aá]ria - im[oó]veis em/.test(t)
   );
+}
+
+const SOURCE_URLS_SEPARATOR = "\n";
+
+function parseJobSourceUrls(sourceUrl: string): string[] {
+  if (sourceUrl.includes(SOURCE_URLS_SEPARATOR)) {
+    return sourceUrl
+      .split(SOURCE_URLS_SEPARATOR)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+  return [sourceUrl.trim()].filter(Boolean);
 }
 
 function summarizeImportFailure(results: ImportJobItemResult[]): string {
@@ -77,15 +90,32 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
   const results: ImportJobItemResult[] = [];
 
   try {
-    const urlCheck = validateImportUrl(job.source_url);
-    if (!urlCheck.ok) {
-      throw new Error(urlCheck.error);
+    const sourceUrls = parseJobSourceUrls(job.source_url);
+    if (sourceUrls.length === 0) {
+      throw new Error("missing_url");
     }
 
-    const { urls, mode } = await discoverPropertyUrls(job.source_url, {
-      extratorBaseUrl: extratorBase,
-    });
-    const detectedMode = mode ?? inferImportMode(urlCheck.url);
+    const discovered = new Set<string>();
+    let detectedMode: "single" | "listing" | "homepage" = "single";
+
+    for (const sourceUrl of sourceUrls) {
+      const urlCheck = validateImportUrl(sourceUrl);
+      if (!urlCheck.ok) {
+        throw new Error(urlCheck.error);
+      }
+
+      const { urls, mode } = await discoverPropertyUrls(sourceUrl, {
+        extratorBaseUrl: extratorBase,
+      });
+      detectedMode = mode ?? inferImportMode(urlCheck.url);
+      for (const found of urls) {
+        if (discovered.size >= MAX_PROPERTIES_PER_IMPORT) break;
+        discovered.add(found);
+      }
+      if (discovered.size >= MAX_PROPERTIES_PER_IMPORT) break;
+    }
+
+    const urls = [...discovered];
 
     if (urls.length === 0) {
       throw new Error("no_properties_found");
