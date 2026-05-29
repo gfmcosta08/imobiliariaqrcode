@@ -47,9 +47,11 @@ export async function uploadImportedImages(
     const trimmed = rawUrl.trim();
     if (!trimmed) continue;
     if (!isPropertyImportImageUrl(trimmed, sourceHostname)) {
-      if (!isAllowedImportImageUrl(trimmed, sourceHostname)) {
-        failed.push(`url_not_allowed:${trimmed.slice(0, 80)}`);
-      }
+      failed.push(
+        isAllowedImportImageUrl(trimmed, sourceHostname)
+          ? `url_filtered:${trimmed.slice(0, 80)}`
+          : `url_not_allowed:${trimmed.slice(0, 80)}`,
+      );
       continue;
     }
 

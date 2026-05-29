@@ -29,6 +29,8 @@ function isBlockedListingTitle(title: string | null | undefined): boolean {
     /^vivanci imobili[aá]ria - im[oó]veis em/.test(t)
   );
 }
+
+function summarizeImportFailure(results: ImportJobItemResult[]): string {
   const errors = results.map((r) => r.error).filter(Boolean) as string[];
   if (errors.length === 0) return "Nenhum imóvel importado com sucesso.";
 
@@ -154,6 +156,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
 
       const mapped = mapExtratorListingToPropertyPayload(listing, sourceUrl);
       const { import_image_urls, ...payloadRest } = mapped;
+      const rawImageCount = listing.images.filter((img) => img.url?.trim()).length;
       const { import_source_url, ...payload } = payloadRest;
       void import_source_url;
 
@@ -189,6 +192,15 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
           sourceUrl,
         );
 
+        const imageError =
+          imageFailures.length > 0
+            ? `imagens_parciais:${uploaded}/${import_image_urls.length}:${imageFailures.slice(0, 3).join(",")}`
+            : uploaded === 0 && rawImageCount > 0 && import_image_urls.length === 0
+              ? `imagens_filtradas:${rawImageCount}`
+              : uploaded === 0 && import_image_urls.length > 0
+                ? `imagens_falharam:${import_image_urls.length}:${imageFailures.slice(0, 3).join(",") || "unknown"}`
+                : undefined;
+
         results.push({
           source_url: sourceUrl,
           status: "ok",
@@ -196,9 +208,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
           public_id: property.public_id,
           title: property.title,
           images_uploaded: uploaded,
-          ...(imageFailures.length > 0
-            ? { error: `imagens_parciais:${uploaded}/${import_image_urls.length}` }
-            : {}),
+          ...(imageError ? { error: imageError } : {}),
         });
       }
 

@@ -34,6 +34,12 @@ describe("isAllowedImportImageUrl", () => {
     ).toBe(true);
   });
 
+  it("aceita fotos Supabase do Vivanci com nome WhatsApp_Image no arquivo", () => {
+    const url =
+      "https://tyqawceqowjmzgujrptx.supabase.co/storage/v1/object/public/imoveis-fotos/a5755d73-c356-407f-a2e6-c421e2806754/1778767564833-WhatsApp_Image_2026-05-14_at_10.48.27.jpeg";
+    expect(isPropertyImportImageUrl(url, "vivanci.com")).toBe(true);
+  });
+
   it("rejeita logo e ícones do site de origem", () => {
     expect(
       isPropertyImportImageUrl(

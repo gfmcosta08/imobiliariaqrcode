@@ -57,6 +57,19 @@ describe("mapExtratorListingToPropertyPayload", () => {
     expect(mapped.price).toBe(2500);
   });
 
+  it("mantém fotos Supabase do Vivanci após ranking", () => {
+    const supabaseUrl =
+      "https://tyqawceqowjmzgujrptx.supabase.co/storage/v1/object/public/imoveis-fotos/a5755d73-c356-407f-a2e6-c421e2806754/1778767564833-WhatsApp_Image_2026-05-14_at_10.48.27.jpeg";
+    const mapped = mapExtratorListingToPropertyPayload(
+      baseListing({
+        images: [{ url: supabaseUrl }, { url: "https://vivanci.com/assets/icons/logo.svg" }],
+      }),
+      "https://vivanci.com/imovel/0808",
+    );
+    expect(mapped.import_image_urls).toHaveLength(1);
+    expect(mapped.import_image_urls[0]).toContain("imoveis-fotos");
+  });
+
   it("preenche venda e aluguel com finalidade vazia quando ambos existem", () => {
     const mapped = mapExtratorListingToPropertyPayload(
       baseListing({
