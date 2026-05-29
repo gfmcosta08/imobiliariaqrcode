@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { isPropertyImportEnabled } from "@/lib/property-import/enabled";
 import { createClient } from "@/lib/supabase/server";
+import { ImportListingsButton } from "./import-listings-button";
 import { QuickCreateButton } from "./quick-create-button";
 
 function statusLabel(status: string | null | undefined): string {
@@ -14,6 +16,7 @@ function statusLabel(status: string | null | undefined): string {
 }
 
 export default async function PropertiesPage() {
+  const importEnabled = isPropertyImportEnabled();
   const supabase = await createClient();
   const { data: props, error } = await supabase
     .from("properties")
@@ -31,6 +34,7 @@ export default async function PropertiesPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <QuickCreateButton />
+            <ImportListingsButton enabled={importEnabled} />
             <Link
               href="/properties/new"
               className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"

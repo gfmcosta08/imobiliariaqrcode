@@ -1,0 +1,24 @@
+{
+  "name": "@imobiliariaqrcode/property-importer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Importação de anúncios externos (SSRF, descoberta de URLs, cliente do extrator, mapeamento para ImobQR).",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^3.0.5"
+  }
+}

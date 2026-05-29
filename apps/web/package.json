@@ -14,6 +14,7 @@
     "e2e:staging": "playwright test --config=playwright.config.ts"
   },
   "dependencies": {
+    "@imobiliariaqrcode/property-importer": "workspace:*",
     "@imobiliariaqrcode/shared-types": "workspace:*",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
