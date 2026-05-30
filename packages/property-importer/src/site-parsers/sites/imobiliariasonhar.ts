@@ -15,16 +15,22 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   const $ = cheerio.load(html);
 
   // Tenta seletores específicos do sonhar primeiro
+  // Seletores confirmados por inspeção real (Kenlo CMS)
   const titleSpecific = firstText($, [
+    "h1 > span",
+    "h1",
     ".imovel-titulo",
     ".imovel-title",
     ".ficha-titulo",
     "h1.titulo",
     ".titulo-anuncio",
-    "h1",
   ]);
 
   const descSpecific = firstText($, [
+    // Kenlo CMS — descrição completa após "ver mais" expandido
+    ".box-description",
+    ".box-description p",
+    "[class*='box-description']",
     ".imovel-descricao-completa",
     ".descricao-completa",
     ".texto-completo",
@@ -33,16 +39,29 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
     "#descricao",
     ".description",
     ".descricao",
-    // Após clicar "ver mais" o conteúdo fica visível
     "[class*='ver-mais-conteudo']",
     "[class*='descricao-expandida']",
     ".descricao-imovel",
     "section.descricao p",
   ]);
 
+  // Preço Kenlo: .price-text ou h6
+  const priceSpecific = firstText($, [
+    ".price-text",
+    "[class*='price-text']",
+    "h6",
+    "[class*='preco']",
+    "[class*='price']",
+  ]);
+
   const images = collectImages(
     $,
     [
+      // Kenlo CDN (imgs.kenlo.io) — confirmado
+      "img[src*='imgs.kenlo.io']",
+      "img[data-src*='imgs.kenlo.io']",
+      "img[src*='kenlo.io']",
+      "img[data-src*='kenlo.io']",
       ".galeria-imovel img",
       ".galeria img",
       ".fotos-imovel img",
@@ -55,7 +74,6 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
       "a[data-fancybox] img",
       "a[rel='lightbox'] img",
       "a[data-lightbox] img",
-      // lightbox links that wrap the full-size image
       "a[data-fancybox]",
     ],
     url,
@@ -75,7 +93,6 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   });
 
   if (titleSpecific || descSpecific || uniqueImages.length > 0) {
-    // Merge with generic for fields not found in specific selectors
     const generic = parseGenericaBr(html, url);
     return {
       ...generic,
@@ -86,6 +103,7 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
             full_description: cleanDescription(descSpecific),
           }
         : {}),
+      ...(priceSpecific ? { sale_price: priceSpecific } : {}),
       ...(uniqueImages.length > 0 ? { images: uniqueImages } : {}),
     };
   }

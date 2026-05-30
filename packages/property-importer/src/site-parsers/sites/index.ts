@@ -4,6 +4,7 @@ import { gestorImobParser } from "./gestor-imob";
 import { imobiliariasonharParser } from "./imobiliariasonhar";
 import { imperioNegociosParser } from "./imperionegociosimob";
 import { imoviewParser } from "./imoview";
+import { kenloParser } from "./kenlo";
 import { logosToParser } from "./logos-to";
 import { olxParser } from "./olx";
 import { vivanciparser } from "./vivanci";
@@ -17,8 +18,8 @@ import type { SiteParser } from "../types";
  */
 export const ALL_PARSERS: SiteParser[] = [
   // Site-specific (most precise — known CMS/structure)
-  imobiliariasonharParser,
-  vivanciparser,
+  imobiliariasonharParser, // Kenlo CMS (seletores confirmados por inspeção)
+  vivanciparser,           // Arbo platform (CDN confirmado por inspeção)
   logosToParser,
   casa63Parser,
   imperioNegociosParser,
@@ -26,6 +27,8 @@ export const ALL_PARSERS: SiteParser[] = [
   zapImoveisParser,
   imoviewParser,
   gestorImobParser,
+  // Kenlo CMS para demais sites da lista (ritacampos, estiloimo, etc.)
+  kenloParser,
   // Generic fallback for the remaining small imobiliárias
   genericaBrParser,
 ];

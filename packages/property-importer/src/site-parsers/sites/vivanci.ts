@@ -76,10 +76,15 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   const areaNum = areaText.match(/[\d,.]+/);
   const parkNum = parkText.match(/\d+/);
 
-  // Images: vivanci serves images from their own domain and possibly CDN
+  // Vivanci usa plataforma Arbo — CDN: static.arboimoveis.com.br (confirmado)
   const images = collectImages(
     $,
     [
+      // Arbo CDN (confirmado por inspeção)
+      "img[src*='static.arboimoveis.com.br']",
+      "img[data-src*='static.arboimoveis.com.br']",
+      "img[src*='arboimoveis.com.br']",
+      "img[data-src*='arboimoveis.com.br']",
       ".gallery img",
       ".swiper-slide img",
       ".carousel img",
@@ -90,9 +95,7 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
       "[class*='foto'] img",
       "[class*='image'] img",
       "img[class*='property']",
-      // Also check anchor wrapping images
       "a[href*='vivanci.com'] img",
-      // JSON-LD structured data
     ],
     url,
   );
