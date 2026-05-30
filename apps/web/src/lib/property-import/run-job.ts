@@ -1,6 +1,7 @@
 import {
   discoverPropertyUrls,
   extractListingsFromUrls,
+  extractListingWithSiteParser,
   listingFromResult,
   mapExtratorListingToPropertyPayload,
   MAX_PROPERTIES_PER_IMPORT,
@@ -155,33 +156,63 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
       .maybeSingle();
     const maxImages = planRow?.max_images_per_property ?? 10;
 
-    const extractResults = await extractListingsFromUrls(urls, {
-      extratorBaseUrl: extratorBase,
-      extractOptions: { downloadImages: false, maxImages: 10 },
-    });
+    // Try site-specific parsers first; fall back to generic extractor for remaining URLs
+    const siteParserResults = new Map<string, Awaited<ReturnType<typeof extractListingWithSiteParser>>>();
+    const urlsForGenericExtractor: string[] = [];
+
+    await Promise.allSettled(
+      urls.map(async (url) => {
+        const siteResult = await extractListingWithSiteParser(url, extratorBase);
+        if (siteResult) {
+          siteParserResults.set(url, siteResult);
+        } else {
+          urlsForGenericExtractor.push(url);
+        }
+      }),
+    );
+
+    const extractResults = urlsForGenericExtractor.length > 0
+      ? await extractListingsFromUrls(urlsForGenericExtractor, {
+          extratorBaseUrl: extratorBase,
+          extractOptions: { downloadImages: false, maxImages: 10 },
+        })
+      : [];
 
     let processed = 0;
-    for (const item of extractResults) {
-      const sourceUrl = item.url;
-      if (!item.ok) {
-        results.push({
-          source_url: sourceUrl,
-          status: "error",
-          error: item.error?.message ?? "extract_failed",
-        });
-        processed += 1;
-        await admin
-          .from("property_import_jobs")
-          .update({
-            processed_count: processed,
-            results,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", jobId);
-        continue;
+    for (const url of urls) {
+      const sourceUrl = url;
+
+      // Try site-specific parser result first
+      let listing = siteParserResults.get(url) ?? null;
+
+      if (!listing) {
+        // Fall back to generic extractor result
+        const item = extractResults.find((r) => r.url === url);
+        if (!item) {
+          results.push({ source_url: sourceUrl, status: "error", error: "extract_failed" });
+          processed += 1;
+          await admin
+            .from("property_import_jobs")
+            .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
+            .eq("id", jobId);
+          continue;
+        }
+        if (!item.ok) {
+          results.push({
+            source_url: sourceUrl,
+            status: "error",
+            error: item.error?.message ?? "extract_failed",
+          });
+          processed += 1;
+          await admin
+            .from("property_import_jobs")
+            .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
+            .eq("id", jobId);
+          continue;
+        }
+        listing = listingFromResult(item);
       }
 
-      const listing = listingFromResult(item);
       if (!listing || !listing.title?.trim() || isBlockedListingTitle(listing.title)) {
         results.push({
           source_url: sourceUrl,

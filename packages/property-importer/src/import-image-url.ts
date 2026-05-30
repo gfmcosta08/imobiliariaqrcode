@@ -27,6 +27,14 @@ function isKnownPropertyCdnHost(hostname: string): boolean {
   if (host.endsWith(".imgbroker.com.br")) return true;
   if (host === "vivanci.com" || host.endsWith(".vivanci.com")) return true;
   if (host.endsWith(".imobiliariasonhar.com.br")) return true;
+  // ImoView / Universal Software
+  if (host === "cdn.imoview.com.br" || host.endsWith(".imoview.com.br")) return true;
+  // Gestor Imobiliária / Objetiva Software
+  if (host === "images.gestorimob.com.br" || host.endsWith(".gestorimob.com.br")) return true;
+  // Imóvel Web / Grupo ZAP
+  if (host.endsWith(".grupozap.com") || host.endsWith(".vivareal.com.br")) return true;
+  // ImóvelAqui
+  if (host.endsWith(".imovelaqui.com.br")) return true;
   return false;
 }
 
@@ -51,6 +59,8 @@ export function propertyImportImageScore(raw: string): number {
   const lower = raw.trim().toLowerCase();
   if (!lower || isDecorativeImportImageUrl(lower)) return -100;
   if (/imoview\.com\.br.*\/imoveis\//i.test(lower)) return 100;
+  if (/cdn\.imoview\.com\.br/i.test(lower)) return 95;
+  if (/images\.gestorimob\.com\.br/i.test(lower)) return 95;
   if (/kenlo\.io/i.test(lower)) return 95;
   if (/foto\d+\.(jpe?g|webp|png)/i.test(lower)) return 90;
   if (/storage\.googleapis\.com.*kenlo/i.test(lower)) return 85;
