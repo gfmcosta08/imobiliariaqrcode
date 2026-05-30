@@ -1,9 +1,8 @@
 /**
- * Parser para imobiliariasonhar.com.br
+ * Parser para imobiliariasonhar.com.br (Kenlo CMS)
  *
- * Este site usa uma plataforma customizada com botão "ver mais" JavaScript.
- * needsRendering=true garante que o extrator (Playwright) renderiza a página
- * e expande a descrição antes de retornar o HTML.
+ * Fetch direto traz `.box-description` completa no HTML inicial (confirmado em staging).
+ * Não usar Render/Playwright aqui — o /v1/discover devolve HTML parcial e perde descrição/fotos.
  */
 import * as cheerio from "cheerio";
 import type { ExtratorListing } from "../../extrator-types";
@@ -93,18 +92,16 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   });
 
   if (titleSpecific || descSpecific || uniqueImages.length > 0) {
-    const generic = parseGenericaBr(html, url);
     return {
-      ...generic,
-      ...(titleSpecific ? { title: titleSpecific } : {}),
-      ...(descSpecific
-        ? {
-            description: cleanDescription(descSpecific),
-            full_description: cleanDescription(descSpecific),
-          }
-        : {}),
+      title: titleSpecific,
+      description: cleanDescription(descSpecific),
+      full_description: cleanDescription(descSpecific),
       ...(priceSpecific ? { sale_price: priceSpecific } : {}),
       ...(uniqueImages.length > 0 ? { images: uniqueImages } : {}),
+      internal_code: (() => {
+        const m = url.match(/\/([A-Z]{2}\d{4}[-\w]*)(?:\/|$)/i);
+        return m?.[1] ?? "";
+      })(),
     };
   }
 
@@ -113,6 +110,6 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
 
 export const imobiliariasonharParser: SiteParser = {
   hostnames: ["imobiliariasonhar.com.br"],
-  needsRendering: true,
+  needsRendering: false,
   parse,
 };
