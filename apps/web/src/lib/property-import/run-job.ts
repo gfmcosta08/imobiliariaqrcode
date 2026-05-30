@@ -59,9 +59,9 @@ function summarizeImportFailure(results: ImportJobItemResult[]): string {
   return "Nenhum imóvel importado com sucesso.";
 }
 
-function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: unknown }): boolean {
+function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: { expanded?: boolean } | null }): boolean {
   const text = (listing.full_description ?? "").trim();
-  const expanded = (listing as any)?.debug?.expanded === true;
+  const expanded = listing.debug?.expanded === true;
   // Se o extrator indicou que tentou expandir e ainda assim veio curto, provavelmente truncado (ex.: "Ver mais").
   return expanded && text.length > 0 && text.length < 280;
 }
@@ -191,7 +191,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
         continue;
       }
 
-      if (looksLikeIncompleteDescription(listing as any)) {
+      if (looksLikeIncompleteDescription(listing)) {
         results.push({
           source_url: sourceUrl,
           status: "error",
