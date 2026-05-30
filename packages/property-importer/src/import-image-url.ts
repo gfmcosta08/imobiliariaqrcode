@@ -27,8 +27,6 @@ function isKnownPropertyCdnHost(hostname: string): boolean {
   if (host.endsWith(".imgbroker.com.br")) return true;
   if (host === "vivanci.com" || host.endsWith(".vivanci.com")) return true;
   if (host.endsWith(".imobiliariasonhar.com.br")) return true;
-  // Arbo (plataforma usada por vivanci.com) — confirmado por inspeção
-  if (host === "static.arboimoveis.com.br" || host.endsWith(".arboimoveis.com.br")) return true;
   // ImoView / Universal Software
   if (host === "cdn.imoview.com.br" || host.endsWith(".imoview.com.br")) return true;
   // Gestor Imobiliária / Objetiva Software
@@ -64,7 +62,8 @@ export function propertyImportImageScore(raw: string): number {
   if (/cdn\.imoview\.com\.br/i.test(lower)) return 95;
   if (/images\.gestorimob\.com\.br/i.test(lower)) return 95;
   if (/kenlo\.io/i.test(lower)) return 95;
-  if (/arboimoveis\.com\.br/i.test(lower)) return 95;
+  // Vivanci usa Supabase Storage para fotos de imóveis
+  if (/supabase\.co\/storage.*imoveis/i.test(lower)) return 90;
   if (/foto\d+\.(jpe?g|webp|png)/i.test(lower)) return 90;
   if (/storage\.googleapis\.com.*kenlo/i.test(lower)) return 85;
   if (/managing-images\.kenlo\.io/i.test(lower)) return 85;

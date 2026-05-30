@@ -20,16 +20,29 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
     "h1",
   ]);
 
-  const descRaw = firstText($, [
-    ".property-description",
-    "[class*='description']",
-    "[class*='Description']",
-    ".descricao",
-    "[class*='descricao']",
-    ".detail-description",
-    "section[class*='description'] p",
-    ".property-info p",
-  ]);
+  // Vivanci usa Next.js + Tailwind — sem classes semânticas de descrição.
+  // A descrição fica num bloco de texto longo próximo ao botão "Ver mais".
+  // Estratégia: pegar o parágrafo mais longo da área principal da página.
+  const descRaw = (() => {
+    // Tentar primeiro seletores de conteúdo comuns
+    const bySelector = firstText($, [
+      "section p",
+      "article p",
+      "main p",
+      "[role='main'] p",
+      ".prose",
+      // Texto logo antes/depois de "Ver mais"
+      "button:contains('Ver mais')",
+    ]);
+    if (bySelector && bySelector.length > 80) return bySelector;
+    // Fallback: maior parágrafo da página
+    let longest = "";
+    $("p").each((_i, el) => {
+      const t = $(el).text().trim();
+      if (t.length > longest.length) longest = t;
+    });
+    return longest;
+  })();
   const full_description = cleanDescription(descRaw);
 
   const priceRaw = firstText($, [
@@ -76,26 +89,27 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   const areaNum = areaText.match(/[\d,.]+/);
   const parkNum = parkText.match(/\d+/);
 
-  // Vivanci usa plataforma Arbo — CDN: static.arboimoveis.com.br (confirmado)
+  // Vivanci: Next.js custom + Supabase Storage (confirmado por inspeção real).
+  // CDN: tyqawceqowjmzgujrptx.supabase.co/storage/v1/object/public/imoveis-fotos/
+  // O seletor ".supabase.co" já é coberto pelo isKnownPropertyCdnHost global.
   const images = collectImages(
     $,
     [
-      // Arbo CDN (confirmado por inspeção)
-      "img[src*='static.arboimoveis.com.br']",
-      "img[data-src*='static.arboimoveis.com.br']",
-      "img[src*='arboimoveis.com.br']",
-      "img[data-src*='arboimoveis.com.br']",
+      // Supabase Storage (CDN real confirmado)
+      "img[src*='.supabase.co/storage']",
+      "img[data-src*='.supabase.co/storage']",
+      "img[src*='supabase.co']",
+      "img[data-src*='supabase.co']",
+      // Tailwind: imagens com object-cover (padrão Next.js)
+      "img[class*='object-cover']",
+      "img[class*='object-fit']",
       ".gallery img",
       ".swiper-slide img",
       ".carousel img",
       "[class*='gallery'] img",
-      "[class*='Gallery'] img",
       "[class*='slider'] img",
-      "[class*='Slider'] img",
       "[class*='foto'] img",
-      "[class*='image'] img",
       "img[class*='property']",
-      "a[href*='vivanci.com'] img",
     ],
     url,
   );
