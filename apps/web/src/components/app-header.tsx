@@ -9,7 +9,22 @@ async function signOut() {
   redirect("/");
 }
 
-export function AppHeader({ active, isAdmin }: { active?: string; isAdmin?: boolean }) {
+export async function AppHeader({ active }: { active?: string }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    isAdmin = profile?.role === "admin";
+  }
+
   const navLinks = [
     { href: "/properties", label: "Imóveis" },
     { href: "/leads", label: "Leads" },
