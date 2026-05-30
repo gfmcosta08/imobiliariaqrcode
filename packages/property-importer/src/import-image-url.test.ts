@@ -4,6 +4,7 @@ import {
   isAllowedImportImageUrl,
   isDecorativeImportImageUrl,
   isPropertyImportImageUrl,
+  normalizeImportImageUrl,
   rankPropertyImportImageUrls,
 } from "./import-image-url";
 
@@ -68,6 +69,16 @@ describe("rankPropertyImportImageUrls", () => {
     );
     expect(ranked[0]).toContain("imoview.com.br");
     expect(ranked.every((u) => !u.includes("/assets/img/"))).toBe(true);
+  });
+
+  it("desembrulha proxy Next.js para URL Supabase do Vivanci", () => {
+    const direct =
+      "https://tyqawceqowjmzgujrptx.supabase.co/storage/v1/object/public/imoveis-fotos/abc/foto.jpeg";
+    const proxy = `https://vivanci.com/_next/image?url=${encodeURIComponent(direct)}&w=1080&q=75`;
+    expect(normalizeImportImageUrl(proxy)).toBe(direct);
+    expect(isDecorativeImportImageUrl(proxy)).toBe(true);
+    const ranked = rankPropertyImportImageUrls([proxy], "vivanci.com");
+    expect(ranked).toEqual([direct]);
   });
 });
 

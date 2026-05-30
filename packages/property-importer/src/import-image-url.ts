@@ -44,6 +44,8 @@ export function isDecorativeImportImageUrl(raw: string): boolean {
   if (lower.endsWith(".svg")) return true;
   if (lower.includes("kenlo.svg")) return true;
   if (lower.includes("static-sites.kenlo.io")) return true;
+  // Proxy Next.js — deve ser normalizado para URL direta antes do upload
+  if (/\/_next\/image(?:\?|$)/i.test(lower)) return true;
   if (/\/assets\/icons?\//i.test(lower)) return true;
   if (/\/assets\/img\/[a-z0-9]{5,12}\.png/i.test(lower)) return true;
   if (/\/flags?\//i.test(lower)) return true;
@@ -53,6 +55,24 @@ export function isDecorativeImportImageUrl(raw: string): boolean {
     return true;
   }
   return false;
+}
+
+/** Converte proxy Next.js `/_next/image?url=...` na URL original (ex.: Supabase). */
+export function normalizeImportImageUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    if (url.pathname.includes("/_next/image")) {
+      const embedded = url.searchParams.get("url");
+      if (embedded) {
+        return decodeURIComponent(embedded);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return trimmed;
 }
 
 export function propertyImportImageScore(raw: string): number {
@@ -111,7 +131,7 @@ export function isPropertyImportImageUrl(raw: string, sourceHostname?: string): 
 export function rankPropertyImportImageUrls(urls: string[], sourceHostname?: string): string[] {
   const seen = new Set<string>();
   return urls
-    .map((u) => u.trim())
+    .map((u) => normalizeImportImageUrl(u.trim()))
     .filter((u) => u && isPropertyImportImageUrl(u, sourceHostname))
     .sort((a, b) => propertyImportImageScore(b) - propertyImportImageScore(a))
     .filter((u) => {

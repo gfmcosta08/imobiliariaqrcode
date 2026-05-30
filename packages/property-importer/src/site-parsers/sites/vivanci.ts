@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { ExtratorListing } from "../../extrator-types";
+import { normalizeImportImageUrl } from "../../import-image-url";
 import {
   cleanDescription,
   collectImages,
@@ -7,6 +8,69 @@ import {
   firstText,
 } from "../html-helpers";
 import type { SiteParser } from "../types";
+
+const SUPABASE_PHOTO_PATTERN =
+  /https?:\\\/\\\/[a-z0-9-]+\.supabase\.co\\\/storage\\\/v1\\\/object\\\/public\\\/imoveis-fotos\\\/[^"'\\\s<>]+|https?:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/imoveis-fotos\/[^\s"'\\)<>]+/gi;
+
+/** Extrai URLs diretas do Supabase Storage embutidas no HTML/JSON do Next.js. */
+function extractSupabasePhotosFromHtml(html: string): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const match of html.matchAll(SUPABASE_PHOTO_PATTERN)) {
+    const normalized = normalizeImportImageUrl(match[0].replace(/\\\//g, "/"));
+    if (!normalized.includes("supabase.co/storage") || !normalized.includes("imoveis-fotos")) {
+      continue;
+    }
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    results.push(normalized);
+  }
+  return results;
+}
+
+function collectVivanciImages(
+  $: cheerio.CheerioAPI,
+  html: string,
+  pageUrl: string,
+): Array<{ url: string }> {
+  const seen = new Set<string>();
+  const results: Array<{ url: string }> = [];
+
+  const add = (raw: string | undefined | null) => {
+    if (!raw) return;
+    const normalized = normalizeImportImageUrl(raw.trim());
+    if (!normalized.includes("supabase.co/storage") || !normalized.includes("imoveis-fotos")) {
+      return;
+    }
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    results.push({ url: normalized });
+  };
+
+  // Prioridade: URLs diretas no HTML bruto (inclui __NEXT_DATA__ e props serializadas)
+  for (const url of extractSupabasePhotosFromHtml(html)) {
+    add(url);
+  }
+
+  // Fallback: tags img (podem usar proxy /_next/image — normalizado acima)
+  for (const img of collectImages(
+    $,
+    [
+      "img[src*='supabase.co']",
+      "img[data-src*='supabase.co']",
+      "img[src*='/_next/image']",
+      "img[data-src*='/_next/image']",
+      "img[class*='object-cover']",
+      "[class*='gallery'] img",
+      "[class*='slider'] img",
+    ],
+    pageUrl,
+  )) {
+    add(img.url);
+  }
+
+  return results;
+}
 
 function parse(html: string, url: string): Partial<ExtratorListing> {
   const $ = cheerio.load(html);
@@ -89,76 +153,7 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   const areaNum = areaText.match(/[\d,.]+/);
   const parkNum = parkText.match(/\d+/);
 
-  // Vivanci: Next.js custom + Supabase Storage (confirmado por inspeção real).
-  // CDN: tyqawceqowjmzgujrptx.supabase.co/storage/v1/object/public/imoveis-fotos/
-  // O seletor ".supabase.co" já é coberto pelo isKnownPropertyCdnHost global.
-  const images = collectImages(
-    $,
-    [
-      // Supabase Storage (CDN real confirmado)
-      "img[src*='.supabase.co/storage']",
-      "img[data-src*='.supabase.co/storage']",
-      "img[src*='supabase.co']",
-      "img[data-src*='supabase.co']",
-      // Tailwind: imagens com object-cover (padrão Next.js)
-      "img[class*='object-cover']",
-      "img[class*='object-fit']",
-      ".gallery img",
-      ".swiper-slide img",
-      ".carousel img",
-      "[class*='gallery'] img",
-      "[class*='slider'] img",
-      "[class*='foto'] img",
-      "img[class*='property']",
-    ],
-    url,
-  );
-
-  // Also extract from meta og:image and JSON-LD
-  $("meta[property='og:image'], meta[name='og:image']").each((_i, el) => {
-    const content = $(el).attr("content")?.trim();
-    if (content && content.startsWith("http")) {
-      images.push({ url: content });
-    }
-  });
-
-  // Extract images from JSON-LD if present
-  $("script[type='application/ld+json']").each((_i, el) => {
-    try {
-      const json = JSON.parse($(el).html() ?? "");
-      const extractUrls = (obj: unknown): void => {
-        if (!obj || typeof obj !== "object") return;
-        if (Array.isArray(obj)) {
-          for (const item of obj) extractUrls(item);
-          return;
-        }
-        const o = obj as Record<string, unknown>;
-        for (const key of ["image", "contentUrl", "url", "thumbnail"]) {
-          const val = o[key];
-          if (typeof val === "string" && val.startsWith("http")) {
-            images.push({ url: val });
-          } else if (Array.isArray(val)) {
-            for (const v of val) {
-              if (typeof v === "string" && v.startsWith("http")) images.push({ url: v });
-              else if (v && typeof v === "object") extractUrls(v);
-            }
-          }
-        }
-        for (const v of Object.values(o)) extractUrls(v);
-      };
-      extractUrls(json);
-    } catch {
-      // ignore
-    }
-  });
-
-  // Deduplicate images
-  const seen = new Set<string>();
-  const uniqueImages = images.filter((img) => {
-    if (seen.has(img.url)) return false;
-    seen.add(img.url);
-    return true;
-  });
+  const uniqueImages = collectVivanciImages($, html, url);
 
   const subtype = firstText($, [
     "[class*='type']",
