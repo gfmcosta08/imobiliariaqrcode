@@ -189,6 +189,8 @@ export async function POST(req: Request) {
       account_id: broker.account_id,
       plan_code: "free",
       status: "free",
+      // Override de cortesia: quantos imóveis ATIVOS (published/printed) esta conta pode manter.
+      max_active_properties_override: propertyCount,
       billing_provider: null,
       provider_customer_id: null,
       provider_subscription_id: null,

@@ -21,7 +21,8 @@ export async function GET(request: Request) {
   }
 
   const supabase = createClient(supabaseUrl, anon, { auth: { persistSession: false } });
-  const { error } = await supabase.from("plans").select("code").limit(1);
+  // 🔒 SEGURANÇA: use uma tabela explicitamente pública; evita relaxar RLS de tabelas internas.
+  const { error } = await supabase.from("plan_display_config").select("plan_code").limit(1);
   if (error) {
     return NextResponse.json({ ...base, supabase: "error", detail: error.message });
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { normalizeBrazilPhone } from "@/lib/phone";
 import { assertQrTokenActive } from "@/lib/public/qr-token-active";
+import { clampString, parseJsonObjectWithLimit, rejectUnknownKeys } from "@/lib/security/json-body";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 /**
@@ -9,21 +10,29 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
  * Valida o token via Edge `qr-resolve` e chama RPC `create_lead_from_visit_interest` com service role.
  */
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+  // 🔒 SEGURANÇA [VULN-2]: limita bytes + rejeita chaves extras — previne DoS e mass assignment.
+  const parsed = await parseJsonObjectWithLimit(request, { maxBytes: 8_192 });
+  if (!parsed.ok) return parsed.response;
+
+  const o = parsed.value;
+  const unknown = rejectUnknownKeys(o, [
+    "qr_token",
+    "client_phone",
+    "nome",
+    "profile_name",
+    "observation",
+    "intent",
+  ]);
+  if (unknown) {
+    return NextResponse.json({ ok: false, error: "unexpected_field", field: unknown }, { status: 400 });
   }
 
-  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const qr_token = typeof o.qr_token === "string" ? o.qr_token.trim() : "";
-  const client_phone = typeof o.client_phone === "string" ? o.client_phone : "";
-  const provided_name = typeof o.nome === "string" ? o.nome.trim() : "";
-  const profile_name = typeof o.profile_name === "string" ? o.profile_name.trim() : "";
-  const observation = typeof o.observation === "string" ? o.observation.trim() : "";
-  const intent =
-    typeof o.intent === "string" && o.intent.trim() ? o.intent.trim() : "visit_interest";
+  const qr_token = clampString(o.qr_token, { maxLength: 128, trim: true });
+  const client_phone = clampString(o.client_phone, { maxLength: 32, trim: true });
+  const provided_name = clampString(o.nome, { maxLength: 120, trim: true });
+  const profile_name = clampString(o.profile_name, { maxLength: 120, trim: true });
+  const observation = clampString(o.observation, { maxLength: 500, trim: true });
+  const intent = clampString(o.intent, { maxLength: 40, trim: true }) || "visit_interest";
 
   const phone = normalizeBrazilPhone(client_phone);
   if (!phone) {

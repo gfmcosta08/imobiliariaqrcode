@@ -54,8 +54,8 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain("function classifyConversationIntent");
     expect(src).toContain('"post_similar_property_id"');
     expect(src).toContain('"visit_property_id"');
-    expect(src).toContain("conversationIntent === \"visit_property_id\"");
-    expect(src).toContain("conversationIntent === \"post_similar_property_id\"");
+    expect(src).toContain('conversationIntent === "visit_property_id"');
+    expect(src).toContain('conversationIntent === "post_similar_property_id"');
 
     const qrBranchIndex = src.indexOf("if (qrToken) {");
     const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
@@ -97,7 +97,7 @@ describe("WhatsApp guardrails contracts", () => {
     expect(resolverBlock?.[0]).toBeTruthy();
     expect(resolverBlock?.[0]).toContain("shownIds: string[] = []");
     expect(resolverBlock?.[0]).toContain("[...recommendedIds, ...shownIds]");
-    expect(resolverBlock?.[0]).toContain(".in(\"id\", candidateIds)");
+    expect(resolverBlock?.[0]).toContain('.in("id", candidateIds)');
     expect(resolverBlock?.[0]).toContain("trimmed === internalId");
     expect(resolverBlock?.[0]).toContain("normalizePropertyCode(p.public_id)");
     expect(selectionHandlerBlock?.[0]).toContain("session.similar_shown_property_ids");
@@ -170,7 +170,9 @@ describe("WhatsApp guardrails contracts", () => {
 
     expect(originContactBlock?.[0]).toBeTruthy();
     expect(originContactBlock?.[0]).toContain("loadOriginPropertyForSession");
-    expect(originContactBlock?.[0]).toContain("const originBrokerId = fmt(originProperty?.broker_id)");
+    expect(originContactBlock?.[0]).toContain(
+      "const originBrokerId = fmt(originProperty?.broker_id)",
+    );
     expect(originContactBlock?.[0]).toContain("loadBrokerContact(supabase, originBrokerId)");
     expect(originContactBlock?.[0]).toContain("fallbackBrokerId");
     expect(mainChoiceBlock?.[0]).toContain("loadLeadOriginBrokerContact(");
@@ -241,6 +243,40 @@ describe("WhatsApp guardrails contracts", () => {
     expect(qrBlock).toContain("await sendPropertyPack(");
     expect(qrBlock).toContain("ensureCustomerResponseQueued(supabase");
     expect(qrBlock).toContain('context: "qr_entry_property_pack"');
+  });
+
+  it("mantem pacote QR iniciando pelo descritivo com contato do corretor antes das imagens e menu", () => {
+    const src = read(conversationHandlePath);
+    const packBlock = src.match(
+      /async function sendPropertyPack\([\s\S]*?async function sendMainMenu/,
+    )?.[0];
+    expect(packBlock).toBeTruthy();
+    expect(src).toContain("function formatBrokerResponsible");
+    expect(packBlock).toContain("summarizeProperty(property, brokerContact)");
+    expect(packBlock).toContain("broker_name: brokerContact.name");
+    expect(packBlock).toContain("broker_phone: brokerContact.phone");
+    expect(packBlock).not.toContain('kind: "lead_intro"');
+
+    const summaryIndex = packBlock?.indexOf('kind: "property_summary"') ?? -1;
+    const imageIndex = packBlock?.indexOf('kind: "property_image"') ?? -1;
+    const menuIndex = packBlock?.indexOf('kind: "main_menu"') ?? -1;
+    expect(summaryIndex).toBeGreaterThan(-1);
+    expect(imageIndex).toBeGreaterThan(summaryIndex);
+    expect(menuIndex).toBeGreaterThan(imageIndex);
+  });
+
+  it("mantem processamento do lead somente depois do pacote visivel do QR", () => {
+    const src = read(conversationHandlePath);
+    const qrBlock = src.match(/if \(qrToken\)[\s\S]*?\/\/ fim if \(qrToken\)/)?.[0];
+    expect(qrBlock).toBeTruthy();
+
+    const sendPackIndex = qrBlock?.indexOf("await sendPropertyPack(") ?? -1;
+    const visibleGuardIndex = qrBlock?.indexOf('context: "qr_entry_property_pack"') ?? -1;
+    const leadIndex = qrBlock?.indexOf("await upsertLead(supabase") ?? -1;
+    expect(sendPackIndex).toBeGreaterThan(-1);
+    expect(visibleGuardIndex).toBeGreaterThan(sendPackIndex);
+    expect(leadIndex).toBeGreaterThan(visibleGuardIndex);
+    expect(qrBlock).toContain("[bot] post-visible lead processing failed");
   });
 
   it("mantem deduplicacao do QR baseada apenas no pacote visivel ao cliente", () => {

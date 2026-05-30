@@ -92,4 +92,34 @@ describe("discoverPropertyUrls SPA fallback", () => {
     expect(result.urls[0]).toContain("/imovel/0808");
     expect(discoverCalls).toBeGreaterThan(1);
   });
+
+  it("usa extrator quando fetch direto retorna HTTP 410", async () => {
+    const renderedHtml = `<a href="/imovel/14015">Casa</a>`;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo) => {
+        const url = String(input);
+        if (url.includes("/v1/discover")) {
+          return new Response(
+            JSON.stringify({ ok: true, url, html: renderedHtml }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const result = await discoverPropertyUrls("https://www.casa63.com.br/imoveis", {
+      fetchHtml: async () => {
+        throw new Error("fetch_failed_410");
+      },
+      extratorBaseUrl: "https://extrator.test",
+    });
+
+    vi.unstubAllGlobals();
+
+    expect(result.urls).toHaveLength(1);
+    expect(result.urls[0]).toContain("/imovel/14015");
+  });
 });

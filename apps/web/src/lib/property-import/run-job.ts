@@ -59,6 +59,13 @@ function summarizeImportFailure(results: ImportJobItemResult[]): string {
   return "Nenhum imóvel importado com sucesso.";
 }
 
+function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: unknown }): boolean {
+  const text = (listing.full_description ?? "").trim();
+  const expanded = (listing as any)?.debug?.expanded === true;
+  // Se o extrator indicou que tentou expandir e ainda assim veio curto, provavelmente truncado (ex.: "Ver mais").
+  return expanded && text.length > 0 && text.length < 280;
+}
+
 export async function runPropertyImportJob(jobId: string): Promise<void> {
   const admin = createServiceRoleClient();
   const extratorBase = getPropertyExtractorBaseUrl();
@@ -171,6 +178,24 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
           error: isBlockedListingTitle(listing?.title)
             ? "site_blocked_cloudflare"
             : "listing_empty_or_unavailable",
+        });
+        processed += 1;
+        await admin
+          .from("property_import_jobs")
+          .update({
+            processed_count: processed,
+            results,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+        continue;
+      }
+
+      if (looksLikeIncompleteDescription(listing as any)) {
+        results.push({
+          source_url: sourceUrl,
+          status: "error",
+          error: "incomplete_description",
         });
         processed += 1;
         await admin

@@ -107,28 +107,20 @@ export async function createProperty(
 
   const activeStatuses = ["free", "solo_active", "pro_pending_activation", "pro_active"];
   const subscription =
-    subscriptionRow && activeStatuses.includes(subscriptionRow.status)
-      ? subscriptionRow
-      : !isProduction
-        ? { plan_code: "free", status: "free" }
-        : null;
+    subscriptionRow && activeStatuses.includes(subscriptionRow.status) ? subscriptionRow : null;
 
-  let ensuredSubscription = subscription;
-  if (!ensuredSubscription) {
-    // In preview/dev, ensure a default FREE subscription exists so QA can create listings.
-    if (!isProduction) {
-      await admin.from("subscriptions").upsert(
-        {
-          account_id: broker.account_id,
-          plan_code: "free",
-          status: "free",
-        },
-        { onConflict: "account_id" },
-      );
-      ensuredSubscription = { plan_code: "free", status: "free" };
-    } else {
-      return { error: "Escolha um plano antes de cadastrar imoveis." };
-    }
+  // Guarantee that a broker can always create at least on FREE, even when the subscription row
+  // is missing or inactive (e.g. staging data drift). Limits are enforced elsewhere by plan.
+  const ensuredSubscription = subscription ?? { plan_code: "free", status: "free" };
+  if (!subscriptionRow) {
+    await admin.from("subscriptions").upsert(
+      {
+        account_id: broker.account_id,
+        plan_code: "free",
+        status: "free",
+      },
+      { onConflict: "account_id" },
+    );
   }
 
   const { data, error } = await admin

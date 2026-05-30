@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function ConvitePage() {
   const router = useRouter();
@@ -26,8 +25,6 @@ export default function ConvitePage() {
       const data = (await res.json()) as {
         ok: boolean;
         error?: string;
-        access_token?: string;
-        refresh_token?: string;
       };
 
       if (!data.ok) {
@@ -44,13 +41,6 @@ export default function ConvitePage() {
         setError(msgs[data.error ?? ""] ?? "Erro inesperado. Tente novamente.");
         return;
       }
-
-      // Setar a session no cliente Supabase usando os tokens recebidos
-      const supabase = createClient();
-      await supabase.auth.setSession({
-        access_token: data.access_token!,
-        refresh_token: data.refresh_token!,
-      });
 
       router.push("/onboarding/complete-profile");
     } catch {

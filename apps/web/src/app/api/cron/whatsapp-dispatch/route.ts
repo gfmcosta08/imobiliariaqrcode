@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/security/cron-auth";
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET ?? "";
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // 🔒 SEGURANÇA: nunca permitir "fail-open" quando CRON_SECRET está ausente.
+  const auth = requireCronAuth(request);
+  if (!auth.ok) return auth.response;
+  const { cronSecret } = auth;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) {

@@ -92,6 +92,7 @@ export async function discoverPropertyUrls(
   }
 
   const max = Math.min(options?.max ?? MAX_PROPERTIES_PER_IMPORT, MAX_PROPERTIES_PER_IMPORT);
+  const extratorBaseUrl = options?.extratorBaseUrl;
   const fetchHtml =
     options?.fetchHtml ??
     (async (url: string) => {
@@ -114,13 +115,44 @@ export async function discoverPropertyUrls(
       return res.text();
     });
 
+  async function discoverWithExtrator(pageUrl: string): Promise<string[]> {
+    if (!extratorBaseUrl) return [];
+    return discoverFromRenderedHtml(base, pageUrl, max, extratorBaseUrl);
+  }
+
+  async function discoverWithExtratorFallbacks(): Promise<string[]> {
+    let urls = await discoverWithExtrator(base.toString());
+    if (urls.length > 0) return urls;
+    if (inferDiscoverMode(base) !== "homepage") return [];
+    for (const path of LISTING_FALLBACK_PATHS) {
+      const listingUrl = new URL(path, base).toString();
+      urls = await discoverWithExtrator(listingUrl);
+      if (urls.length > 0) break;
+    }
+    return urls;
+  }
+
+  // Com extrator configurado, prioriza HTML renderizado (evita WAF/anti-bot no data center).
+  if (extratorBaseUrl) {
+    const renderedUrls = await discoverWithExtratorFallbacks();
+    if (renderedUrls.length > 0) {
+      return { urls: renderedUrls.filter((u) => !isHomepageUrl(u)), mode: inferDiscoverMode(base) };
+    }
+  }
+
   let html: string;
   try {
     html = await fetchHtml(base.toString());
   } catch (e) {
     const message = e instanceof Error ? e.message : "";
-    if (/^fetch_failed_(403|401|429)$/.test(message) && looksLikeSingleListingUrl(base)) {
+    if (/^fetch_failed_\d+$/.test(message) && looksLikeSingleListingUrl(base)) {
       return { urls: [base.toString()], mode: "single" };
+    }
+    if (/^fetch_failed_\d+$/.test(message) && extratorBaseUrl) {
+      const renderedUrls = await discoverWithExtratorFallbacks();
+      if (renderedUrls.length > 0) {
+        return { urls: renderedUrls.filter((u) => !isHomepageUrl(u)), mode: inferDiscoverMode(base) };
+      }
     }
     throw e;
   }
@@ -131,16 +163,8 @@ export async function discoverPropertyUrls(
 
   let urls = parsePropertyLinksFromHtml(base, html, max);
 
-  if (urls.length === 0 && options?.extratorBaseUrl) {
-    urls = await discoverFromRenderedHtml(base, base.toString(), max, options.extratorBaseUrl);
-  }
-
-  if (urls.length === 0 && options?.extratorBaseUrl && inferDiscoverMode(base) === "homepage") {
-    for (const path of LISTING_FALLBACK_PATHS) {
-      const listingUrl = new URL(path, base).toString();
-      urls = await discoverFromRenderedHtml(base, listingUrl, max, options.extratorBaseUrl);
-      if (urls.length > 0) break;
-    }
+  if (urls.length === 0 && extratorBaseUrl) {
+    urls = await discoverWithExtratorFallbacks();
   }
 
   const mode = inferDiscoverMode(base);

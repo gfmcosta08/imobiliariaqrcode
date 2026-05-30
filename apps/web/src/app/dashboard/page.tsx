@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,10 +27,12 @@ export default async function DashboardPage() {
 
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("plan_code, status")
+    .select("plan_code, status, current_period_end, max_active_properties_override")
     .maybeSingle();
 
   const isPro = subscription?.plan_code === "pro" && subscription?.status === "pro_active";
+  const hasCourtesyOverride = (subscription?.max_active_properties_override ?? null) !== null;
+  const hasCourtesyValidity = subscription?.current_period_end != null;
 
   const fallback: MyMetrics = {
     total_properties: 0,
@@ -109,9 +111,19 @@ export default async function DashboardPage() {
             <div>
               <p className="text-xs text-gray-400">Plano</p>
               <p className="mt-1 text-sm font-medium text-gray-800">
-                {subscription?.plan_code?.toUpperCase() ?? "FREE"}{" "}
-                <span className="text-gray-400">({subscription?.status ?? "—"})</span>
+                {subscription?.plan_code?.toUpperCase() ?? "FREE"}
+                {subscription?.status ? (
+                  <span className="text-gray-400"> ({subscription.status})</span>
+                ) : null}
               </p>
+              {(hasCourtesyOverride || hasCourtesyValidity) && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Cortesia ativa
+                  {subscription?.max_active_properties_override != null
+                    ? ` - limite: ${subscription.max_active_properties_override} ativos`
+                    : ""}
+                </p>
+              )}
             </div>
           </div>
           <Link

@@ -57,6 +57,8 @@ export function propertyImportImageScore(raw: string): number {
   if (/jetimob\.com/i.test(lower)) return 88;
   if (/vistahost\.com\.br/i.test(lower)) return 88;
   if (/imovelweb\.com\.br/i.test(lower)) return 85;
+  // Muitos sites Next.js servem imagens via proxy sem extensÃ£o: /_next/image?url=...&w=...
+  if (/\/_next\/image\?/.test(lower) && /[?&]url=/.test(lower)) return 30;
   if (/\.(jpe?g|webp|png)(\?|$)/i.test(lower)) return 40;
   return 0;
 }

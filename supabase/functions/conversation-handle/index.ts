@@ -501,11 +501,7 @@ async function resolveRecommendedProperty(
   shownIds: string[] = [],
 ): Promise<Record<string, unknown> | null> {
   const candidateIds = Array.from(
-    new Set(
-      [...recommendedIds, ...shownIds]
-        .map((id) => String(id ?? "").trim())
-        .filter(Boolean),
-    ),
+    new Set([...recommendedIds, ...shownIds].map((id) => String(id ?? "").trim()).filter(Boolean)),
   );
   if (!candidateIds.length) return null;
 
@@ -539,7 +535,17 @@ async function resolveRecommendedProperty(
   return null;
 }
 
-function summarizeProperty(row: Record<string, unknown>): string {
+function formatBrokerResponsible(contact?: { name: string | null; phone: string | null }): string {
+  const lines = ["Corretor responsavel"];
+  lines.push(`Nome: ${contact?.name ? contact.name : "Nao informado"}`);
+  lines.push(`WhatsApp: ${contact?.phone ? contact.phone : "Nao informado"}`);
+  return lines.join("\n");
+}
+
+function summarizeProperty(
+  row: Record<string, unknown>,
+  brokerContact?: { name: string | null; phone: string | null },
+): string {
   const lines: string[] = [];
   const title = fmt(row.title || row.public_id);
   if (title) lines.push(title);
@@ -631,6 +637,9 @@ function summarizeProperty(row: Record<string, unknown>): string {
   ]);
 
   addSection(lines, "Observações", [["Observações do Corretor", fmt(row.broker_notes)]]);
+
+  if (lines.length) lines.push("");
+  lines.push(formatBrokerResponsible(brokerContact));
 
   return lines.join("\n").trim();
 }
@@ -803,22 +812,16 @@ async function sendPropertyPack(
   const accountId = String(property.account_id);
   const brokerId = String(property.broker_id);
 
-  const { data: broker } = await supabase
-    .from("brokers")
-    .select("whatsapp_number, display_name, profiles(whatsapp_number)")
-    .eq("id", brokerId)
-    .maybeSingle();
-
-  const rawBrokerPhone =
-    broker?.whatsapp_number ||
-    (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles?.whatsapp_number ||
-    null;
-  const brokerPhone = sanitizeBrokerPhone(rawBrokerPhone ? String(rawBrokerPhone) : null);
-  const brokerName = broker?.display_name ? String(broker.display_name) : null;
+  const brokerContact = await loadBrokerContact(supabase, brokerId);
+  const brokerPhone = brokerContact.phone;
   const firstName = pickGreetingName(lead, profileName);
-  const introText = firstName
-    ? `Ola, ${firstName}! Que bom ter voce aqui. Separei os detalhes do imovel:`
-    : `Ola! Que bom ter voce aqui. Separei os detalhes do imovel:`;
+  const summaryText = [
+    firstName
+      ? `Ola, ${firstName}! Seguem os detalhes do imovel solicitado pelo QR Code:`
+      : "Ola! Seguem os detalhes do imovel solicitado pelo QR Code:",
+    "",
+    summarizeProperty(property, brokerContact),
+  ].join("\n");
   const flowGroup = crypto.randomUUID();
   let flowStep = 1;
 
@@ -829,23 +832,11 @@ async function sendPropertyPack(
     broker_phone: brokerPhone,
     message_type: "text",
     payload: {
-      kind: "lead_intro",
-      text: introText,
-    },
-    flow_group: flowGroup,
-    flow_step: flowStep++,
-  });
-
-  await queueOutbound(supabase, {
-    account_id: accountId,
-    property_id: propertyId,
-    lead_phone: leadPhone,
-    broker_phone: brokerPhone,
-    message_type: "text",
-    payload: {
       kind: "property_summary",
-      text: summarizeProperty(property),
+      text: summaryText,
       public_id: property.public_id,
+      broker_name: brokerContact.name,
+      broker_phone: brokerContact.phone,
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -887,12 +878,6 @@ async function sendPropertyPack(
       flow_step: flowStep++,
     });
   }
-
-  const appUrl =
-    Deno.env.get("NEXT_PUBLIC_APP_URL") ??
-    Deno.env.get("APP_URL") ??
-    Deno.env.get("PUBLIC_APP_URL") ??
-    "";
 
   await queueOutbound(supabase, {
     account_id: accountId,
@@ -1438,19 +1423,17 @@ async function doRegisterVisit(
     .eq("id", sessionId);
 }
 
-async function handlePostSimilarPropertyId(
-  input: {
-    supabase: ReturnType<typeof createClient>;
-    session: Record<string, unknown>;
-    property: Record<string, unknown>;
-    lead: LeadSnapshot | null;
-    leadPhone: string;
-    brokerPhone: string | null;
-    firstName: string;
-    profileName: string | null;
-    text: string;
-  },
-): Promise<Response> {
+async function handlePostSimilarPropertyId(input: {
+  supabase: ReturnType<typeof createClient>;
+  session: Record<string, unknown>;
+  property: Record<string, unknown>;
+  lead: LeadSnapshot | null;
+  leadPhone: string;
+  brokerPhone: string | null;
+  firstName: string;
+  profileName: string | null;
+  text: string;
+}): Promise<Response> {
   const {
     supabase,
     session,
@@ -1784,17 +1767,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const lead = await upsertLead(supabase, {
-        propertyId,
-        brokerId,
-        leadPhone,
-        text,
-        profileName,
-        informedName,
-        intent: "visit_interest",
-        interactionType: "qr_entry",
-        forceNameUpdate: Boolean(correctedName),
-      });
+      const lead: LeadSnapshot | null = null;
 
       if (session?.id) {
         await supabase
@@ -1916,6 +1889,26 @@ Deno.serve(async (req) => {
         brokerPhone: null,
         context: "qr_entry_property_pack",
       });
+
+      try {
+        await upsertLead(supabase, {
+          propertyId,
+          brokerId,
+          leadPhone,
+          text,
+          profileName,
+          informedName,
+          intent: "visit_interest",
+          interactionType: "qr_entry",
+          forceNameUpdate: Boolean(correctedName),
+        });
+      } catch (leadErr) {
+        console.error("[bot] post-visible lead processing failed", {
+          propertyId,
+          leadPhone,
+          error: leadErr instanceof Error ? leadErr.message : String(leadErr),
+        });
+      }
       _interactionStep = "response_queued";
       return json({ ok: true, state: "started", property_id: propertyId });
     } // fim if (qrToken)

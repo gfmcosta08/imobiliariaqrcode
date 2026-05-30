@@ -40,7 +40,8 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/dashboard") ||
     path.startsWith("/properties") ||
     path.startsWith("/partner") ||
-    path.startsWith("/leads");
+    path.startsWith("/leads") ||
+    path.startsWith("/admin");
 
   if (needsAuth && !user) {
     const redirectUrl = request.nextUrl.clone();

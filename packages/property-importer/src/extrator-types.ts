@@ -22,6 +22,13 @@ export type ExtratorListing = {
   full_address: string;
   internal_code: string;
   full_description: string;
+  debug?: {
+    expanded?: boolean;
+    expandClicks?: number;
+    scrollSteps?: number;
+    descLength?: number;
+    imagesFound?: number;
+  };
   images: Array<{
     url: string;
     saved_to?: string;

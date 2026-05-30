@@ -18,6 +18,25 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/imoveis/novo",
+        destination: "/properties/new",
+        permanent: true,
+      },
+      {
+        source: "/planos",
+        destination: "/plans",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/imoveis",
+        destination: "/properties",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

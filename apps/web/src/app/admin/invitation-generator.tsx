@@ -101,6 +101,10 @@ export function InvitationGenerator() {
           </div>
 
           {error && <p className="mt-3 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          <p className="mt-3 text-xs text-gray-400">
+            Observação: o limite se aplica a imóveis <span className="font-medium">ativos</span>{" "}
+            (publicados/impresso). Rascunhos não consomem limite.
+          </p>
 
           <button
             onClick={handleGenerate}

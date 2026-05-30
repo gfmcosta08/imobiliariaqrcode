@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextRequest, NextResponse } from "next/server";
 
 async function sha256Hex(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -8,7 +9,7 @@ async function sha256Hex(text: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: { login_code?: string; access_code?: string };
     try {
@@ -65,7 +66,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "invitation_invalid_state" }, { status: 409 });
     }
 
-    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anon) {
+      return NextResponse.json({ ok: false, error: "server_config" }, { status: 500 });
+    }
+
+    // 🔒 SEGURANÇA/UX: estabelece sessão via cookies (SSR) para que rotas server-side reconheçam o usuário.
+    let response = NextResponse.json({ ok: true });
+    const supabaseUser = createServerClient(url, anon, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Parameters<NextResponse["cookies"]["set"]>[2];
+          }[],
+        ) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.json({ ok: true });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        },
+      },
+    });
+
+    const { data: sessionData, error: signInError } = await supabaseUser.auth.signInWithPassword({
       email: invitation.temp_email,
       password: access_code,
     });
@@ -77,11 +105,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      access_token: sessionData.session.access_token,
-      refresh_token: sessionData.session.refresh_token,
-    });
+    return response;
   } catch (error) {
     console.error("convite claim fatal error", error);
     return NextResponse.json({ ok: false, error: "claim_unexpected_error" }, { status: 500 });

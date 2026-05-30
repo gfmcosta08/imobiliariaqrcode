@@ -36,8 +36,10 @@ type Props = {
 };
 
 function humanizeImportError(message: string): string {
-  if (message === "fetch_failed_403" || message === "fetch_failed_401" || message === "fetch_failed_429") {
-    return "O site bloqueou a leitura automática da listagem. Cole a URL de um anúncio individual.";
+  const fetchBlocked = /^fetch_failed_(401|403|410|429|503)$/.exec(message);
+  if (fetchBlocked) {
+    const status = fetchBlocked[1];
+    return `O site bloqueou a leitura automática (HTTP ${status}). Cole a URL direta de um anúncio individual (/imovel/...) ou tente outro portal.`;
   }
   if (message === "no_properties_found") {
     return "Nenhum imóvel encontrado nessa URL. Sites em React (ex.: Vivanci) costumam funcionar melhor com a página /imoveis ou o link direto de um anúncio (/imovel/...).";
@@ -47,6 +49,9 @@ function humanizeImportError(message: string): string {
   }
   if (message === "all_listings_empty_or_unavailable") {
     return "Encontramos links na página, mas nenhum anúncio pôde ser lido. Tente a URL direta de um imóvel (/imovel/...) ou outro portal.";
+  }
+  if (message.startsWith("extrator_http_502") || message.startsWith("extrator_http_503")) {
+    return "Serviço de extração indisponível no momento (502/503). Tente novamente em alguns minutos.";
   }
   return message;
 }

@@ -9,6 +9,7 @@ type Subscription = {
   account_id: string;
   plan_code: string;
   status: string;
+  max_active_properties_override?: number | null;
   billing_provider: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -19,7 +20,6 @@ type Subscription = {
 
 const STATUSES = [
   "free",
-  "trial_active",
   "solo_active",
   "pro_pending_activation",
   "pro_active",
@@ -28,7 +28,13 @@ const STATUSES = [
   "expired",
 ];
 
-const PLANS = ["free", "trial", "solo", "pro", "premium"];
+const PLANS = ["free", "solo", "pro", "premium"];
+const PLAN_DEFAULT_ACTIVE_LIMIT: Record<string, number> = {
+  free: 1,
+  solo: 1,
+  pro: 999999,
+  premium: 999999,
+};
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -58,17 +64,27 @@ export function SubscriptionsManager() {
   const [statusFilter, setStatusFilter] = useState("");
   const [planFilter, setPlanFilter] = useState("");
   const [results, setResults] = useState<Subscription[]>([]);
+  const [searchedOnce, setSearchedOnce] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<Subscription | null>(null);
   const [editPeriodEnd, setEditPeriodEnd] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editPlanCode, setEditPlanCode] = useState("");
+  const [editMaxActive, setEditMaxActive] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const currentPlanDefaultLimit = PLAN_DEFAULT_ACTIVE_LIMIT[editPlanCode] ?? null;
+  const effectiveLimit = editMaxActive.trim()
+    ? Number.parseInt(editMaxActive.trim(), 10)
+    : currentPlanDefaultLimit;
+
   async function handleSearch() {
+    setSearchedOnce(true);
     setFetching(true);
     setFetchError(null);
     setResults([]);
@@ -95,6 +111,15 @@ export function SubscriptionsManager() {
     setEditing(sub);
     setEditPeriodEnd(toDateInputValue(sub.current_period_end));
     setEditStatus(sub.status);
+    setEditPlanCode(sub.plan_code);
+    const defaultLimit = PLAN_DEFAULT_ACTIVE_LIMIT[sub.plan_code] ?? null;
+    const isUnlimitedPlan = sub.plan_code === "pro" || sub.plan_code === "premium";
+    setEditMaxActive(() => {
+      if (sub.max_active_properties_override != null) return String(sub.max_active_properties_override);
+      if (isUnlimitedPlan && defaultLimit != null) return String(defaultLimit);
+      return "";
+    });
+    setShowAdvanced(false);
     setSaveMsg(null);
     setSaveError(null);
   }
@@ -105,10 +130,25 @@ export function SubscriptionsManager() {
     setSaveError(null);
     setSaveMsg(null);
     try {
-      const body: Record<string, unknown> = { status: editStatus };
-      if (editPeriodEnd) {
-        body.current_period_end = new Date(editPeriodEnd).toISOString();
-      }
+      const body: Record<string, unknown> = { plan_code: editPlanCode };
+
+      const noExpiry = editPlanCode === "pro" || editPlanCode === "premium";
+      body.current_period_end = noExpiry
+        ? null
+        : editPeriodEnd
+          ? new Date(editPeriodEnd).toISOString()
+          : null;
+
+      const isUnlimitedPlan = editPlanCode === "pro" || editPlanCode === "premium";
+      const defaultLimit = PLAN_DEFAULT_ACTIVE_LIMIT[editPlanCode] ?? null;
+      const maxActiveRaw = editMaxActive.trim();
+      body.max_active_properties_override = maxActiveRaw
+        ? Number.parseInt(maxActiveRaw, 10)
+        : isUnlimitedPlan && defaultLimit != null
+          ? defaultLimit
+          : null;
+
+      if (showAdvanced) body.status = editStatus;
       const res = await fetch(`/api/admin/subscriptions/${editing.account_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -125,10 +165,19 @@ export function SubscriptionsManager() {
           s.account_id === editing.account_id
             ? {
                 ...s,
-                status: editStatus,
+                plan_code: editPlanCode,
+                status: showAdvanced ? editStatus : s.status,
                 current_period_end: editPeriodEnd
                   ? new Date(editPeriodEnd).toISOString()
                   : s.current_period_end,
+                max_active_properties_override: (() => {
+                  const isUnlimitedPlan = editPlanCode === "pro" || editPlanCode === "premium";
+                  const defaultLimit = PLAN_DEFAULT_ACTIVE_LIMIT[editPlanCode] ?? null;
+                  const maxActiveRaw = editMaxActive.trim();
+                  if (maxActiveRaw) return Number.parseInt(maxActiveRaw, 10);
+                  if (isUnlimitedPlan && defaultLimit != null) return defaultLimit;
+                  return null;
+                })(),
               }
             : s,
         ),
@@ -147,6 +196,7 @@ export function SubscriptionsManager() {
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
+          data-testid="admin-subscriptions-search"
           placeholder="Buscar por e-mail ou nome..."
           className="flex-1 min-w-48 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
           value={search}
@@ -154,6 +204,7 @@ export function SubscriptionsManager() {
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
         <select
+          data-testid="admin-subscriptions-filter-status"
           className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -166,6 +217,7 @@ export function SubscriptionsManager() {
           ))}
         </select>
         <select
+          data-testid="admin-subscriptions-filter-plan"
           className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
           value={planFilter}
           onChange={(e) => setPlanFilter(e.target.value)}
@@ -179,6 +231,7 @@ export function SubscriptionsManager() {
         </select>
         <button
           onClick={handleSearch}
+          data-testid="admin-subscriptions-search-submit"
           disabled={fetching}
           className="bg-black px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
@@ -231,6 +284,7 @@ export function SubscriptionsManager() {
                     <td className="py-3">
                       <button
                         onClick={() => startEdit(sub)}
+                        data-testid="admin-subscriptions-edit"
                         className="border border-gray-300 px-3 py-1 text-xs text-gray-700 transition hover:border-gray-500"
                       >
                         Editar
@@ -245,14 +299,23 @@ export function SubscriptionsManager() {
       )}
 
       {results.length === 0 && !fetching && !fetchError && (
-        <p className="text-sm text-gray-400">
-          Use os filtros acima e clique em Buscar.
-        </p>
+        searchedOnce ? (
+          <p className="text-sm text-amber-700 bg-amber-50 px-3 py-2">
+            Nenhuma assinatura encontrada para os filtros informados.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-400">
+            Use os filtros acima e clique em Buscar.
+          </p>
+        )
       )}
 
       {/* Modal de edição */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          data-testid="admin-subscriptions-modal"
+        >
           <div className="w-full max-w-md bg-white p-6 shadow-xl">
             <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">
               Editar assinatura
@@ -270,28 +333,99 @@ export function SubscriptionsManager() {
 
             <div className="mt-4 space-y-4">
               <label className="block">
-                <span className="text-xs text-gray-500">Status</span>
+                <span className="text-xs text-gray-500">Plano</span>
                 <select
+                  data-testid="admin-subscriptions-edit-plan"
                   className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
+                  value={editPlanCode}
+                  onChange={(e) => {
+                    const nextPlan = e.target.value;
+                    setEditPlanCode(nextPlan);
+                    // Sugestão automática de status conforme plano (admin pode ajustar no modo avançado).
+                    if (nextPlan === "pro" || nextPlan === "premium") setEditStatus("pro_active");
+                    if (nextPlan === "solo") setEditStatus("solo_active");
+                    if (nextPlan === "free") setEditStatus("free");
+                    if (nextPlan === "pro" || nextPlan === "premium") setEditPeriodEnd("");
+                    if (nextPlan === "pro" || nextPlan === "premium") {
+                      const nextDefault = PLAN_DEFAULT_ACTIVE_LIMIT[nextPlan] ?? null;
+                      if (nextDefault != null) setEditMaxActive(String(nextDefault));
+                    }
+                  }}
                 >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                  {PLANS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="block">
+                <span className="text-xs text-gray-500">Status</span>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">
+                    {showAdvanced ? "Editando status manualmente" : "Automático pelo plano"}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-700 underline"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                  >
+                    {showAdvanced ? "Ocultar" : "Avançado"}
+                  </button>
+                </div>
+                {showAdvanced ? (
+                  <select
+                    data-testid="admin-subscriptions-edit-status"
+                    className="mt-2 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </label>
+
+              <label className="block">
                 <span className="text-xs text-gray-500">Data de validade</span>
                 <input
                   type="date"
+                  data-testid="admin-subscriptions-edit-period-end"
                   className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
                   value={editPeriodEnd}
                   onChange={(e) => setEditPeriodEnd(e.target.value)}
+                  disabled={editPlanCode === "pro" || editPlanCode === "premium"}
                 />
+                {(editPlanCode === "pro" || editPlanCode === "premium") && (
+                  <p className="mt-1 text-xs text-gray-400">Sem validade para este plano.</p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="text-xs text-gray-500">Limite de imoveis ativos</span>
+                <input
+                  type="number"
+                  min={1}
+                  data-testid="admin-subscriptions-edit-max-active"
+                  className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                  value={editMaxActive}
+                  onChange={(e) => setEditMaxActive(e.target.value)}
+                  placeholder="vazio = sem override"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Conta somente imoveis <span className="font-medium">published/printed</span>.
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Limite efetivo atual:{" "}
+                  <span className="font-medium">
+                    {effectiveLimit == null ? "nao definido" : effectiveLimit}
+                  </span>
+                  {editMaxActive.trim() ? " (override da conta)" : ` (padrao do plano ${editPlanCode})`}
+                </p>
               </label>
             </div>
 
@@ -306,6 +440,7 @@ export function SubscriptionsManager() {
               <button
                 onClick={handleSave}
                 disabled={saving}
+                data-testid="admin-subscriptions-edit-save"
                 className="bg-black px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
                 {saving ? "Salvando..." : "Salvar"}

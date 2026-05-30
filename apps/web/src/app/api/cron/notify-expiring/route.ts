@@ -1,16 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/security/cron-auth";
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  const url = new URL(request.url);
-  const querySecret = url.searchParams.get("secret");
-  const authorized = Boolean(secret) && (auth === `Bearer ${secret}` || querySecret === secret);
-
-  if (!authorized) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  // 🔒 SEGURANÇA: falha-seguro + compat local via `?secret=`.
+  const auth = requireCronAuth(request, { allowQuerySecret: true });
+  if (!auth.ok) return auth.response;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
