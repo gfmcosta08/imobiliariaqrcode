@@ -33,7 +33,7 @@ export default async function AdminPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <AppHeader active="/admin" isAdmin />
+      <AppHeader active="/admin" />
       <main className="mx-auto max-w-6xl px-8 py-12 space-y-16">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Painel Admin</h1>
