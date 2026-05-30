@@ -61,9 +61,20 @@ function summarizeImportFailure(results: ImportJobItemResult[]): string {
 
 function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: { expanded?: boolean } | null }): boolean {
   const text = (listing.full_description ?? "").trim();
-  const expanded = listing.debug?.expanded === true;
-  // Se o extrator indicou que tentou expandir e ainda assim veio curto, provavelmente truncado (ex.: "Ver mais").
-  return expanded && text.length > 0 && text.length < 280;
+  if (!text) return false;
+
+  // Indicadores explícitos de truncamento
+  if (text.endsWith("...") || text.endsWith("…")) return true;
+
+  // O extrator tentou expandir mas a descrição ainda ficou curtíssima
+  if (listing.debug?.expanded === true && text.length < 280) return true;
+
+  // Descrição curta que termina sem pontuação de encerramento: provavelmente cortada
+  // (ex.: "sendo um su" — texto termina no meio de uma palavra)
+  const endsWithClosingChar = /[.!?;:"'\])}]$/.test(text);
+  if (!endsWithClosingChar && text.length < 200) return true;
+
+  return false;
 }
 
 export async function runPropertyImportJob(jobId: string): Promise<void> {
@@ -191,23 +202,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
         continue;
       }
 
-      if (looksLikeIncompleteDescription(listing)) {
-        results.push({
-          source_url: sourceUrl,
-          status: "error",
-          error: "incomplete_description",
-        });
-        processed += 1;
-        await admin
-          .from("property_import_jobs")
-          .update({
-            processed_count: processed,
-            results,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", jobId);
-        continue;
-      }
+      const incompleteDescription = looksLikeIncompleteDescription(listing);
 
       const mapped = mapExtratorListingToPropertyPayload(listing, sourceUrl);
       const { import_image_urls, ...payloadRest } = mapped;
@@ -256,6 +251,9 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
                 ? `imagens_falharam:${import_image_urls.length}:${imageFailures.slice(0, 3).join(",") || "unknown"}`
                 : undefined;
 
+        const warnings: string[] = [];
+        if (incompleteDescription) warnings.push("descricao_incompleta");
+        if (imageError) warnings.push(imageError);
         results.push({
           source_url: sourceUrl,
           status: "ok",
@@ -263,7 +261,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
           public_id: property.public_id,
           title: property.title,
           images_uploaded: uploaded,
-          ...(imageError ? { error: imageError } : {}),
+          ...(warnings.length > 0 ? { error: warnings.join("|") } : {}),
         });
       }
 

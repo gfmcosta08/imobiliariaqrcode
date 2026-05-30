@@ -25,6 +25,8 @@ function isKnownPropertyCdnHost(hostname: string): boolean {
   if (host.endsWith(".staticflickr.com")) return true;
   if (host.endsWith(".unreel.me")) return true;
   if (host.endsWith(".imgbroker.com.br")) return true;
+  if (host === "vivanci.com" || host.endsWith(".vivanci.com")) return true;
+  if (host.endsWith(".imobiliariasonhar.com.br")) return true;
   return false;
 }
 
@@ -78,7 +80,9 @@ export function isAllowedImportImageUrl(raw: string, sourceHostname?: string): b
     }
     if (propertyImportImageScore(raw) >= 85) return true;
     if (sourceHostname && hostnameMatchesSourceSite(url.hostname, sourceHostname)) {
-      return propertyImportImageScore(raw) > 0;
+      // Aceita qualquer URL não-decorativa do mesmo domínio da fonte,
+      // independente de ter extensão ou score (vivanci, sonhar, etc.)
+      return !isDecorativeImportImageUrl(raw);
     }
     return isKnownPropertyCdnHost(url.hostname);
   } catch {
