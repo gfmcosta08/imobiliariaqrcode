@@ -7,9 +7,15 @@ describe("isPropertyImportEnabled", () => {
     vi.unstubAllEnvs();
   });
 
-  it("desliga em produção", () => {
+  it("desliga em produção por padrão", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     expect(isPropertyImportEnabled()).toBe(false);
+  });
+
+  it("liga em produção quando ENABLE_PROPERTY_IMPORT=1", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("ENABLE_PROPERTY_IMPORT", "1");
+    expect(isPropertyImportEnabled()).toBe(true);
   });
 
   it("liga em preview por padrão", () => {

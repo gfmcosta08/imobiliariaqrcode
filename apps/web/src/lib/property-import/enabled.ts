@@ -1,16 +1,15 @@
 /**
- * Importação de anúncios: somente homologação (Preview/dev).
- * Alinhado a homologacao-staging.md e PRD-homologacao-staging-dados-sanitizados-whatsapp.md.
+ * Importação de anúncios: Preview/dev por padrão; Production só com ENABLE_PROPERTY_IMPORT=1.
  */
 export function isPropertyImportEnabled(): boolean {
-  if (process.env.VERCEL_ENV === "production") {
-    return false;
-  }
   if (process.env.ENABLE_PROPERTY_IMPORT === "0") {
     return false;
   }
   if (process.env.ENABLE_PROPERTY_IMPORT === "1") {
     return true;
+  }
+  if (process.env.VERCEL_ENV === "production") {
+    return false;
   }
   return process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
 }

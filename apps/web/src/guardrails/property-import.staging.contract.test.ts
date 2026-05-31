@@ -18,11 +18,15 @@ function read(filePath: string): string {
 }
 
 describe("Property import staging guardrails", () => {
-  it("desliga importação em VERCEL_ENV=production", () => {
-    const prev = process.env.VERCEL_ENV;
+  it("desliga importação em VERCEL_ENV=production por padrão", () => {
+    const prevVercel = process.env.VERCEL_ENV;
+    const prevFlag = process.env.ENABLE_PROPERTY_IMPORT;
     process.env.VERCEL_ENV = "production";
+    delete process.env.ENABLE_PROPERTY_IMPORT;
     expect(isPropertyImportEnabled()).toBe(false);
-    process.env.VERCEL_ENV = prev;
+    process.env.VERCEL_ENV = prevVercel;
+    if (prevFlag === undefined) delete process.env.ENABLE_PROPERTY_IMPORT;
+    else process.env.ENABLE_PROPERTY_IMPORT = prevFlag;
   });
 
   it("não altera conversation-handle (bot WhatsApp)", () => {
