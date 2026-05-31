@@ -19,16 +19,12 @@ type Subscription = {
 
 const STATUSES = [
   "free",
-  "trial_active",
   "solo_active",
-  "pro_pending_activation",
   "pro_active",
-  "past_due",
   "canceled",
-  "expired",
 ];
 
-const PLANS = ["free", "trial", "solo", "pro", "premium"];
+const PLANS = ["free", "solo", "pro"];
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -64,6 +60,7 @@ export function SubscriptionsManager() {
   const [editing, setEditing] = useState<Subscription | null>(null);
   const [editPeriodEnd, setEditPeriodEnd] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editPlanCode, setEditPlanCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -95,6 +92,7 @@ export function SubscriptionsManager() {
     setEditing(sub);
     setEditPeriodEnd(toDateInputValue(sub.current_period_end));
     setEditStatus(sub.status);
+    setEditPlanCode(sub.plan_code);
     setSaveMsg(null);
     setSaveError(null);
   }
@@ -105,7 +103,7 @@ export function SubscriptionsManager() {
     setSaveError(null);
     setSaveMsg(null);
     try {
-      const body: Record<string, unknown> = { status: editStatus };
+      const body: Record<string, unknown> = { status: editStatus, plan_code: editPlanCode };
       if (editPeriodEnd) {
         body.current_period_end = new Date(editPeriodEnd).toISOString();
       }
@@ -126,6 +124,7 @@ export function SubscriptionsManager() {
             ? {
                 ...s,
                 status: editStatus,
+                plan_code: editPlanCode,
                 current_period_end: editPeriodEnd
                   ? new Date(editPeriodEnd).toISOString()
                   : s.current_period_end,
@@ -269,6 +268,21 @@ export function SubscriptionsManager() {
             )}
 
             <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="text-xs text-gray-500">Plano</span>
+                <select
+                  className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                  value={editPlanCode}
+                  onChange={(e) => setEditPlanCode(e.target.value)}
+                >
+                  {PLANS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="block">
                 <span className="text-xs text-gray-500">Status</span>
                 <select

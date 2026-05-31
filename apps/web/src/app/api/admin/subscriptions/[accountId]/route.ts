@@ -14,7 +14,10 @@ export async function PATCH(
   const body = (await req.json()) as {
     current_period_end?: string | null;
     status?: string;
+    plan_code?: string;
   };
+  const allowedStatuses = new Set(["free", "solo_active", "pro_active", "canceled"]);
+  const allowedPlans = new Set(["free", "solo", "pro"]);
 
   if (
     body.current_period_end !== undefined &&
@@ -26,6 +29,18 @@ export async function PATCH(
       { status: 400 },
     );
   }
+  if (body.status !== undefined && !allowedStatuses.has(body.status)) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_status", detail: "Status invalido para este ambiente." },
+      { status: 400 },
+    );
+  }
+  if (body.plan_code !== undefined && !allowedPlans.has(body.plan_code)) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_plan_code", detail: "Plano invalido para este ambiente." },
+      { status: 400 },
+    );
+  }
 
   const { supabase, userId } = admin;
   const { data: before } = await supabase
@@ -34,9 +49,29 @@ export async function PATCH(
     .eq("account_id", accountId)
     .maybeSingle();
 
+  const targetStatus = body.status ?? before?.status;
+  const targetPlan = body.plan_code ?? before?.plan_code;
+  const combos: Record<string, string[]> = {
+    free: ["free"],
+    solo_active: ["solo"],
+    pro_active: ["pro"],
+    canceled: ["free", "solo", "pro"],
+  };
+  if (targetStatus && targetPlan && !(combos[targetStatus] ?? []).includes(targetPlan)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "invalid_subscription_combination",
+        detail: `Combinacao invalida: status ${targetStatus} exige plano compativel.`,
+      },
+      { status: 400 },
+    );
+  }
+
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.current_period_end !== undefined) updatePayload.current_period_end = body.current_period_end;
   if (body.status !== undefined) updatePayload.status = body.status;
+  if (body.plan_code !== undefined) updatePayload.plan_code = body.plan_code;
 
   const { error } = await supabase
     .from("subscriptions")
