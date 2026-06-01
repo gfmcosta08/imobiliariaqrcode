@@ -18,6 +18,21 @@ function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
 }
 
+type BotRuntimeEnvironment = "production" | "staging";
+
+function parseBotRuntimeEnvironment(value: string | undefined): BotRuntimeEnvironment | null {
+  return value === "production" || value === "staging" ? value : null;
+}
+
+function parseStagingAllowedPhones(value: string | undefined): Set<string> {
+  return new Set(
+    String(value ?? "")
+      .split(",")
+      .map((phone) => normalizePhone(phone))
+      .filter(Boolean),
+  );
+}
+
 function normalizeOutgoingText(v: unknown): string {
   return fixMojibake(String(v ?? ""));
 }
@@ -248,11 +263,11 @@ async function sendTypingPresence(
     });
     if (!res.ok) {
       const detail = await res.text();
-      console.error("typing_presence_failed", { to, state, status: res.status, detail });
+      console.error("typing_presence_failed", { state, status: res.status, detail });
     }
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    console.error("typing_presence_error", { to, state, detail });
+    console.error("typing_presence_error", { state, detail });
   }
 }
 
@@ -360,6 +375,16 @@ async function sendViaUazapi(baseUrl: string, token: string | null, row: QueueRo
   };
 }
 
+function stagingTargetError(
+  runtimeEnvironment: BotRuntimeEnvironment,
+  allowedPhones: Set<string>,
+  row: QueueRow,
+): string | null {
+  if (runtimeEnvironment !== "staging") return null;
+  const { to } = resolveTargetPhone(row);
+  return to && allowedPhones.has(to) ? null : "staging_target_not_allowlisted";
+}
+
 function sortRows(rows: QueueRow[]): QueueRow[] {
   return rows.sort((a, b) => {
     const flowGroupA = typeof a.payload?.flow_group === "string" ? a.payload.flow_group : "";
@@ -400,7 +425,6 @@ Deno.serve(async (req) => {
     console.error("[dispatch] unauthorized – token mismatch", {
       hasCronSecret: cronSecret.length > 0,
       hasServiceKey: serviceRoleKey.length > 0,
-      tokenPrefix: authToken.slice(0, 12) || "(empty)",
     });
     return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
       status: 401,
@@ -408,6 +432,31 @@ Deno.serve(async (req) => {
     });
   }
   console.log("[dispatch] authorized, starting run");
+
+  const runtimeEnvironment = parseBotRuntimeEnvironment(
+    Deno.env.get("BOT_RUNTIME_ENVIRONMENT") ?? undefined,
+  );
+  if (!runtimeEnvironment) {
+    console.error("[dispatch] BOT_RUNTIME_ENVIRONMENT must be production or staging");
+    return new Response(JSON.stringify({ ok: false, error: "missing_bot_runtime_environment" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const stagingAllowedPhones = parseStagingAllowedPhones(
+    Deno.env.get("BOT_STAGING_ALLOWED_PHONES") ?? undefined,
+  );
+  if (runtimeEnvironment === "staging" && stagingAllowedPhones.size === 0) {
+    console.error("[dispatch] BOT_STAGING_ALLOWED_PHONES is required in staging");
+    return new Response(
+      JSON.stringify({ ok: false, error: "missing_bot_staging_allowed_phones" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
 
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL");
   const apiToken = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
@@ -532,6 +581,24 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const targetError = stagingTargetError(runtimeEnvironment, stagingAllowedPhones, row);
+        if (targetError) {
+          console.error("[dispatch] staging target blocked", { id: row.id, error: targetError });
+          failed.push({ id: row.id, error: targetError });
+          await supabase
+            .from("whatsapp_messages")
+            .update({
+              status: "failed",
+              payload: {
+                ...(row.payload ?? {}),
+                dispatch_error: targetError,
+                dispatch_failed_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", row.id);
+          continue;
+        }
+
         let rowToSend = row;
         if (row.message_type === "text") {
           const rawText = normalizeOutgoingText(row.payload?.text ?? "");
@@ -565,7 +632,7 @@ Deno.serve(async (req) => {
         console.log("[dispatch] sending message", {
           id: row.id,
           type: row.message_type,
-          phone: row.lead_phone,
+          toBroker,
         });
         const result = await sendViaUazapi(baseUrl, apiToken, rowToSend);
         if (!result.ok) {

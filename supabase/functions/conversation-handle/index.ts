@@ -1185,7 +1185,6 @@ async function handleShowSimilarProperties(
   const page = pageNumber + 1;
 
   console.log("similar_properties_batch", {
-    lead_phone: leadPhone,
     count: ids.length,
     page,
   });
@@ -1198,7 +1197,6 @@ async function handleShowSimilarProperties(
     const mediaForProperty = (mediaByPropertyId.get(id) ?? []).slice(0, 15);
 
     console.log("similar_property_content_queued", {
-      lead_phone: leadPhone,
       property_id: id,
       public_id: p.public_id,
       score: scoreById.get(id) ?? null,
@@ -1470,8 +1468,7 @@ async function handlePostSimilarPropertyId(
     : [];
 
   console.log("option1_property_id_received", {
-    lead_phone: leadPhone,
-    typed_property_id: text.trim(),
+    has_typed_property_id: Boolean(text.trim()),
     recommended_count: recommended.length,
     shown_count: shown.length,
   });
@@ -1555,8 +1552,7 @@ async function handlePostSimilarPropertyId(
   }
 
   console.log("option1_property_not_found", {
-    lead_phone: leadPhone,
-    typed_property_id: text.trim(),
+    has_typed_property_id: Boolean(text.trim()),
   });
   await queueOutbound(supabase, {
     account_id: property.account_id,
@@ -1582,10 +1578,29 @@ async function handlePostSimilarPropertyId(
   return json({ ok: true, state: "awaiting_visit_property_id" });
 }
 
+function isStagingTypingTargetAllowed(leadPhone: string): boolean {
+  const runtimeEnvironment = Deno.env.get("BOT_RUNTIME_ENVIRONMENT");
+  if (runtimeEnvironment === "production") return true;
+  if (runtimeEnvironment !== "staging") return false;
+
+  const allowedPhones = new Set(
+    String(Deno.env.get("BOT_STAGING_ALLOWED_PHONES") ?? "")
+      .split(",")
+      .map((phone) => normalizePhone(phone))
+      .filter(Boolean),
+  );
+  return allowedPhones.has(normalizePhone(leadPhone));
+}
+
 async function sendTypingPresenceNow(
   leadPhone: string,
   presence: "composing" | "paused",
 ): Promise<void> {
+  if (!isStagingTypingTargetAllowed(leadPhone)) {
+    console.warn("[typing] skipped - staging target not allowlisted", { presence });
+    return;
+  }
+
   const baseUrl = Deno.env.get("UAZAPI_BASE_URL") ?? "";
   const token = Deno.env.get("UAZAPI_TOKEN") ?? Deno.env.get("UAZAPI_INSTANCE_TOKEN") ?? null;
   const endpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT") ?? "";
@@ -1607,16 +1622,12 @@ async function sendTypingPresenceNow(
       headers,
       body: JSON.stringify({ number: leadPhone, presence }),
     });
-    const body = await res.text();
     console.log("[typing]", presence, {
-      phone: leadPhone,
       status: res.status,
-      body: body.slice(0, 80),
     });
   } catch (err) {
     console.error("[typing] error", {
       presence,
-      phone: leadPhone,
       err: err instanceof Error ? err.message : String(err),
     });
   }
@@ -2155,7 +2166,6 @@ Deno.serve(async (req) => {
         const count = recommended.length;
 
         console.log("option1_selected_in_multi_property_context", {
-          lead_phone: leadPhone,
           captador_broker_id: property.broker_id,
           source: "similar_or_general_stock",
           count,
@@ -2256,8 +2266,7 @@ Deno.serve(async (req) => {
       }
 
       console.log("option1_direct_property_id_in_multi_property_context", {
-        lead_phone: leadPhone,
-        typed_property_id: text.trim(),
+        has_typed_property_id: Boolean(text.trim()),
         conversation_intent: conversationIntent,
       });
       return await handlePostSimilarPropertyId({
@@ -2465,7 +2474,7 @@ Deno.serve(async (req) => {
     if (e instanceof SilentResponseError) {
       console.error("[bot] anti-silence blocked silent success", {
         message,
-        typingPhone: _typingPhone,
+        hadTypingPhone: Boolean(_typingPhone),
         fallbackQueued: e.fallbackQueued,
       });
       _interactionStep = "error_silent_response_blocked";
@@ -2487,7 +2496,7 @@ Deno.serve(async (req) => {
         500,
       );
     }
-    console.error("[bot] unexpected error", { message, typingPhone: _typingPhone });
+    console.error("[bot] unexpected error", { message, hadTypingPhone: Boolean(_typingPhone) });
     _interactionStep = "error_conversation_failed";
     _interactionError = message;
     if (_typingPhone) {

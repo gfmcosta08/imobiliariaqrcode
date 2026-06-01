@@ -10,8 +10,10 @@
     "typecheck": "pnpm --filter web run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm --filter web run test && pnpm --filter @imobiliariaqrcode/property-importer run test",
-    "test:bot-guardrails": "pnpm --filter web exec vitest run src/guardrails"
+    "test": "pnpm --filter web run test && pnpm --filter @imobiliariaqrcode/property-importer run test && pnpm run test:staging-safety",
+    "test:bot-guardrails": "pnpm --filter web exec vitest run src/guardrails",
+    "test:staging-safety": "node --test scripts/lib/staging-safety.test.mjs",
+    "check:staging-safety": "node scripts/check-staging-safety.mjs"
   },
   "devDependencies": {
     "prettier": "^3.5.3"
