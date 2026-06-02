@@ -13,7 +13,9 @@
     "test": "pnpm --filter web run test && pnpm --filter @imobiliariaqrcode/property-importer run test && pnpm run test:staging-safety",
     "test:bot-guardrails": "pnpm --filter web exec vitest run src/guardrails",
     "test:staging-safety": "node --test scripts/lib/staging-safety.test.mjs",
-    "check:staging-safety": "node scripts/check-staging-safety.mjs"
+    "check:staging-safety": "node scripts/check-staging-safety.mjs",
+    "test:staging-commercial-safety": "node --test scripts/lib/staging-commercial-safety.test.mjs",
+    "check:staging-commercial-safety": "node scripts/check-staging-commercial-safety.mjs"
   },
   "devDependencies": {
     "prettier": "^3.5.3"
