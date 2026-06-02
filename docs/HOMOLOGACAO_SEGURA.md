@@ -117,3 +117,41 @@ Anexar ao pacote:
 - Lista de regressoes encontradas e corrigidas.
 - Plano de rollback.
 - Nome da pessoa que aprovou a promocao.
+
+## Pacote De Aceite Legal Em 2026-06-02
+
+Aplicado somente no Supabase de homologacao `coeuoyeydqoslhvbbojx`:
+
+- Migration `20260602131511_add_legal_acceptance_to_profiles.sql`.
+- Colunas de auditoria em `public.profiles`:
+  `accepted_terms_at`, `accepted_terms_version`, `accepted_privacy_at`,
+  `accepted_privacy_version` e `accepted_legal_source`.
+- Historico remoto confirmado com `supabase migration list --linked`.
+- Colunas confirmadas por consulta somente leitura em `information_schema.columns`.
+
+Preparado na branch `codex/homologacao-segura`:
+
+- Checkbox obrigatorio no cadastro comum.
+- Checkbox obrigatorio no onboarding por convite.
+- Validacao equivalente no backend dos dois fluxos.
+- Rotas publicas `/termos` e `/privacidade`.
+- Checklist `docs/CHECKLIST_COMPLIANCE_LGPD.md`.
+
+Bloqueios antes de qualquer promocao para producao:
+
+- Preencher razao social, CNPJ, endereco, e-mail de suporte e canal de privacidade.
+- Revisar Termos de Uso e Politica de Privacidade com advogado.
+- Homologar manualmente cadastro comum e cadastro por convite no link de staging.
+- Nao ativar analytics ou publicidade sem inventario e banner de cookies adequados.
+
+Rollback do banco de homologacao, se necessario:
+
+```sql
+alter table public.profiles
+  drop constraint if exists profiles_accepted_legal_source_check,
+  drop column if exists accepted_legal_source,
+  drop column if exists accepted_privacy_version,
+  drop column if exists accepted_privacy_at,
+  drop column if exists accepted_terms_version,
+  drop column if exists accepted_terms_at;
+```

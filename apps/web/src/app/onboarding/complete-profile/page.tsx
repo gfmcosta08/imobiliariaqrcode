@@ -15,6 +15,7 @@ export default function CompleteProfilePage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -36,6 +37,10 @@ export default function CompleteProfilePage() {
       setError("Nome e e-mail sao obrigatorios.");
       return;
     }
+    if (!acceptedTerms) {
+      setError("Marque que voce leu e aceitou os termos antes de continuar.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -47,6 +52,8 @@ export default function CompleteProfilePage() {
           email: form.email.trim(),
           whatsapp: form.whatsapp,
           password: form.password,
+          acceptedTerms: true,
+          acceptedPrivacy: true,
         }),
       });
 
@@ -160,6 +167,29 @@ export default function CompleteProfilePage() {
               placeholder="Repita a senha"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4">
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
+              <input
+                id="onboarding-terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                Li e aceito os{" "}
+                <a href="/termos" target="_blank" className="font-medium underline">
+                  Termos de Uso
+                </a>{" "}
+                e a{" "}
+                <a href="/privacidade" target="_blank" className="font-medium underline">
+                  Politica de Privacidade
+                </a>
+                .
+              </span>
+            </label>
           </div>
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}

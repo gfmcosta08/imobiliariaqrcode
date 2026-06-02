@@ -55,6 +55,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,9 @@ export default function LoginPage() {
     setMode(next);
     setError(null);
     setInfo(null);
+    if (next !== "signup") {
+      setAcceptedTerms(false);
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -91,6 +95,11 @@ export default function LoginPage() {
       }
 
       if (mode === "signup") {
+        if (!acceptedTerms) {
+          setError("Marque que você leu e aceitou os termos antes de continuar.");
+          return;
+        }
+
         const normalizedEmail = email.trim().toLowerCase();
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -100,6 +109,8 @@ export default function LoginPage() {
             password,
             fullName,
             whatsapp: whatsapp.replace(/\D/g, ""),
+            acceptedTerms: true,
+            acceptedPrivacy: true,
           }),
         });
 
@@ -282,11 +293,39 @@ export default function LoginPage() {
                       className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                     />
                   </div>
+                  <div className="border border-gray-200 bg-gray-50 px-4 py-4">
+                    <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
+                      <input
+                        id="signup-terms"
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-1 h-4 w-4 border-gray-300 text-black focus:ring-black"
+                      />
+                      <span>
+                        Li e aceito os{" "}
+                        <Link href="/termos" target="_blank" className="font-medium underline">
+                          Termos de Uso
+                        </Link>{" "}
+                        e a{" "}
+                        <Link href="/privacidade" target="_blank" className="font-medium underline">
+                          Política de Privacidade
+                        </Link>
+                        .
+                      </span>
+                    </label>
+                    <p className="mt-2 text-xs leading-5 text-gray-500">
+                      O aceite é registrado para auditoria e segurança jurídica.
+                    </p>
+                  </div>
                 </>
               ) : null}
 
               <div>
-                <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="login-identifier"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
                   {mode === "login" ? "E-mail ou codigo de convite" : "E-mail"}
                 </label>
                 <input

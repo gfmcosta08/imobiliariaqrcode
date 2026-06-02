@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { buildLegalAcceptanceRecord } from "@/lib/legal";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -20,14 +21,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   }
 
-  const { fullName, email, whatsapp, password } = await req.json();
+  const { fullName, email, whatsapp, password, acceptedTerms, acceptedPrivacy } = await req.json();
   const normalizedName = String(fullName ?? "").trim();
-  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const normalizedEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const normalizedWhatsapp = String(whatsapp ?? "").replace(/\D/g, "");
   const safeWhatsapp = normalizedWhatsapp || `pending-${user.id.replace(/-/g, "")}`.slice(0, 40);
 
   if (!normalizedName || !normalizedEmail || !password) {
     return NextResponse.json({ error: "Dados obrigatorios ausentes" }, { status: 400 });
+  }
+
+  const legalAcceptance = buildLegalAcceptanceRecord({
+    acceptedTerms,
+    acceptedPrivacy,
+    legalSource: "invitation_onboarding",
+  });
+  if (!legalAcceptance) {
+    return NextResponse.json(
+      { error: "Voce precisa aceitar os Termos de Uso e a Politica de Privacidade." },
+      { status: 400 },
+    );
   }
 
   const admin = createServiceRoleClient();
@@ -48,7 +63,10 @@ export async function POST(req: NextRequest) {
     .neq("id", user.id)
     .maybeSingle();
   if (duplicatedEmail) {
-    return NextResponse.json({ error: "Este e-mail ja esta cadastrado em outra conta." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Este e-mail ja esta cadastrado em outra conta." },
+      { status: 400 },
+    );
   }
 
   if (normalizedWhatsapp) {
@@ -60,7 +78,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (duplicatedWhatsapp) {
       return NextResponse.json(
-        { error: "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco." },
+        {
+          error:
+            "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco.",
+        },
         { status: 400 },
       );
     }
@@ -90,11 +111,15 @@ export async function POST(req: NextRequest) {
       full_name: normalizedName,
       email: normalizedEmail,
       whatsapp_number: safeWhatsapp,
+      ...legalAcceptance,
     })
     .eq("id", user.id);
 
   if (profileError) {
-    return NextResponse.json({ error: friendlyDatabaseError(profileError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(profileError.message) },
+      { status: 400 },
+    );
   }
 
   const { error: brokerError } = await admin
@@ -106,7 +131,10 @@ export async function POST(req: NextRequest) {
     .eq("profile_id", user.id);
 
   if (brokerError) {
-    return NextResponse.json({ error: friendlyDatabaseError(brokerError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(brokerError.message) },
+      { status: 400 },
+    );
   }
 
   const { error: invitationError } = await admin
