@@ -8,6 +8,8 @@ Data: 2026-06-02
 - Branch: `codex/homologacao-segura`
 - Supabase de homologacao: `coeuoyeydqoslhvbbojx`
 - Supabase de producao: nao utilizado
+- Alias Vercel de homologacao: `https://farollimoveis-staging.vercel.app`
+- Preview final validado: `https://farollimoveis-jgslxmaoq.vercel.app`
 - Bot: homologacao adiada por ausencia de numero exclusivo de teste
 
 ## Alteracoes de banco
@@ -56,6 +58,26 @@ Resultado:
 Uma inspecao renderizada adicional detectou rotulos comerciais antigos vindos do banco na pagina de
 planos. O componente foi ajustado para exibir sempre `Checkout indisponivel` enquanto a rota online
 permanecer desativada.
+
+## QA web no Preview final
+
+Rotas com resposta HTTP `200`:
+
+- `/`
+- `/plans`
+- `/termos`
+- `/privacidade`
+- `/remocao-de-conteudo`
+- `/cancelamento-e-reembolso`
+- `/api/health`
+
+Validacoes adicionais:
+
+- Cadastro sem aceite de Termos e Privacidade: HTTP `400`.
+- Termos e Privacidade: CNPJ real exibido.
+- Landing page e planos: links legais exibidos.
+- Cartoes Free, Solo e Pro: botao renderizado como `Checkout indisponivel`.
+- Rotulos antigos `Contratar Solo` e `Assinar Pro`: ausentes.
 
 ## Observacoes
 
