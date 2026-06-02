@@ -1,7 +1,17 @@
 export const LEGAL_DOCUMENT_VERSIONS = {
   terms: "2026-06-02",
   privacy: "2026-06-02",
+  refund_cancellation: "2026-06-02",
 } as const;
+
+export const LEGAL_VERSION = "2026-06-02";
+export const LEGAL_ROUTES = {
+  terms: "/termos",
+  privacy: "/privacidade",
+  refund_cancellation: "/cancelamento-e-reembolso",
+} as const;
+export { LEGAL_ENTITY } from "@/lib/legal-entity";
+export const SUPPORT_EMAIL = "gpmcosta@gmail.com";
 
 type LegalSource = "signup" | "invitation_onboarding";
 

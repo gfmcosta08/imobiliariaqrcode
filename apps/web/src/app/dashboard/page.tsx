@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+
+import { ManageSubscriptionButton } from "./manage-subscription-button";
 import { createClient } from "@/lib/supabase/server";
 
 type MyMetrics = {
@@ -30,7 +32,8 @@ export default async function DashboardPage() {
     .select("plan_code, status")
     .maybeSingle();
 
-  const isPro = subscription?.plan_code === "pro" && subscription?.status === "pro_active";
+  const isStarter =
+    subscription?.plan_code === "starter" && subscription?.status === "starter_active";
 
   const fallback: MyMetrics = {
     total_properties: 0,
@@ -40,7 +43,7 @@ export default async function DashboardPage() {
   };
 
   let metrics = fallback;
-  if (isPro) {
+  if (isStarter) {
     const { data } = await supabase.rpc("get_my_dashboard_metrics");
     if (data && typeof data === "object") {
       const d = data as Partial<MyMetrics>;
@@ -120,9 +123,10 @@ export default async function DashboardPage() {
           >
             Editar perfil
           </Link>
+          {isStarter ? <ManageSubscriptionButton /> : null}
         </div>
 
-        {isPro ? (
+        {isStarter ? (
           <div className="mt-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Métricas</h2>
             <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
@@ -148,7 +152,9 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="mt-8 border border-gray-200 bg-gray-50 p-6">
-            <p className="text-sm text-gray-600">Métricas detalhadas disponíveis no plano PRO.</p>
+            <p className="text-sm text-gray-600">
+              Metricas detalhadas disponiveis no plano Starter.
+            </p>
             <Link
               href="/plans"
               className="mt-4 inline-block bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
