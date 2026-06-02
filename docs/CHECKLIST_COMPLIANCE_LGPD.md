@@ -1,55 +1,53 @@
-# Checklist De Compliance E LGPD Do ImobQR
+# Checklist de compliance e LGPD do ImobQR
 
-Data da revisão técnica: 2026-06-02.
+Data da revisao tecnica: 2026-06-02.
 
-Este documento organiza pendências técnicas e operacionais. Não substitui parecer de advogado,
-contador ou especialista em proteção de dados.
+Este documento organiza pendencias tecnicas e operacionais. Nao substitui parecer de advogado,
+contador ou especialista em protecao de dados.
 
-## Obrigatório Antes De Vender
+Dossie detalhado: [docs/compliance/README.md](./compliance/README.md)
 
-- [ ] Definir razão social, CNPJ, endereço e e-mail oficial de suporte.
-- [ ] Definir canal de privacidade e responsável interno pelo atendimento de titulares.
-- [ ] Revisar juridicamente Termos de Uso e Política de Privacidade antes da produção.
-- [ ] Preencher a identificação da empresa nos documentos públicos.
-- [ ] Mapear dados, finalidades, bases legais, retenção e compartilhamentos em inventário LGPD.
-- [ ] Documentar Supabase, Vercel, Uazapi/WhatsApp, Stripe e Mercado Pago conforme uso real.
-- [ ] Validar o fluxo de aceite versionado em homologação para cadastro comum e convite.
-- [ ] Criar procedimento de remoção de conteúdo e denúncia de violação de direitos autorais.
-- [ ] Conferir checkout: preço, renovação, cancelamento, suporte e arrependimento quando aplicável.
-- [ ] Pesquisar a marca usada comercialmente no INPI e avaliar registro com especialista.
-- [ ] Garantir que dados reais não sejam usados em homologação.
-- [ ] Definir procedimento de resposta a incidentes de segurança e comunicação quando exigida.
+## Obrigatorio antes de vender
+
+- [x] Identificar razao social, CNPJ, endereco e canal eletronico temporario.
+- [x] Preencher identificacao da empresa nos documentos publicos de homologacao.
+- [x] Criar inventario LGPD preliminar com dados, finalidades, bases, retencao e compartilhamentos.
+- [x] Documentar fornecedores conforme uso real: Supabase, Vercel, Uazapi/WhatsApp e Stripe.
+- [x] Validar aceite versionado no cadastro comum em homologacao.
+- [x] Criar trilha append-only de evidencia de aceite em homologacao.
+- [x] Criar procedimento e pagina publica de remocao de conteudo e denuncia autoral.
+- [x] Revisar fluxo atual de planos, cancelamento, reembolso e atendimento eletronico.
+- [x] Fazer triagem preliminar das marcas ImobQR, Imoveis QR e Farollimoveis no INPI.
+- [x] Criar procedimento de resposta a incidentes de seguranca.
+- [ ] Criar e-mails dedicados para suporte, privacidade e juridico.
+- [ ] Definir responsavel interno pelo atendimento de titulares.
+- [ ] Revisar juridicamente Termos, Privacidade, remocao e politica comercial antes da producao.
+- [ ] Revisar natureza juridica e CNAEs com contador e advogado empresarial.
+- [ ] Homologar fluxo completo do bot quando houver numero exclusivo de teste.
+- [ ] Garantir que dados reais nao sejam usados em homologacao.
 
 ## Recomendado
 
-- [ ] Criar banner e painel de cookies antes de ativar analytics ou publicidade não essenciais.
-- [ ] Criar tela para solicitação de acesso, correção e exclusão de dados.
-- [ ] Definir política de retenção para leads, mensagens, logs, uploads e webhooks.
-- [ ] Criar registro de operadores, contratos e transferências internacionais.
-- [ ] Implantar reaceite quando Termos ou Política mudarem de forma relevante.
-- [ ] Revisar logs para impedir exposição de dados pessoais e segredos.
-- [ ] Formalizar rotina de backup, restauração e teste de rollback.
+- [ ] Criar banner e painel de cookies antes de ativar analytics ou publicidade nao essenciais.
+- [ ] Criar tela para solicitacao de acesso, correcao e exclusao de dados.
+- [ ] Aprovar prazos finais de retencao para leads, mensagens, logs, uploads e webhooks.
+- [ ] Criar registro contratual de operadores e transferencias internacionais.
+- [ ] Implantar reaceite quando Termos ou Politica mudarem de forma relevante.
+- [ ] Revisar logs para impedir exposicao de dados pessoais e segredos.
+- [ ] Formalizar rotina de backup, restauracao e teste de rollback.
 - [ ] Adotar MFA para contas administrativas.
 
-## Ideal Para Escalar
+## Ideal para escalar
 
-- [ ] Manter histórico imutável de versões legais e evidências de aceite.
-- [ ] Automatizar inventário de dados e revisão periódica de integrações.
+- [x] Manter historico imutavel de versoes legais e evidencias de aceite em homologacao.
+- [ ] Automatizar inventario de dados e revisao periodica de integracoes.
 - [ ] Criar treinamento interno para suporte, corretores e administradores.
-- [ ] Criar matriz de risco de fornecedores e revisão periódica de contratos.
-- [ ] Realizar teste de resposta a incidente e auditoria de segurança periódica.
-- [ ] Avaliar relatório de impacto à proteção de dados para tratamentos de maior risco.
+- [ ] Criar matriz de risco de fornecedores e revisao periodica de contratos.
+- [ ] Realizar teste de resposta a incidente e auditoria de seguranca periodica.
+- [ ] Avaliar relatorio de impacto a protecao de dados para tratamentos de maior risco.
 
-## Dados Identificados No Código
+## Pendencias deliberadas
 
-- Cadastro: nome, e-mail, WhatsApp, perfil, função e credenciais protegidas.
-- Imóveis: endereço, geolocalização, descrição, fotos, documentos e dados de proprietário.
-- Atendimento: leads, telefones, mensagens, conversas, interações e QR Codes.
-- Operação: webhooks, logs, auditoria, falhas, métricas do bot e eventos de impressão.
-- Cobrança: plano, assinatura e identificadores de Stripe ou Mercado Pago.
-- Integrações: Supabase, Vercel, Uazapi/WhatsApp, Stripe e Mercado Pago.
-
-## Pendências Deliberadas
-
-- O bot de homologação permanece adiado até existir número exclusivo de teste.
-- Os documentos públicos são rascunhos e não devem ser promovidos para produção sem revisão.
+- O bot de homologacao permanece adiado ate existir numero exclusivo de teste.
+- Os documentos publicos continuam como rascunhos e nao devem ir para producao sem revisao.
+- O checkout online permanece desativado.

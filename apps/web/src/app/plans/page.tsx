@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { LEGAL_ENTITY } from "@/lib/legal-entity";
 import { createClient } from "@/lib/supabase/server";
 
 import { CheckoutButton } from "./checkout-button";
@@ -41,7 +42,8 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 150",
     display_suffix: " trimestral",
     display_note: "Validade: 3 meses",
-    display_description: "Plano trimestral para manter um anuncio ativo com QR Code e captura de leads.",
+    display_description:
+      "Plano trimestral para manter um anuncio ativo com QR Code e captura de leads.",
     display_label: "Checkout indisponivel",
     display_featured: false,
     features: [
@@ -102,8 +104,7 @@ async function getPlans(): Promise<PlanDisplay[]> {
       plan_code: code,
       display_description:
         (plan as Partial<PlanDisplay>).display_description ?? fallback?.display_description ?? "",
-      display_label:
-        (plan as Partial<PlanDisplay>).display_label ?? "Checkout indisponivel",
+      display_label: (plan as Partial<PlanDisplay>).display_label ?? "Checkout indisponivel",
     } as PlanDisplay);
   }
 
@@ -147,7 +148,9 @@ export default async function PlansPage() {
                 {plan.display_price}
                 <span className="text-base font-normal text-gray-400">{plan.display_suffix}</span>
               </p>
-              {plan.display_note ? <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p> : null}
+              {plan.display_note ? (
+                <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p>
+              ) : null}
               {plan.display_description ? (
                 <p className="mt-4 text-sm leading-6 text-gray-600">{plan.display_description}</p>
               ) : null}
@@ -158,14 +161,40 @@ export default async function PlansPage() {
                   </li>
                 ))}
               </ul>
-              <CheckoutButton label={plan.display_label || "Checkout indisponivel"} className={buttonClass(plan.display_featured)} />
+              <CheckoutButton
+                label={plan.display_label || "Checkout indisponivel"}
+                className={buttonClass(plan.display_featured)}
+              />
             </div>
           ))}
         </div>
 
-        <p className="mt-10 text-xs text-gray-400">
-          Checkout Stripe temporariamente indisponivel. Use o painel admin para operacao manual.
-        </p>
+        <section className="mt-10 border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+          <h2 className="font-semibold">Contratacao comercial temporaria</h2>
+          <p className="mt-2">
+            O checkout online esta desativado. Antes de contratar, confirme por escrito o preco
+            total, a periodicidade, a renovacao, os beneficios, o cancelamento e as condicoes de
+            reembolso. Atendimento eletronico:{" "}
+            <a className="font-medium underline" href={`mailto:${LEGAL_ENTITY.supportEmail}`}>
+              {LEGAL_ENTITY.supportEmail}
+            </a>
+            .
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link className="font-medium underline" href="/termos">
+              Termos de Uso
+            </Link>
+            <Link className="font-medium underline" href="/privacidade">
+              Privacidade
+            </Link>
+            <Link className="font-medium underline" href="/remocao-de-conteudo">
+              Remocao de conteudo
+            </Link>
+            <Link className="font-medium underline" href="/cancelamento-e-reembolso">
+              Cancelamento e reembolso
+            </Link>
+          </div>
+        </section>
       </main>
     </div>
   );

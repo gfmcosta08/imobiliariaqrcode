@@ -41,4 +41,17 @@ describe("Legal acceptance guardrails", () => {
     expect(migration).toContain("accepted_privacy_version");
     expect(migration).toContain("accepted_legal_source");
   });
+
+  it("mantem um historico imutavel dos aceites legais", () => {
+    const migration = read(
+      "../../supabase/migrations/20260602150000_immutable_legal_acceptance_history.sql",
+    );
+
+    expect(migration).toContain("create table if not exists public.legal_acceptance_events");
+    expect(migration).toContain(
+      "alter table public.legal_acceptance_events enable row level security",
+    );
+    expect(migration).toContain("create trigger trg_profiles_log_legal_acceptance");
+    expect(migration).toContain("private.log_legal_acceptance_event");
+  });
 });
