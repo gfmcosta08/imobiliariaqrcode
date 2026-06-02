@@ -50,8 +50,12 @@ Resultado:
 
 ```text
 2 test files passed
-7 tests passed
+8 tests passed
 ```
+
+Uma inspecao renderizada adicional detectou rotulos comerciais antigos vindos do banco na pagina de
+planos. O componente foi ajustado para exibir sempre `Checkout indisponivel` enquanto a rota online
+permanecer desativada.
 
 ## Observacoes
 

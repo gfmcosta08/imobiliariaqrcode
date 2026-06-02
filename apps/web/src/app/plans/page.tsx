@@ -161,10 +161,7 @@ export default async function PlansPage() {
                   </li>
                 ))}
               </ul>
-              <CheckoutButton
-                label={plan.display_label || "Checkout indisponivel"}
-                className={buttonClass(plan.display_featured)}
-              />
+              <CheckoutButton className={buttonClass(plan.display_featured)} />
             </div>
           ))}
         </div>

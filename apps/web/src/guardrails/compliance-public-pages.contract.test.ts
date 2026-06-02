@@ -44,4 +44,11 @@ describe("Public compliance pages", () => {
       expect(plansPage).toContain(href);
     }
   });
+
+  it("keeps checkout labels disabled while online checkout is unavailable", () => {
+    const checkoutButton = read("src/app/plans/checkout-button.tsx");
+
+    expect(checkoutButton).toContain("Checkout indisponivel");
+    expect(checkoutButton).not.toContain("{label}");
+  });
 });
