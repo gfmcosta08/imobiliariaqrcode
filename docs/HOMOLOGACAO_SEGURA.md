@@ -137,6 +137,23 @@ Preparado na branch `codex/homologacao-segura`:
 - Rotas publicas `/termos` e `/privacidade`.
 - Checklist `docs/CHECKLIST_COMPLIANCE_LGPD.md`.
 
+Preview publicado somente para homologacao:
+
+- Deploy Vercel Preview: `https://farollimoveis-904cgn70u.vercel.app`.
+- Alias fixo atualizado: `https://farollimoveis-staging.vercel.app`.
+- Nenhum deploy de producao foi executado.
+
+Evidencias funcionais:
+
+- `/api/health`, `/login`, `/termos` e `/privacidade` responderam `200`.
+- Cadastro via API sem aceite foi bloqueado com `400`.
+- Cadastro via API com dados ficticios e aceite foi concluido.
+- Registro persistido confirmou versao `2026-06-02`, origem `signup` e os dois timestamps.
+- Usuario ficticio removido apos o teste, sem perfil residual.
+- Navegador automatizado confirmou checkbox, links legais e mensagem de bloqueio sem aceite.
+- Tela de onboarding por convite renderizou o checkbox e endpoint sem sessao respondeu `401`.
+- Fluxo completo por convite ainda exige convite ficticio com sessao temporaria valida.
+
 Bloqueios antes de qualquer promocao para producao:
 
 - Preencher razao social, CNPJ, endereco, e-mail de suporte e canal de privacidade.
