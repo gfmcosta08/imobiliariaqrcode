@@ -194,6 +194,7 @@ export async function POST(req: Request) {
       provider_subscription_id: null,
       current_period_start: now.toISOString(),
       current_period_end: freePeriodEnd.toISOString(),
+      max_active_properties_override: propertyCount,
       canceled_at: null,
       updated_at: now.toISOString(),
     },
@@ -286,6 +287,7 @@ export async function POST(req: Request) {
     property_ids: propertyIds,
     property_count: propertyCount,
     expiration_days_configured: expirationDays,
+    courtesy_expires_at: freePeriodEnd.toISOString(),
     status: "pending",
   });
 
@@ -308,6 +310,55 @@ export async function POST(req: Request) {
     property_id: firstPropertyId,
     property_count: propertyCount,
   });
+}
+
+export async function PATCH(req: Request) {
+  const admin = await getAdminContext();
+  if (!admin.ok) {
+    return NextResponse.json({ ok: false, error: admin.error }, { status: admin.status });
+  }
+
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    property_count?: number;
+    expires_at?: string;
+    reason?: string;
+  };
+  const invitationId = String(body.id ?? "").trim();
+  const propertyCount = Number(body.property_count);
+  const expiresAt = String(body.expires_at ?? "").trim();
+  const reason = String(body.reason ?? "").trim();
+
+  if (!/^[0-9a-f-]{36}$/i.test(invitationId)) {
+    return NextResponse.json({ ok: false, error: "invalid_invitation_id" }, { status: 400 });
+  }
+  if (!Number.isInteger(propertyCount) || propertyCount < 1) {
+    return NextResponse.json({ ok: false, error: "invalid_property_count" }, { status: 400 });
+  }
+  if (!expiresAt || Number.isNaN(Date.parse(expiresAt))) {
+    return NextResponse.json({ ok: false, error: "invalid_expires_at" }, { status: 400 });
+  }
+  if (!reason) {
+    return NextResponse.json({ ok: false, error: "reason_required" }, { status: 400 });
+  }
+
+  const { supabase } = admin;
+  const { data, error } = await supabase.rpc("admin_update_courtesy", {
+    p_admin_profile_id: admin.userId,
+    p_invitation_id: invitationId,
+    p_property_limit: propertyCount,
+    p_expires_at: expiresAt,
+    p_reason: reason,
+  });
+
+  if (error) {
+    return NextResponse.json(
+      { ok: false, error: "courtesy_update_failed", detail: error.message },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, result: data });
 }
 
 export async function DELETE(req: Request) {
