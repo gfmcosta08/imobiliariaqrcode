@@ -24,7 +24,7 @@ Confirmar antes de testar:
 Se qualquer recurso critico for compartilhado com producao, interromper a homologacao e
 classificar o problema como risco `P0`.
 
-## Estado Auditado Em 2026-06-01
+## Estado Auditado Em 2026-06-02
 
 - Banco Supabase de homologacao confirmado: `imobiliariaqrcode-staging`
   (`coeuoyeydqoslhvbbojx`).
@@ -35,9 +35,9 @@ classificar o problema como risco `P0`.
 - Variaveis publicas genericas de Preview configuradas na Vercel para usar o Supabase staging.
 - GitHub Environment `staging` criado com as variaveis
   `SUPABASE_ENVIRONMENT_NAME=staging` e `SUPABASE_PROJECT_ID=coeuoyeydqoslhvbbojx`.
-- Secret sensivel `SUPABASE_ACCESS_TOKEN` no GitHub Actions permanece pendente de aprovacao
-  explicita.
-- Secret sensivel `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview permanece pendente de
+- Secret sensivel `SUPABASE_ACCESS_TOKEN` configurado no GitHub Environment `staging`
+  apos aprovacao explicita.
+- Secret sensivel `SUPABASE_SERVICE_ROLE_KEY` configurado na Vercel Preview apos
   aprovacao explicita.
 - Bot de homologacao adiado ate existir um numero de WhatsApp exclusivo para testes.
 
