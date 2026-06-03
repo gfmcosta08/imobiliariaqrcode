@@ -184,3 +184,25 @@ Eventos sugeridos:
 - **Ambiguidade de identificador:** se o “ID exibido” não for unívoco (ex.: código repetido), deve ser padronizado para um identificador único.
 - **UX:** se o cliente digitar algo fora do formato esperado, retornar mensagem objetiva e pedir novamente.
 - **Privacidade:** garantir que o compartilhamento do contato do dono do anúncio na notificação respeite as políticas internas do produto.
+
+## Alinhamento De Homologacao - 2026-06-02
+
+Este PRD deve ser interpretado em conjunto com o pacote homologado na branch `codex/homologacao-segura`, documentado em `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`.
+
+Regras vigentes de produto/ambiente apos a homologacao:
+
+- Toda implementacao e teste deve ocorrer primeiro em homologacao: `https://farollimoveis-staging.vercel.app`.
+- Producao nao pode receber deploy automatico; exige aprovacao humana separada.
+- Plano Free vigente: 30 dias, 1 anuncio ativo, sem cobranca automatica.
+- Plano Starter vigente em homologacao: R$ 150,00/mes, anuncios ilimitados, QR Codes, leads, bot WhatsApp e demais beneficios do sistema.
+- Checkout Stripe foi validado somente em modo teste, com chave `sk_test_`, preco `STRIPE_PRICE_STARTER` e webhook exclusivo de staging.
+- Webhooks Stripe antigos de Preview foram desativados para impedir sobrescrita por codigo antigo.
+- Assinatura de teste validada: `plan_code=starter`, `status=starter_active`, via Stripe Checkout e Billing Portal.
+- Antes do checkout, o usuario precisa aceitar Termos de Uso, Politica de Privacidade e Cancelamento/Reembolso; o aceite e registrado em trilha append-only.
+- Admin pode gerar convite cortesia e editar limite de imoveis/data de validade mesmo apos ativacao; reducao de limite arquiva anuncios antigos e expiracao retroativa arquiva ativos e invalida QR Codes.
+- Qualquer PRD de bot/WhatsApp continua bloqueado para E2E real ate existir numero exclusivo de teste e allowlist de homologacao.
+
+Impacto neste PRD:
+
+- Se este PRD mencionar PRO, Solo, Premium ou checkout desativado, considere essas referencias historicas/substituidas para o escopo comercial atual por Free + Starter, salvo quando o texto tratar explicitamente de legado.
+- Se este PRD tocar cadastro, anuncios, QR, leads, planos, billing, aceite legal, admin ou bot, os testes devem incluir os guardrails de homologacao e a verificacao de que producao nao foi alterada.

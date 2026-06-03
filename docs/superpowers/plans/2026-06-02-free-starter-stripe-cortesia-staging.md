@@ -404,3 +404,21 @@ git commit -m "docs(staging): registra homologacao free starter stripe e cortesi
 - [ ] **Step 5: Interromper antes de producao**
 
 Apresentar relatorio ao usuario e aguardar aprovacao humana separada. Nao fazer deploy em producao automaticamente.
+
+## Resultado Executado - 2026-06-02
+
+Este documento foi executado em homologacao na branch `codex/homologacao-segura`.
+
+Resultado final validado:
+
+- Free permanece com 30 dias e 1 anuncio ativo.
+- Starter foi homologado por R$ 150,00/mes com anuncios ilimitados.
+- Cortesia Admin ficou editavel antes/depois da ativacao, com auditoria e arquivamento automatico quando necessario.
+- Stripe Checkout, webhook e Billing Portal foram validados em modo teste.
+- O webhook antigo de Preview foi identificado como causa de sobrescrita para `pro_active` e foi desativado.
+- O banco de homologacao ficou correto em `plan_code=starter` e `status=starter_active`.
+- Aceites juridicos foram persistidos antes do checkout.
+- Producao nao foi alterada.
+- Bot real segue adiado por falta de numero exclusivo de teste.
+
+Evidencia completa: `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`.

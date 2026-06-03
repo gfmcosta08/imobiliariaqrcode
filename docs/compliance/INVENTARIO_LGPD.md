@@ -1,4 +1,4 @@
-# Inventario LGPD
+﻿# Inventario LGPD
 
 Atualizado em: 2026-06-02
 
@@ -27,7 +27,7 @@ cada fluxo: controlador, operador ou controlador conjunto com corretor ou imobil
 | Logs e seguranca         | `audit_logs`, `bot_interactions`: ator, acao, entidade, metadados, erro, incidente e recuperacao                                   | Usuarios, leads e operadores              | Auditoria, prevencao a fraude e resposta a incidentes                | Legitimo interesse; exercicio regular de direitos                                      | Definir prazo por criticidade; remover segredos e excesso de PII | Supabase                                             |
 | Recomendacoes            | `recommendation_events`: imoveis retornados e telefone do lead                                                                     | Leads                                     | Recomendar imoveis e avaliar fluxo                                   | Procedimentos preliminares; legitimo interesse quando cabivel                          | Preferir pseudonimizacao e agregacao                             | Supabase                                             |
 | Importacao               | `property_import_jobs`: URL, resultados, falhas e dados importados                                                                 | Corretores; proprietarios                 | Importar anuncios solicitados pelo usuario                           | Execucao de contrato                                                                   | Remover resultados intermediarios apos prazo operacional         | Supabase; fonte indicada pelo usuario                |
-| Assinaturas              | `subscriptions`, `accounts`: plano, status, identificadores de provedor, periodos e cancelamento                                   | Usuarios pagantes                         | Administrar plano e cobranca                                         | Execucao de contrato; obrigacao legal                                                  | Conforme obrigacoes fiscais, defesa e contrato                   | Supabase; Stripe somente quando reativado            |
+| Assinaturas              | `subscriptions`, `accounts`: plano, status, identificadores de provedor, periodos e cancelamento                                   | Usuarios pagantes                         | Administrar plano e cobranca                                         | Execucao de contrato; obrigacao legal                                                  | Conforme obrigacoes fiscais, defesa e contrato                   | Supabase; Stripe em homologacao/teste para assinatura Starter            |
 | Camada comercial         | `account_commercial_contracts`, `commercial_packages`, `delivery_orders`, `partners`, `partner_users`                              | Clientes, parceiros e operadores          | Contratos, entrega de placas e operacao comercial                    | Execucao de contrato; obrigacao legal                                                  | Conforme contrato, fiscal e defesa                               | Supabase; parceiros necessarios                      |
 
 ## Cookies e rastreamento
@@ -45,7 +45,7 @@ cada fluxo: controlador, operador ou controlador conjunto com corretor ou imobil
 | Supabase          | Banco, autenticacao e storage | Ativo                                                    | Revisar DPA, suboperadores, regiao, backup e transferencia internacional     |
 | Vercel            | Hospedagem web                | Ativo                                                    | Revisar DPA, logs, suboperadores e transferencia internacional               |
 | Uazapi / WhatsApp | Mensageria e webhooks         | Planejado ou parcialmente integrado; bot de teste adiado | Contratar, revisar termos, isolar instancia de teste e limitar destinatarios |
-| Stripe            | Assinatura recorrente         | Checkout online desativado                               | Revisar DPA e ativar somente apos checklist comercial                        |
+| Stripe            | Assinatura recorrente Starter em homologacao | Ativo somente em modo teste/staging; producao pendente | Revisar DPA, suboperadores e checklist juridico/fiscal antes de producao |
 | Mercado Pago      | Webhook stub                  | Nao ativo                                                | Nao declarar como operador ativo ate contratacao e implementacao             |
 
 ## Direitos dos titulares
@@ -67,7 +67,7 @@ Procedimento minimo:
 - Redigir DPA para clientes empresariais e revisar DPAs de fornecedores.
 - Aplicar teste de balanceamento para legitimo interesse.
 - Confirmar tratamento de dados de criancas, se houver qualquer possibilidade de coleta.
-- Criar processo de portabilidade, anonimização e descarte executavel.
+- Criar processo de portabilidade, anonimizaÃ§Ã£o e descarte executavel.
 
 ## Fontes oficiais
 

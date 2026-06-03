@@ -89,3 +89,19 @@ Validacoes adicionais:
   `BOT_RUNTIME_ENVIRONMENT`, numero exclusivo e allowlist do bot de teste. A parte web pode seguir;
   envios do bot nao devem ser habilitados ate a configuracao dedicada existir.
 - Nenhuma alteracao foi feita em producao.
+
+## Atualizacao Posterior - Stripe Starter E2E
+
+A informacao anterior de `Checkout indisponivel` era verdadeira para o pacote inicial de compliance, antes da configuracao Stripe de teste. Em 2026-06-02, o fluxo Starter foi concluido e validado em homologacao:
+
+- Site: `https://farollimoveis-staging.vercel.app`.
+- Produto Stripe teste: `ImobQR Starter (teste)`.
+- Preco: `price_1TdzMMDLux2wr4a970gsPdll`.
+- Webhook ativo correto: `we_1Te27HDLux2wr4a9agbWKKe7`.
+- Webhooks antigos de Preview desativados.
+- Checkout pago com cartao teste e retorno ao dashboard.
+- Banco validado com `plan_code=starter` e `status=starter_active`.
+- Stripe Billing Portal validado com link de cancelamento.
+- Producao continua nao alterada e bloqueada ate aprovacao humana.
+
+Evidencia principal: `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`.

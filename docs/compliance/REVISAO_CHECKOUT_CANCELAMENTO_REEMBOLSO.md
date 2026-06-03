@@ -1,57 +1,60 @@
-# Revisao de checkout, cancelamento, reembolso e atendimento eletronico
+﻿# Revisao de checkout, cancelamento, reembolso e atendimento eletronico
 
 Atualizado em: 2026-06-02
 
-## Estado encontrado
+## Estado homologado
 
-- O checkout online do Stripe esta desativado em `apps/web/src/app/api/stripe/create-checkout/route.ts`.
-- O catalogo de planos informa que a contratacao e temporariamente comercial.
-- Existem webhooks e stubs de provedores, mas isso nao significa que a cobranca online esteja pronta
-  para producao.
+- O checkout online do Stripe foi ativado e validado somente em homologacao/staging.
+- O ambiente validado foi `https://farollimoveis-staging.vercel.app`.
+- Producao continua sem deploy automatico e exige aprovacao humana separada.
+- O plano comercial vigente homologado e o Starter: R$ 150,00/mes, anuncios ilimitados, QR Codes, leads, bot WhatsApp e demais beneficios do sistema.
+- O checkout exige aceite previo de Termos de Uso, Politica de Privacidade e Cancelamento/Reembolso.
+- O aceite e registrado em `checkout_legal_acceptance_events` com versoes dos documentos.
 
 ## Ajustes executados em homologacao
 
 - Criada a pagina publica `/cancelamento-e-reembolso`.
-- Adicionado canal eletronico temporario para solicitacao de cancelamento.
+- Adicionado canal eletronico para solicitacao de cancelamento: `gpmcosta@gmail.com`.
 - Adicionados links para Termos, Privacidade, remocao de conteudo e cancelamento na pagina de planos.
-- Adicionado aviso para confirmar preco total, periodicidade, renovacao, beneficios, cancelamento e
-  reembolso antes da contratacao manual.
+- Criado resumo antes do pagamento com preco, periodicidade, renovacao, beneficios, cancelamento e suporte.
+- Implementado Checkout Stripe em modo assinatura para o Starter.
+- Implementado Stripe Billing Portal para gerenciamento/cancelamento.
+- Implementado webhook idempotente para eventos de assinatura.
+- Desativados webhooks antigos de Preview que sobrescreviam status de assinatura.
 
-## Revisao do fluxo atual
+## E2E validado em staging
 
-Enquanto o checkout permanecer desativado:
+- Checkout abriu em `checkout.stripe.com` em area restrita de teste.
+- Produto: `ImobQR Starter (teste)`.
+- Valor: R$ 150,00 por mes.
+- Cartao teste: Visa final `4242`.
+- Sessao Stripe: `complete` e `paid`.
+- Banco final: `plan_code=starter`, `status=starter_active`.
+- Portal do Cliente exibiu assinatura, fatura paga e link `Cancelar assinatura`.
+- A assinatura de homologacao foi mantida ativa para revisao humana.
 
-1. Toda proposta comercial deve informar por escrito plano, valor total, periodicidade, vencimento,
-   renovacao, beneficios, limites, cancelamento, atendimento e reembolso.
-2. O aceite da proposta e do contrato deve ser guardado.
-3. Pedidos recebidos pelo canal eletronico devem gerar protocolo e resposta.
-4. Nao prometer renovacao automatica, estorno ou prazo que nao esteja implementado.
-
-## Bloqueios antes de ativar checkout online
+## Bloqueios antes de producao
 
 ### P0
 
-- Confirmar fornecedor, CNPJ, endereco e canal eletronico em destaque.
-- Exibir resumo completo imediatamente antes da confirmacao.
-- Implementar caminho simples de cancelamento.
-- Tratar direito de arrependimento quando aplicavel a relacao de consumo.
-- Revisar webhook Stripe para idempotencia, recuperacao, logs sem segredos e testes.
-- Implementar ambiente Stripe de teste separado.
-- Registrar aceite e versao dos termos aplicaveis a compra.
+- Revisar Termos, Privacidade, Cancelamento/Reembolso e contrato SaaS com advogado.
+- Confirmar tratamento fiscal/nota/cobranca recorrente com contador.
+- Confirmar DPA/suboperadores da Stripe, Supabase e Vercel.
+- Repetir E2E em ambiente de pre-producao quando as variaveis live forem criadas.
+- Configurar webhook live separado e remover qualquer endpoint antigo/duplicado.
+- Garantir monitoramento pos-deploy e plano de rollback.
+- Obter aprovacao humana explicita antes de qualquer deploy de producao.
 
 ### P1
 
-- Usar Stripe Billing com Checkout em modo assinatura para planos recorrentes.
-- Disponibilizar Stripe Customer Portal ou fluxo proprio equivalente para administracao e
-  cancelamento.
-- Criar politica contratual final de reembolso.
-- Definir atendimento eletronico, protocolo e prazo de resposta.
+- Criar protocolo formal de atendimento eletronico.
+- Definir politica final de reembolso e direito de arrependimento conforme enquadramento juridico.
+- Criar rotina periodica para auditar webhooks ativos no Stripe.
+- Documentar playbook de conciliacao de pagamentos e assinaturas.
 
 ## Observacao B2B e consumidor
 
-O enquadramento de cada cliente como consumidor ou contratante empresarial deve ser validado por
-advogado. A plataforma deve adotar transparencia e facilidade de cancelamento como padrao, mesmo
-quando o caso concreto exigir analise adicional.
+O enquadramento de cada cliente como consumidor ou contratante empresarial deve ser validado por advogado. A plataforma deve adotar transparencia e facilidade de cancelamento como padrao, mesmo quando o caso concreto exigir analise adicional.
 
 ## Fontes
 
@@ -59,3 +62,4 @@ quando o caso concreto exigir analise adicional.
 - CDC: https://www.planalto.gov.br/ccivil_03/leis/L8078compilado.htm
 - Stripe subscriptions: https://docs.stripe.com/billing/subscriptions/designing-integration
 - Stripe Customer Portal: https://docs.stripe.com/customer-management/integrate-customer-portal
+- Evidencia interna: `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`

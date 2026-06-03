@@ -172,3 +172,27 @@ alter table public.profiles
   drop column if exists accepted_terms_version,
   drop column if exists accepted_terms_at;
 ```
+
+## Pacote Free Starter Cortesia Stripe - 2026-06-02
+
+Aplicado e validado somente em homologacao:
+
+- Branch: `codex/homologacao-segura`.
+- Site: `https://farollimoveis-staging.vercel.app`.
+- Supabase staging: `coeuoyeydqoslhvbbojx`.
+- Free: 30 dias e 1 anuncio ativo.
+- Starter: R$ 150,00/mes, anuncios ilimitados, QR Codes, leads, bot WhatsApp e demais beneficios.
+- Cortesia Admin: limite de imoveis e validade editaveis mesmo apos ativacao; reducao arquiva antigos; expiracao retroativa arquiva ativos e invalida QR Codes.
+- Stripe teste: Checkout, webhook e Billing Portal validados com cartao teste.
+- Webhook ativo correto: `we_1Te27HDLux2wr4a9agbWKKe7`.
+- Webhooks antigos de Preview desativados para impedir sobrescrita por codigo antigo.
+- Banco final validado: `plan_code=starter`, `status=starter_active`.
+- Aceite juridico registrado em `checkout_legal_acceptance_events` antes do checkout.
+- Segredos Stripe armazenados apenas no Vercel Preview da branch de homologacao e no deployment atual de teste; nao foram salvos no Git.
+- Bot real continua adiado ate existir numero exclusivo de teste e allowlist.
+
+Evidencia principal:
+
+- `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`.
+
+Producao permanece bloqueada ate revisao juridica/fiscal, validacao manual e autorizacao humana explicita.

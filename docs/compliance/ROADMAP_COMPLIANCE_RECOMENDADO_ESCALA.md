@@ -1,4 +1,4 @@
-# Roadmap de compliance: recomendado e ideal para escalar
+﻿# Roadmap de compliance: recomendado e ideal para escalar
 
 Atualizado em: 2026-06-02
 
@@ -13,7 +13,8 @@ Atualizado em: 2026-06-02
 - Triagem preliminar de marcas na base publica do INPI.
 - Plano operacional de resposta a incidentes.
 - Migration append-only `20260602150000_immutable_legal_acceptance_history.sql`.
-- Aplicacao e validacao da migration apenas no Supabase de homologacao.
+- Aplicacao e validacao das migrations apenas no Supabase de homologacao.
+- Checkout Stripe Starter validado em modo teste, com webhook correto e Portal do Cliente.
 
 ## Recomendado antes de vender
 
@@ -27,7 +28,7 @@ Atualizado em: 2026-06-02
 | Revisar DPA e transferencias de Supabase e Vercel                      | Pendente externo                | Advogado e tecnologia            |
 | Criar contrato SaaS e proposta comercial padrao                        | Pendente externo                | Advogado e comercial             |
 | Homologar fluxo completo do bot com numero exclusivo e allowlist       | Adiado por decisao do titular   | Tecnologia                       |
-| Revisar checkout antes de ativar Stripe                                | Bloqueado ate decisao comercial | Tecnologia, comercial e advogado |
+| Revisar checkout antes de producao | Homologado em teste; pendente revisao juridica/fiscal e aprovacao humana | Tecnologia, comercial e advogado |
 
 ## Ideal para escalar
 
