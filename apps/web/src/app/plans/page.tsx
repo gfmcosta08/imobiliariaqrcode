@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { LEGAL_ROUTES, SUPPORT_EMAIL } from "@/lib/legal";
 import { CHECKOUT_PLAN_CODE } from "@/lib/plans";
+import { isStripeKeyAllowedForEnvironment } from "@/lib/stripe-guard";
 import { createClient } from "@/lib/supabase/server";
 
 import { CheckoutButton } from "./checkout-button";
@@ -100,10 +101,9 @@ async function getPlans(): Promise<PlanDisplay[]> {
 }
 
 function checkoutEnabled(): boolean {
-  if (process.env.VERCEL_ENV === "production") return false;
   const key = process.env.STRIPE_SECRET_KEY ?? "";
-  const price = process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_SOLO ?? "";
-  return key.startsWith("sk_test_") && Boolean(price);
+  const price = process.env.STRIPE_PRICE_STARTER ?? "";
+  return isStripeKeyAllowedForEnvironment(key, process.env.VERCEL_ENV) && Boolean(price);
 }
 
 export default async function PlansPage() {
@@ -197,8 +197,8 @@ export default async function PlansPage() {
           </p>
           {!stripeReady ? (
             <p className="text-amber-700">
-              Checkout Stripe de teste: configure STRIPE_SECRET_KEY (sk_test_) e STRIPE_PRICE_STARTER
-              no ambiente Preview.
+              Checkout Stripe indisponivel ate configurar STRIPE_SECRET_KEY e STRIPE_PRICE_STARTER
+              compativeis com este ambiente.
             </p>
           ) : null}
         </div>

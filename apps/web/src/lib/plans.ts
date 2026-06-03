@@ -11,4 +11,7 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
   "starter_active",
   "pro_pending_activation",
   "pro_active",
+  "past_due",
+  "canceled",
+  "expired",
 ] as const;

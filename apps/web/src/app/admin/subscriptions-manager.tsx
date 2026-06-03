@@ -17,14 +17,9 @@ type Subscription = {
   accounts: Account | null;
 };
 
-const STATUSES = [
-  "free",
-  "solo_active",
-  "pro_active",
-  "canceled",
-];
+const STATUSES = ["free", "starter_active", "past_due", "canceled", "expired"];
 
-const PLANS = ["free", "solo", "pro"];
+const PLANS = ["free", "starter"];
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -185,9 +180,7 @@ export function SubscriptionsManager() {
         </button>
       </div>
 
-      {fetchError && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{fetchError}</p>
-      )}
+      {fetchError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{fetchError}</p>}
 
       {/* Resultados */}
       {results.length > 0 && (
@@ -224,9 +217,7 @@ export function SubscriptionsManager() {
                     </td>
                     <td className="py-3 pr-4 font-mono text-gray-700">{sub.plan_code}</td>
                     <td className="py-3 pr-4 text-gray-600">{sub.status}</td>
-                    <td className="py-3 pr-4 text-gray-600">
-                      {fmtDate(sub.current_period_end)}
-                    </td>
+                    <td className="py-3 pr-4 text-gray-600">{fmtDate(sub.current_period_end)}</td>
                     <td className="py-3">
                       <button
                         onClick={() => startEdit(sub)}
@@ -244,9 +235,7 @@ export function SubscriptionsManager() {
       )}
 
       {results.length === 0 && !fetching && !fetchError && (
-        <p className="text-sm text-gray-400">
-          Use os filtros acima e clique em Buscar.
-        </p>
+        <p className="text-sm text-gray-400">Use os filtros acima e clique em Buscar.</p>
       )}
 
       {/* Modal de edição */}
@@ -256,14 +245,12 @@ export function SubscriptionsManager() {
             <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">
               Editar assinatura
             </h3>
-            <p className="mt-1 text-sm font-medium text-gray-900">
-              {userLabel(editing).primary}
-            </p>
+            <p className="mt-1 text-sm font-medium text-gray-900">{userLabel(editing).primary}</p>
 
             {editing.billing_provider === "stripe" && (
               <p className="mt-3 text-xs bg-amber-50 border border-amber-200 px-3 py-2 text-amber-700">
-                Esta conta usa Stripe. Alterar manualmente pode causar divergência com a
-                cobrança real.
+                Esta conta usa Stripe. Alterar manualmente pode causar divergência com a cobrança
+                real.
               </p>
             )}
 
@@ -312,9 +299,7 @@ export function SubscriptionsManager() {
             {saveError && (
               <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2">{saveError}</p>
             )}
-            {saveMsg && (
-              <p className="mt-3 text-sm text-green-600">{saveMsg}</p>
-            )}
+            {saveMsg && <p className="mt-3 text-sm text-green-600">{saveMsg}</p>}
 
             <div className="mt-5 flex gap-3">
               <button

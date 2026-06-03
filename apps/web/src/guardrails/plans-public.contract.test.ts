@@ -18,4 +18,28 @@ describe("Public plans", () => {
     expect(dashboard).toContain("ManageSubscriptionButton");
     expect(dashboard).toContain("starter_active");
   });
+
+  it("does not hard-disable Stripe billing in production code paths", () => {
+    const plansPage = read("src/app/plans/page.tsx");
+    const checkoutRoute = read("src/app/api/stripe/create-checkout/route.ts");
+    const portalRoute = read("src/app/api/stripe/customer-portal/route.ts");
+    const webhookRoute = read("src/app/api/webhooks/stripe/route.ts");
+    const stripeLib = read("src/lib/stripe.ts");
+
+    expect(plansPage).not.toContain('if (process.env.VERCEL_ENV === "production") return false;');
+    expect(checkoutRoute).not.toContain("checkout_not_enabled_in_production");
+    expect(portalRoute).not.toContain("portal_not_enabled_in_production");
+    expect(webhookRoute).not.toContain("webhook_disabled_in_production");
+    expect(stripeLib).not.toContain("STRIPE_PRICE_SOLO");
+  });
+
+  it("keeps Starter statuses available in admin subscription tooling", () => {
+    const manager = read("src/app/admin/subscriptions-manager.tsx");
+    const route = read("src/app/api/admin/subscriptions/[accountId]/route.ts");
+
+    expect(manager).toContain('"starter_active"');
+    expect(manager).toContain('"starter"');
+    expect(route).toContain('"starter_active"');
+    expect(route).toContain('"starter"');
+  });
 });

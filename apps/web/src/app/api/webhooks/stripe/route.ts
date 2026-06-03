@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { stripe } from "@/lib/stripe";
-import { assertStripeTestModeAllowed } from "@/lib/stripe-guard";
+import { assertStripeEnvironmentMode } from "@/lib/stripe-guard";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
@@ -88,14 +88,10 @@ async function activateStarterSubscription(
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.VERCEL_ENV === "production") {
-    return NextResponse.json({ error: "webhook_disabled_in_production" }, { status: 503 });
-  }
-
   try {
-    assertStripeTestModeAllowed();
+    assertStripeEnvironmentMode();
   } catch {
-    return NextResponse.json({ error: "stripe_test_mode_required" }, { status: 500 });
+    return NextResponse.json({ error: "stripe_environment_mode_invalid" }, { status: 500 });
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -138,13 +134,7 @@ export async function POST(req: NextRequest) {
         if (!accountId || planCode !== "starter") break;
 
         const period = subscriptionPeriod(sub);
-        await activateStarterSubscription(
-          admin,
-          accountId,
-          period.start,
-          period.end,
-          sub.id,
-        );
+        await activateStarterSubscription(admin, accountId, period.start, period.end, sub.id);
         break;
       }
 
@@ -194,9 +184,7 @@ export async function POST(req: NextRequest) {
           .update({
             plan_code: "starter",
             status,
-            current_period_start: period.start
-              ? new Date(period.start * 1000).toISOString()
-              : null,
+            current_period_start: period.start ? new Date(period.start * 1000).toISOString() : null,
             current_period_end: period.end ? new Date(period.end * 1000).toISOString() : null,
             updated_at: new Date().toISOString(),
           })

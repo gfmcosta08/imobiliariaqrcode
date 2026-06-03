@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { LEGAL_DOCUMENT_VERSIONS } from "@/lib/legal";
 import { CHECKOUT_PLAN_CODE, STARTER_MONTHLY_BRL } from "@/lib/plans";
 import { stripe, STRIPE_PRICES, type StripePlanCode } from "@/lib/stripe";
-import { assertStripeTestModeAllowed } from "@/lib/stripe-guard";
+import { assertStripeEnvironmentMode } from "@/lib/stripe-guard";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 type Body = {
@@ -15,16 +15,18 @@ type Body = {
   acceptRefund?: boolean;
 };
 
-export async function POST(req: NextRequest) {
+function getAppUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (appUrl) return appUrl;
   if (process.env.VERCEL_ENV === "production") {
-    return NextResponse.json(
-      { ok: false, error: "checkout_not_enabled_in_production" },
-      { status: 503 },
-    );
+    throw new Error("NEXT_PUBLIC_APP_URL ausente em producao.");
   }
+  return "https://farollimoveis-staging.vercel.app";
+}
 
+export async function POST(req: NextRequest) {
   try {
-    assertStripeTestModeAllowed();
+    assertStripeEnvironmentMode();
   } catch (err) {
     const message = err instanceof Error ? err.message : "stripe_config_invalid";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -38,18 +40,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (!body.acceptTerms || !body.acceptPrivacy || !body.acceptRefund) {
-    return NextResponse.json(
-      { ok: false, error: "legal_acceptance_required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ ok: false, error: "legal_acceptance_required" }, { status: 400 });
   }
 
   const priceId = STRIPE_PRICES.starter;
   if (!priceId) {
-    return NextResponse.json(
-      { ok: false, error: "stripe_price_not_configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ ok: false, error: "stripe_price_not_configured" }, { status: 500 });
   }
 
   const cookieStore = await cookies();
@@ -114,7 +110,12 @@ export async function POST(req: NextRequest) {
     await admin.from("accounts").update({ stripe_customer_id: customerId }).eq("id", accountId);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://farollimoveis-staging.vercel.app";
+  let appUrl: string;
+  try {
+    appUrl = getAppUrl();
+  } catch {
+    return NextResponse.json({ ok: false, error: "app_url_not_configured" }, { status: 500 });
+  }
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,

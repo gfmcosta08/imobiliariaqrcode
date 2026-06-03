@@ -38,7 +38,7 @@ export function CheckoutButton({
     return (
       <button
         type="button"
-        onClick={() => setMessage("Checkout indisponivel ate configurar Stripe de teste no staging.")}
+        onClick={() => setMessage("Checkout indisponivel ate configurar Stripe neste ambiente.")}
         className={className}
       >
         Checkout indisponivel

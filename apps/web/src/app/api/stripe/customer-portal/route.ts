@@ -3,16 +3,21 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { stripe } from "@/lib/stripe";
-import { assertStripeTestModeAllowed } from "@/lib/stripe-guard";
+import { assertStripeEnvironmentMode } from "@/lib/stripe-guard";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-export async function POST() {
+function getAppUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (appUrl) return appUrl;
   if (process.env.VERCEL_ENV === "production") {
-    return NextResponse.json({ ok: false, error: "portal_not_enabled_in_production" }, { status: 503 });
+    throw new Error("NEXT_PUBLIC_APP_URL ausente em producao.");
   }
+  return "https://farollimoveis-staging.vercel.app";
+}
 
+export async function POST() {
   try {
-    assertStripeTestModeAllowed();
+    assertStripeEnvironmentMode();
   } catch (err) {
     const message = err instanceof Error ? err.message : "stripe_config_invalid";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -54,7 +59,13 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "no_stripe_customer" }, { status: 400 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://farollimoveis-staging.vercel.app";
+  let appUrl: string;
+  try {
+    appUrl = getAppUrl();
+  } catch {
+    return NextResponse.json({ ok: false, error: "app_url_not_configured" }, { status: 500 });
+  }
+
   const portal = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: `${appUrl}/dashboard`,
