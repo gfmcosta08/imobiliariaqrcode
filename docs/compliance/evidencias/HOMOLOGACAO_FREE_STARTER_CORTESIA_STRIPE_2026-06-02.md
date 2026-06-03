@@ -65,3 +65,76 @@ O E2E do bot permanece adiado conforme autorizacao do proprietario, pois ainda n
 ## Regra mantida
 
 Nenhuma alteracao deve ser promovida para producao sem aprovacao humana explicita depois da conclusao da Stripe teste e da homologacao manual.
+
+## Complemento Stripe E2E - 2026-06-02 21:05 America/Sao_Paulo
+
+### Configuracao Stripe teste concluida
+
+- Chave API usada: somente modo teste (`sk_test_...`), sem exibicao em chat, logs ou Git.
+- Produto/preco criado no Stripe teste:
+  - Produto: `prod_UdFsaqlDO8bL0r`
+  - Preco Starter: `price_1TdzMMDLux2wr4a970gsPdll`
+  - Valor: R$ 150,00/mês
+- Webhook antigo de Preview foi desativado para evitar sobrescrita por codigo antigo:
+  - `we_1TdzSgDLux2wr4a9XjngF2lr`: disabled
+  - `we_1TVAtDDLux2wr4a95sWIvTxs`: disabled
+- Webhook ativo correto:
+  - `we_1Te27HDLux2wr4a9agbWKKe7`
+  - URL: `https://farollimoveis-staging.vercel.app/api/webhooks/stripe`
+  - Eventos: `checkout.session.completed`, `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.deleted`, `customer.subscription.updated`
+- Segredos foram armazenados no Vercel Preview da branch `codex/homologacao-segura` e tambem injetados no deployment atual de homologacao.
+- Arquivos temporarios e clipboard local foram limpos apos a configuracao.
+
+### E2E de assinatura validado
+
+- Checkout abriu em `checkout.stripe.com` em area restrita de teste.
+- Plano exibido: `ImobQR Starter (teste)`.
+- Valor exibido: `R$ 150,00 por mês`.
+- Cartao de teste usado: Visa final `4242`.
+- Sessao Stripe: status `complete`, payment_status `paid`.
+- Subscription Stripe: `sub_1Te2CIDLux2wr4a9xNmoq3ic`.
+- Customer Stripe: `cus_UdIlt5m1f1jnNS`.
+- Retorno apos pagamento: `https://farollimoveis-staging.vercel.app/dashboard?checkout=success&plan=starter`.
+
+### Banco de homologacao validado
+
+Conta homologada: `242e020f-02e5-4e60-96e8-7197cd2bdaf1`.
+
+Resultado final em `subscriptions`:
+
+- `plan_code`: `starter`
+- `status`: `starter_active`
+- `billing_provider`: `stripe`
+- `provider_subscription_id`: `sub_1Te2CIDLux2wr4a9xNmoq3ic`
+- `current_period_start`: `2026-06-02 23:58:16+00`
+- `current_period_end`: `2026-07-02 23:58:16+00`
+
+Aceite juridico persistido:
+
+- `terms_version`: `2026-06-02`
+- `privacy_version`: `2026-06-02`
+- `refund_cancellation_version`: `2026-06-02`
+- `accepted_at`: `2026-06-02 23:55:59.923416+00`
+
+Eventos webhook processados:
+
+- `checkout.session.completed`: processed
+- `invoice.payment_succeeded`: processed
+- `customer.subscription.updated`: processed
+
+### Portal do Cliente validado
+
+- Botao `Gerenciar assinatura (cancelar)` abriu `billing.stripe.com` em modo teste.
+- Portal exibiu assinatura atual `ImobQR Starter (teste)`.
+- Portal exibiu valor `R$ 150,00 por mês`.
+- Portal exibiu proxima cobranca em `2 de julho de 2026`.
+- Portal exibiu fatura paga e link `Cancelar assinatura`.
+- A assinatura nao foi cancelada para manter a conta de homologacao ativa para revisao humana.
+
+### Observacao importante
+
+A primeira consulta detectou `status=pro_active` apos o pagamento. A causa foi um webhook antigo ainda ativo apontando para um Preview antigo. Esse endpoint foi desativado e o evento correto foi reenviado ao webhook novo, deixando a assinatura em `starter_active`.
+
+### Producao
+
+Nenhum deploy de producao foi executado. Nenhuma chave live foi usada.
