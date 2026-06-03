@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { LEGAL_ROUTES, SUPPORT_EMAIL } from "@/lib/legal";
+import { CHECKOUT_PLAN_CODE } from "@/lib/plans";
+import { isStripeKeyAllowedForEnvironment } from "@/lib/stripe-guard";
 import { createClient } from "@/lib/supabase/server";
 
 import { CheckoutButton } from "./checkout-button";
 
-type PlanCode = "free" | "solo" | "pro";
+type PlanCode = "free" | "starter";
 
 type PlanDisplay = {
   plan_code: PlanCode;
@@ -23,52 +26,40 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     plan_code: "free",
     display_name: "Free",
     display_price: "R$ 0",
-    display_suffix: " sem recorrencia",
-    display_note: "Plano legado ativo",
-    display_description: "Plano de entrada para manter 1 anuncio ativo.",
-    display_label: "Checkout indisponivel",
+    display_suffix: " por 30 dias",
+    display_note: "Sem cobranca automatica",
+    display_description:
+      "Avaliacao gratuita por 30 dias com 1 anuncio ativo. Apos o periodo, assine o Starter.",
+    display_label: "Comecar gratis",
     display_featured: false,
     features: [
       "1 anuncio ativo",
-      "1 placa QR Code inclusa",
+      "QR Code e captura de leads",
       "Bot WhatsApp automatico",
-      "Captura de leads",
+      "Sem renovacao automatica",
     ],
   },
   {
-    plan_code: "solo",
-    display_name: "Solo",
+    plan_code: "starter",
+    display_name: "Starter",
     display_price: "R$ 150",
-    display_suffix: " trimestral",
-    display_note: "Validade: 3 meses",
-    display_description: "Plano trimestral para manter um anuncio ativo com QR Code e captura de leads.",
-    display_label: "Checkout indisponivel",
-    display_featured: false,
-    features: [
-      "1 anuncio ativo",
-      "1 placa QR Code inclusa",
-      "Bot WhatsApp automatico",
-      "Captura de leads",
-    ],
-  },
-  {
-    plan_code: "pro",
-    display_name: "Pro",
-    display_price: "R$ 500",
     display_suffix: "/mes",
     display_note: "Renovacao mensal automatica",
-    display_description: "Plano mensal para operar varios imoveis com leads ilimitados.",
-    display_label: "Checkout indisponivel",
+    display_description:
+      "Anuncios ilimitados com QR Code, leads, bot e demais beneficios. Cancele quando quiser.",
+    display_label: "Assinar Starter",
     display_featured: true,
     features: [
-      "Multiplos imoveis",
-      "Kit inicial: 10 placas QR Code",
-      "Bot WhatsApp + leads ilimitados",
+      "Anuncios ilimitados",
+      "QR Codes",
+      "Captura de leads",
+      "Bot WhatsApp",
+      "Cancelamento simples",
     ],
   },
 ];
 
-const PLAN_ORDER: PlanCode[] = ["free", "solo", "pro"];
+const PLAN_ORDER: PlanCode[] = ["free", "starter"];
 
 function cardClass(featured = false) {
   return featured ? "border-2 border-black p-8" : "border border-gray-200 p-8";
@@ -82,8 +73,8 @@ function eyebrowClass(featured = false) {
 
 function buttonClass(featured = false) {
   return featured
-    ? "mt-8 inline-block bg-black px-6 py-3 text-sm font-semibold text-white disabled:opacity-70"
-    : "mt-8 inline-block border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 disabled:opacity-70";
+    ? "mt-0 inline-block w-full bg-black px-6 py-3 text-sm font-semibold text-white disabled:opacity-70"
+    : "mt-0 inline-block w-full border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 disabled:opacity-70";
 }
 
 async function getPlans(): Promise<PlanDisplay[]> {
@@ -102,18 +93,22 @@ async function getPlans(): Promise<PlanDisplay[]> {
       plan_code: code,
       display_description:
         (plan as Partial<PlanDisplay>).display_description ?? fallback?.display_description ?? "",
-      display_label:
-        (plan as Partial<PlanDisplay>).display_label ?? "Checkout indisponivel",
+      display_label: (plan as Partial<PlanDisplay>).display_label ?? fallback?.display_label ?? "",
     } as PlanDisplay);
   }
 
-  return Array.from(byCode.values()).sort(
-    (a, b) => PLAN_ORDER.indexOf(a.plan_code) - PLAN_ORDER.indexOf(b.plan_code),
-  );
+  return PLAN_ORDER.map((code) => byCode.get(code)!).filter(Boolean);
+}
+
+function checkoutEnabled(): boolean {
+  const key = process.env.STRIPE_SECRET_KEY ?? "";
+  const price = process.env.STRIPE_PRICE_STARTER ?? "";
+  return isStripeKeyAllowedForEnvironment(key, process.env.VERCEL_ENV) && Boolean(price);
 }
 
 export default async function PlansPage() {
   const plans = await getPlans();
+  const stripeReady = checkoutEnabled();
 
   return (
     <div className="min-h-screen bg-white">
@@ -121,7 +116,8 @@ export default async function PlansPage() {
       <main className="mx-auto max-w-6xl px-8 py-12">
         <h1 className="text-3xl font-bold text-gray-900">Planos</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Catalogo temporario sem checkout online. Para contratacao, fale com o time comercial.
+          Free para avaliacao (30 dias, 1 anuncio). Starter para operacao completa com renovacao
+          mensal.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -138,7 +134,7 @@ export default async function PlansPage() {
           </Link>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
           {plans.map((plan) => (
             <div key={plan.plan_code} className={cardClass(plan.display_featured)}>
               <p className={eyebrowClass(plan.display_featured)}>Plano</p>
@@ -147,7 +143,9 @@ export default async function PlansPage() {
                 {plan.display_price}
                 <span className="text-base font-normal text-gray-400">{plan.display_suffix}</span>
               </p>
-              {plan.display_note ? <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p> : null}
+              {plan.display_note ? (
+                <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p>
+              ) : null}
               {plan.display_description ? (
                 <p className="mt-4 text-sm leading-6 text-gray-600">{plan.display_description}</p>
               ) : null}
@@ -158,14 +156,52 @@ export default async function PlansPage() {
                   </li>
                 ))}
               </ul>
-              <CheckoutButton label={plan.display_label || "Checkout indisponivel"} className={buttonClass(plan.display_featured)} />
+              <CheckoutButton
+                planCode={plan.plan_code}
+                label={plan.display_label}
+                className={buttonClass(plan.display_featured)}
+                checkoutEnabled={plan.plan_code === CHECKOUT_PLAN_CODE && stripeReady}
+              />
             </div>
           ))}
         </div>
 
-        <p className="mt-10 text-xs text-gray-400">
-          Checkout Stripe temporariamente indisponivel. Use o painel admin para operacao manual.
-        </p>
+        <div className="mt-10 space-y-2 text-xs text-gray-500">
+          <p>
+            Documentos:{" "}
+            <Link href="/termos" className="underline">
+              Termos de Uso
+            </Link>
+            {" · "}
+            <Link href="/privacidade" className="underline">
+              Politica de Privacidade
+            </Link>
+            {" · "}
+            <Link
+              href={LEGAL_ROUTES.refund_cancellation}
+              data-public-href="/cancelamento-e-reembolso"
+              className="underline"
+            >
+              Cancelamento e reembolso
+            </Link>
+            {" · "}
+            <Link href="/remocao-de-conteudo" className="underline">
+              Remocao de conteudo
+            </Link>
+          </p>
+          <p>
+            Atendimento eletronico:{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+              {SUPPORT_EMAIL}
+            </a>
+          </p>
+          {!stripeReady ? (
+            <p className="text-amber-700">
+              Checkout Stripe indisponivel ate configurar STRIPE_SECRET_KEY e STRIPE_PRICE_STARTER
+              compativeis com este ambiente.
+            </p>
+          ) : null}
+        </div>
       </main>
     </div>
   );

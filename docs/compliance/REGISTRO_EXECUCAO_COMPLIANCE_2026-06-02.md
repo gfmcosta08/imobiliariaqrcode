@@ -1,0 +1,107 @@
+# Registro de execucao do pacote de compliance
+
+Data: 2026-06-02
+
+## Ambiente
+
+- Worktree: `C:\tmp\imobiliariaopencode-homologacao-segura`
+- Branch: `codex/homologacao-segura`
+- Supabase de homologacao: `coeuoyeydqoslhvbbojx`
+- Supabase de producao: nao utilizado
+- Alias Vercel de homologacao: `https://farollimoveis-staging.vercel.app`
+- Preview final validado: `https://farollimoveis-jgslxmaoq.vercel.app`
+- Bot: homologacao adiada por ausencia de numero exclusivo de teste
+
+## Alteracoes de banco
+
+- Migration aplicada em homologacao:
+  `supabase/migrations/20260602150000_immutable_legal_acceptance_history.sql`
+- Registro remoto confirmado:
+  `20260602150000 | immutable_legal_acceptance_history`
+- Tabela criada: `public.legal_acceptance_events`
+- RLS confirmado: `true`
+- Gatilhos confirmados:
+  `trg_profiles_log_legal_acceptance`
+  `trg_legal_acceptance_events_reject_mutation`
+
+## QA transacional
+
+Arquivo reproduzivel:
+`scripts/qa/legal-acceptance-history-rollback.sql`
+
+Resultado:
+`passed_with_rollback`
+
+O teste:
+
+1. Seleciona um perfil existente somente dentro de transacao.
+2. Atualiza temporariamente o aceite.
+3. Confirma a criacao de exatamente um evento.
+4. Confirma que alteracao do evento append-only e rejeitada.
+5. Executa `rollback`.
+
+## Testes de contrato
+
+Comando:
+
+```text
+pnpm --filter web exec vitest run src/guardrails/compliance-public-pages.contract.test.ts src/guardrails/legal-acceptance.contract.test.ts
+```
+
+Resultado:
+
+```text
+2 test files passed
+8 tests passed
+```
+
+Uma inspecao renderizada adicional detectou rotulos comerciais antigos vindos do banco na pagina de
+planos. O componente foi ajustado para exibir sempre `Checkout indisponivel` enquanto a rota online
+permanecer desativada.
+
+## QA web no Preview final
+
+Rotas com resposta HTTP `200`:
+
+- `/`
+- `/plans`
+- `/termos`
+- `/privacidade`
+- `/remocao-de-conteudo`
+- `/cancelamento-e-reembolso`
+- `/api/health`
+
+Validacoes adicionais:
+
+- Cadastro sem aceite de Termos e Privacidade: HTTP `400`.
+- Termos e Privacidade: CNPJ real exibido.
+- Landing page e planos: links legais exibidos.
+- Cartoes Free, Solo e Pro: botao renderizado como `Checkout indisponivel`.
+- Rotulos antigos `Contratar Solo` e `Assinar Pro`: ausentes.
+
+## Observacoes
+
+- `supabase db push --linked --dry-run` identificou corretamente o host de homologacao, mas falhou
+  por senha direta do Postgres indisponivel.
+- A migration foi aplicada de forma transacional pelo comando autenticado
+  `supabase db query --linked --file`.
+- `pnpm run check:staging-safety` permanece deliberadamente bloqueado por ausencia de
+  `BOT_RUNTIME_ENVIRONMENT`, numero exclusivo e allowlist do bot de teste. A parte web pode seguir;
+  envios do bot nao devem ser habilitados ate a configuracao dedicada existir.
+- Nenhuma alteracao foi feita em producao.
+
+## Atualizacao Posterior - Stripe Starter E2E
+
+A informacao anterior de `Checkout indisponivel` era verdadeira para o pacote inicial de compliance, antes da configuracao Stripe de teste. Em 2026-06-02, o fluxo Starter foi concluido e validado em homologacao:
+
+- Site: `https://farollimoveis-staging.vercel.app`.
+- Produto Stripe teste: `ImobQR Starter (teste)`.
+- Preco: `price_1TdzMMDLux2wr4a970gsPdll`.
+- Webhook ativo correto: `we_1Te27HDLux2wr4a9agbWKKe7`.
+- Webhooks antigos de Preview desativados.
+- Checkout pago com cartao teste e retorno ao dashboard.
+- Banco validado com `plan_code=starter` e `status=starter_active`.
+- Stripe Billing Portal validado com link de cancelamento.
+- Producao continua nao alterada e bloqueada ate aprovacao humana.
+
+Evidencia principal: `docs/compliance/evidencias/HOMOLOGACAO_FREE_STARTER_CORTESIA_STRIPE_2026-06-02.md`.

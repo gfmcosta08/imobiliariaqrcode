@@ -16,8 +16,8 @@ export async function PATCH(
     status?: string;
     plan_code?: string;
   };
-  const allowedStatuses = new Set(["free", "solo_active", "pro_active", "canceled"]);
-  const allowedPlans = new Set(["free", "solo", "pro"]);
+  const allowedStatuses = new Set(["free", "starter_active", "past_due", "canceled", "expired"]);
+  const allowedPlans = new Set(["free", "starter"]);
 
   if (
     body.current_period_end !== undefined &&
@@ -53,9 +53,10 @@ export async function PATCH(
   const targetPlan = body.plan_code ?? before?.plan_code;
   const combos: Record<string, string[]> = {
     free: ["free"],
-    solo_active: ["solo"],
-    pro_active: ["pro"],
-    canceled: ["free", "solo", "pro"],
+    starter_active: ["starter"],
+    past_due: ["starter"],
+    canceled: ["free", "starter"],
+    expired: ["free", "starter"],
   };
   if (targetStatus && targetPlan && !(combos[targetStatus] ?? []).includes(targetPlan)) {
     return NextResponse.json(
@@ -69,7 +70,8 @@ export async function PATCH(
   }
 
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (body.current_period_end !== undefined) updatePayload.current_period_end = body.current_period_end;
+  if (body.current_period_end !== undefined)
+    updatePayload.current_period_end = body.current_period_end;
   if (body.status !== undefined) updatePayload.status = body.status;
   if (body.plan_code !== undefined) updatePayload.plan_code = body.plan_code;
 

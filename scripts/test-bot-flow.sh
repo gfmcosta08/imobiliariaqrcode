@@ -8,10 +8,15 @@
 #   4. Verifica que mensagens foram processadas (status != queued)
 #
 # Uso:
+#   export BOT_RUNTIME_ENVIRONMENT=staging
+#   export BOT_STAGING_ALLOWED_PHONES=5511999990001
+#   export CONFIRM_STAGING_PROVIDER_SEND=1
+#   export STAGING_BASE_URL=https://farollimoveis-staging.vercel.app
+#   export STAGING_SUPABASE_PROJECT_REF=xxx
 #   export SUPABASE_URL=https://xxx.supabase.co
 #   export SUPABASE_SERVICE_ROLE_KEY=eyJ...
 #   export CONVERSATION_HANDLE_URL=https://xxx.supabase.co/functions/v1/conversation-handle
-#   export TEST_LEAD_PHONE=5511999990001   # número fictício de teste
+#   export TEST_LEAD_PHONE=5511999990001   # número autorizado para teste
 #   export TEST_QR_TOKEN=IMV-2026-XXXX    # public_id de um imóvel real no banco
 #   bash scripts/test-bot-flow.sh
 # -----------------------------------------------------------------------------
@@ -32,6 +37,8 @@ info() { echo -e "${YELLOW}[INFO]${NC} $*"; }
 : "${CONVERSATION_HANDLE_URL:=${SUPABASE_URL}/functions/v1/conversation-handle}"
 : "${TEST_LEAD_PHONE:?Set TEST_LEAD_PHONE (digits only, e.g. 5511999990001)}"
 : "${TEST_QR_TOKEN:?Set TEST_QR_TOKEN (e.g. IMV-2026-BD5699)}"
+
+node scripts/check-staging-safety.mjs
 
 DISPATCH_URL="${SUPABASE_URL}/functions/v1/whatsapp-dispatch"
 DB_URL="${SUPABASE_URL}/rest/v1/whatsapp_messages"

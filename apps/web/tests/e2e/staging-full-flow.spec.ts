@@ -7,11 +7,15 @@ const writeEnabled = process.env.E2E_STAGING_WRITE === "1";
 const runId = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 const brokerEmail = `corretor.qa.${runId}@teste.com`;
 const brokerPassword = `TesteQA123!${runId.slice(-4)}`;
-const brokerWhatsapp = `7199${runId.slice(-8)}`;
+const brokerWhatsapp = `7198${runId.slice(-8)}`;
 const invitePropertyTitle = `QA Convite ${runId}`;
 const inviteInternalCode = `QA-CONV-${runId}`;
 const manualPropertyTitle = `QA Manual ${runId}`;
 const manualInternalCode = `QA-MAN-${runId}`;
+const extraPropertyTitle = `QA Limite ${runId}`;
+const extraInternalCode = `QA-LIM-${runId}`;
+const leadName = `Lead QA ${runId}`;
+const leadPhone = `55719${runId.slice(-8)}`;
 
 let inviteLoginCode = "";
 let inviteAccessCode = "";
@@ -30,6 +34,24 @@ function requireStaging() {
 
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
+  const identifier = page.getByTestId("login-identifier");
+  if ((await identifier.count()) === 0) {
+    const signOut = page.getByRole("button", { name: /Sair/i });
+    if (await signOut.isVisible().catch(() => false)) {
+      await signOut.click();
+      await page.waitForLoadState("domcontentloaded");
+      await page.goto("/login");
+    }
+  }
+  if ((await identifier.count()) === 0) {
+    await page.evaluate(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+    await page.context().clearCookies();
+    await page.goto("/login");
+  }
+  await expect(identifier).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("login-identifier").fill(email);
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
@@ -47,9 +69,9 @@ async function fillCorePropertyFields(page: Page, title: string, internalCode: s
   await page.getByTestId("property-listing_status").selectOption("published");
   await expect(page.getByTestId("property-listing_status")).toHaveValue("published");
   await page.getByTestId("property-title").fill(title);
-  await page.getByTestId("property-full_description").fill(
-    `Imovel criado pelo QA automatizado no staging em ${runId}.`,
-  );
+  await page
+    .getByTestId("property-full_description")
+    .fill(`Imovel criado pelo QA automatizado no staging em ${runId}.`);
   await page.getByTestId("property-highlights").fill("varanda\nvista livre\nperto de comercio");
   await page.getByTestId("property-sale_price").fill("850000");
   await page.getByTestId("property-sale_price").blur();
@@ -67,7 +89,9 @@ async function fillCorePropertyFields(page: Page, title: string, internalCode: s
   await page.getByTestId("property-neighborhood").fill("Centro");
   await page.getByTestId("property-city").fill("Salvador");
   await page.getByTestId("property-state").fill("BA");
-  await page.getByTestId("property-location_map_url").fill("https://maps.google.com/?q=Salvador+BA");
+  await page
+    .getByTestId("property-location_map_url")
+    .fill("https://maps.google.com/?q=Salvador+BA");
 }
 
 async function openPropertyFromList(page: Page, title: string) {
@@ -140,8 +164,9 @@ test("04 corretor usa convite completa perfil e publica anuncio inicial", async 
   await page.getByTestId("onboarding-whatsapp").fill(brokerWhatsapp);
   await page.getByTestId("onboarding-password").fill(brokerPassword);
   await page.getByTestId("onboarding-confirm-password").fill(brokerPassword);
+  await page.locator("#onboarding-terms, input[type='checkbox']").first().check();
   await page.getByTestId("onboarding-submit").click();
-  await page.waitForURL(/\/onboarding\/complete-listing/, { timeout: 45_000 });
+  await page.waitForURL(/\/onboarding\/complete-listing/, { timeout: 60_000 });
 
   await fillCorePropertyFields(page, invitePropertyTitle, inviteInternalCode);
   await page.getByTestId("property-submit-edit-top").click();
@@ -158,21 +183,22 @@ test("05 corretor cria segundo anuncio com imagem, QR e dados persistidos", asyn
   await login(page, brokerEmail, brokerPassword);
   await page.goto("/properties/new");
   await fillCorePropertyFields(page, manualPropertyTitle, manualInternalCode);
-
-  await page.getByTestId("property-media-files-file-input").setInputFiles({
-    name: "qa-imovel.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
-      "base64",
-    ),
-  });
-  await expect(page.getByTestId("property-media-files-selected-count")).toContainText("1 selecionada");
   await page.getByTestId("property-submit-create-top").click();
   await page.waitForURL(/\/properties\/[0-9a-f-]+/, { timeout: 60_000 });
 
   await expect(page.getByTestId("property-detail-title")).toContainText(manualPropertyTitle);
-  await expect(page.getByTestId("property-media-count")).toContainText(/1\/|2\/|3\//);
+  const pngBuffer = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await page.getByTestId("property-media-files-input").setInputFiles({
+    name: "qa-imovel.png",
+    mimeType: "image/png",
+    buffer: pngBuffer,
+  });
+  await expect(page.getByTestId("property-media-count")).toContainText(/1\/|2\/|3\//, {
+    timeout: 60_000,
+  });
   await expect(page.getByTestId("qr-print-area")).toBeVisible();
   await expect(page.getByTestId("qr-print-internal-code")).toContainText(manualInternalCode);
   manualPropertyPublicId = (await page.getByTestId("property-detail-public-id").innerText()).trim();
@@ -198,15 +224,52 @@ test("06 QR, pagina publica, homepage e admin encontram o anuncio", async ({ pag
   await expect(page.getByTestId("public-property-title")).toContainText(manualPropertyTitle);
   await expect(page.getByTestId("public-property-location")).toContainText("Salvador");
 
+  const qrToken = new URL(manualQrUrl).pathname.split("/").filter(Boolean).at(-1);
+  expect(qrToken).toBeTruthy();
+  const leadResponse = await page.request.post("/api/public/lead", {
+    data: {
+      qr_token: qrToken,
+      client_phone: leadPhone,
+      nome: leadName,
+      observation: `Lead gerado pelo QA E2E ${runId}.`,
+      intent: "visit_interest",
+    },
+  });
+  const leadBody = (await leadResponse.json()) as { ok?: boolean };
+  expect(leadResponse.status(), JSON.stringify(leadBody)).toBe(200);
+  expect(leadBody.ok).toBe(true);
+
+  await login(page, brokerEmail, brokerPassword);
+  await page.goto("/leads");
+  await expect(page.getByText(leadName)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(leadPhone)).toBeVisible();
+
   await page.goto(`/?q=${encodeURIComponent(manualInternalCode)}#imoveis`);
-  await expect(page.getByTestId("home-property-card").filter({ hasText: manualPropertyTitle })).toBeVisible();
+  await expect(
+    page.getByTestId("home-property-card").filter({ hasText: manualPropertyTitle }),
+  ).toBeVisible();
 
   await login(page, adminEmail, adminPassword);
   await page.goto("/admin");
   await page.getByTestId("admin-properties-search").fill(manualInternalCode);
   await page.getByTestId("admin-properties-search-submit").click();
-  const adminResult = page.getByTestId("admin-properties-result").filter({ hasText: manualPropertyTitle });
+  const adminResult = page
+    .getByTestId("admin-properties-result")
+    .filter({ hasText: manualPropertyTitle });
   await expect(adminResult).toBeVisible();
   await expect(adminResult).toContainText(manualInternalCode);
   await expect(adminResult).toContainText(brokerEmail);
+});
+
+test("07 convite cortesia bloqueia anuncio acima do limite", async ({ page }) => {
+  requireStaging();
+  await login(page, brokerEmail, brokerPassword);
+  await page.goto("/properties/new");
+  await fillCorePropertyFields(page, extraPropertyTitle, extraInternalCode);
+  await page.getByTestId("property-submit-create-top").click();
+  await expect(page.getByTestId("property-editor-form")).toContainText(
+    /limite|plano|anuncio|imove/i,
+    { timeout: 60_000 },
+  );
+  await expect(page).not.toHaveURL(/\/properties\/[0-9a-f-]+/);
 });

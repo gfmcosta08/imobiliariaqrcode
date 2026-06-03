@@ -86,7 +86,8 @@ export async function createProperty(
       )
       .select("id, account_id")
       .single();
-    if (brokerErr || !brokerCreated) return { error: brokerErr?.message ?? "Falha ao criar corretor de teste." };
+    if (brokerErr || !brokerCreated)
+      return { error: brokerErr?.message ?? "Falha ao criar corretor de teste." };
     broker = brokerCreated;
     await admin.from("subscriptions").upsert(
       {
@@ -105,7 +106,13 @@ export async function createProperty(
     .eq("account_id", broker.account_id)
     .maybeSingle();
 
-  const activeStatuses = ["free", "solo_active", "pro_pending_activation", "pro_active"];
+  const activeStatuses = [
+    "free",
+    "starter_active",
+    "solo_active",
+    "pro_pending_activation",
+    "pro_active",
+  ];
   const subscription =
     subscriptionRow && activeStatuses.includes(subscriptionRow.status)
       ? subscriptionRow

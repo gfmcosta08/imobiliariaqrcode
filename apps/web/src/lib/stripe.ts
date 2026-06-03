@@ -1,6 +1,9 @@
 import Stripe from "stripe";
 
+import { assertStripeEnvironmentMode } from "@/lib/stripe-guard";
+
 function createStripeClient(): Stripe {
+  assertStripeEnvironmentMode();
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
   return new Stripe(key, { apiVersion: "2026-03-25.dahlia", typescript: true });
@@ -15,12 +18,8 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
   },
 });
 
-// IDs dos preços cadastrados no Stripe Dashboard.
-// Preencha após criar os produtos/preços no painel do Stripe.
 export const STRIPE_PRICES = {
-  solo: process.env.STRIPE_PRICE_SOLO ?? "", // pagamento único R$ 150
-  pro: process.env.STRIPE_PRICE_PRO ?? "", // recorrente mensal R$ 500
-  premium: process.env.STRIPE_PRICE_PREMIUM ?? "", // recorrente mensal R$ 1.000
+  starter: process.env.STRIPE_PRICE_STARTER ?? "",
 } as const;
 
 export type StripePlanCode = keyof typeof STRIPE_PRICES;

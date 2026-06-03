@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 const ACTIVE_SUB_STATUSES = [
   "free",
+  "starter_active",
   "solo_active",
   "pro_pending_activation",
   "pro_active",
@@ -50,7 +51,11 @@ export async function POST() {
           .single();
         if (accountErr || !accountCreated) {
           return NextResponse.json(
-            { ok: false, error: "quick_create_exception", detail: accountErr?.message ?? "account_create_failed" },
+            {
+              ok: false,
+              error: "quick_create_exception",
+              detail: accountErr?.message ?? "account_create_failed",
+            },
             { status: 500 },
           );
         }
@@ -85,7 +90,11 @@ export async function POST() {
 
       if (brokerErr || !brokerCreated) {
         return NextResponse.json(
-          { ok: false, error: "quick_create_exception", detail: brokerErr?.message ?? "broker_create_failed" },
+          {
+            ok: false,
+            error: "quick_create_exception",
+            detail: brokerErr?.message ?? "broker_create_failed",
+          },
           { status: 500 },
         );
       }
@@ -189,6 +198,9 @@ export async function POST() {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unexpected_quick_create_error";
-    return NextResponse.json({ ok: false, error: "quick_create_exception", detail: message }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "quick_create_exception", detail: message },
+      { status: 500 },
+    );
   }
 }

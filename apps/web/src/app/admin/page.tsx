@@ -26,7 +26,7 @@ export default async function AdminPage() {
   const { data: invitations } = await supabase
     .from("broker_invitations")
     .select(
-      "id, login_code, status, generated_at, expires_at, claimed_at, completed_at, property_count, expiration_days_configured",
+      "id, login_code, status, generated_at, expires_at, courtesy_expires_at, claimed_at, completed_at, property_count, expiration_days_configured",
     )
     .order("generated_at", { ascending: false })
     .limit(50);
@@ -87,6 +87,7 @@ export default async function AdminPage() {
               status: String(inv.status),
               generated_at: String(inv.generated_at),
               expires_at: inv.expires_at ? String(inv.expires_at) : null,
+              courtesy_expires_at: inv.courtesy_expires_at ? String(inv.courtesy_expires_at) : null,
               claimed_at: inv.claimed_at ? String(inv.claimed_at) : null,
               completed_at: inv.completed_at ? String(inv.completed_at) : null,
               property_count: Number(inv.property_count ?? 1),

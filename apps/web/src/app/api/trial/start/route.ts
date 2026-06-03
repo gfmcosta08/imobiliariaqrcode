@@ -13,11 +13,12 @@ type PostgrestLikeError = {
 
 function isMissingTrialColumn(error: PostgrestLikeError | null): boolean {
   if (!error) return false;
-  const haystack = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+  const haystack =
+    `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
   return (
     haystack.includes("trial_started_at") ||
     haystack.includes("trial_used_at") ||
-    haystack.includes("column") && haystack.includes("accounts")
+    (haystack.includes("column") && haystack.includes("accounts"))
   );
 }
 
@@ -99,11 +100,12 @@ export async function POST() {
     .eq("account_id", account.id)
     .maybeSingle();
 
-  if (subscription?.status === "solo_active" || subscription?.status === "pro_active") {
-    return NextResponse.json(
-      { error: "Conta ja possui um plano pago ativo." },
-      { status: 409 },
-    );
+  if (
+    subscription?.status === "starter_active" ||
+    subscription?.status === "solo_active" ||
+    subscription?.status === "pro_active"
+  ) {
+    return NextResponse.json({ error: "Conta ja possui um plano pago ativo." }, { status: 409 });
   }
 
   const trialAlreadyUsed = Boolean(

@@ -484,8 +484,8 @@ export default async function Home({ searchParams }: PageProps) {
           <FooterColumn
             title="Empresa"
             links={[
-              ["Sobre nos", "/plans"],
-              ["Carreiras", "/login"],
+              ["Termos de Uso", "/termos"],
+              ["Privacidade", "/privacidade"],
             ]}
           />
           <FooterColumn
@@ -498,8 +498,8 @@ export default async function Home({ searchParams }: PageProps) {
           <FooterColumn
             title="Suporte"
             links={[
-              ["Central de ajuda", "/login"],
-              ["Contato", "/login"],
+              ["Remocao de conteudo", "/remocao-de-conteudo"],
+              ["Cancelamento e reembolso", "/cancelamento-e-reembolso"],
             ]}
           />
           <FooterColumn

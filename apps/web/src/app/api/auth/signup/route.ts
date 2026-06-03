@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { buildLegalAcceptanceRecord } from "@/lib/legal";
 import { NextRequest, NextResponse } from "next/server";
 
 type Body = {
@@ -6,13 +7,28 @@ type Body = {
   password?: string;
   fullName?: string;
   whatsapp?: string;
+  acceptedTerms?: boolean;
+  acceptedPrivacy?: boolean;
 };
 
 export async function POST(req: NextRequest) {
-  const { email, password, fullName, whatsapp } = (await req.json()) as Body;
+  const { email, password, fullName, whatsapp, acceptedTerms, acceptedPrivacy } =
+    (await req.json()) as Body;
 
   if (!email?.trim() || !password) {
     return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 });
+  }
+
+  const legalAcceptance = buildLegalAcceptanceRecord({
+    acceptedTerms,
+    acceptedPrivacy,
+    legalSource: "signup",
+  });
+  if (!legalAcceptance) {
+    return NextResponse.json(
+      { error: "Você precisa aceitar os Termos de Uso e a Política de Privacidade." },
+      { status: 400 },
+    );
   }
 
   const supabase = createServiceRoleClient();
@@ -42,7 +58,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    const alreadyExists = error.message.toLowerCase().includes("already") || error.message.toLowerCase().includes("exists");
+    const alreadyExists =
+      error.message.toLowerCase().includes("already") ||
+      error.message.toLowerCase().includes("exists");
     return NextResponse.json(
       { error: alreadyExists ? "Este e-mail ja esta cadastrado." : error.message },
       { status: alreadyExists ? 409 : 400 },
@@ -101,6 +119,7 @@ export async function POST(req: NextRequest) {
       full_name: normalizedName,
       whatsapp_number: safeWhatsapp,
       role: "broker",
+      ...legalAcceptance,
     },
     { onConflict: "id" },
   );
