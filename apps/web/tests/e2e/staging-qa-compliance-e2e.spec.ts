@@ -13,7 +13,7 @@ const freeUserEmail = `free.qa.${runId}@teste.com`;
 const freeUserPassword = `TesteQA123!${runId.slice(-4)}`;
 const brokerEmail = `convite.qa.${runId}@teste.com`;
 const brokerPassword = `TesteQA123!${runId.slice(-4)}`;
-const brokerWhatsapp = `7198${runId.slice(-8)}`;
+const brokerWhatsapp = `7197${runId.slice(-8)}`;
 
 let inviteLoginCode = "";
 let inviteAccessCode = "";
