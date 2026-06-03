@@ -12,6 +12,10 @@ const invitePropertyTitle = `QA Convite ${runId}`;
 const inviteInternalCode = `QA-CONV-${runId}`;
 const manualPropertyTitle = `QA Manual ${runId}`;
 const manualInternalCode = `QA-MAN-${runId}`;
+const extraPropertyTitle = `QA Limite ${runId}`;
+const extraInternalCode = `QA-LIM-${runId}`;
+const leadName = `Lead QA ${runId}`;
+const leadPhone = `55719${runId.slice(-8)}`;
 
 let inviteLoginCode = "";
 let inviteAccessCode = "";
@@ -30,6 +34,24 @@ function requireStaging() {
 
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
+  const identifier = page.getByTestId("login-identifier");
+  if ((await identifier.count()) === 0) {
+    const signOut = page.getByRole("button", { name: /Sair/i });
+    if (await signOut.isVisible().catch(() => false)) {
+      await signOut.click();
+      await page.waitForLoadState("domcontentloaded");
+      await page.goto("/login");
+    }
+  }
+  if ((await identifier.count()) === 0) {
+    await page.evaluate(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+    await page.context().clearCookies();
+    await page.goto("/login");
+  }
+  await expect(identifier).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("login-identifier").fill(email);
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
@@ -202,6 +224,26 @@ test("06 QR, pagina publica, homepage e admin encontram o anuncio", async ({ pag
   await expect(page.getByTestId("public-property-title")).toContainText(manualPropertyTitle);
   await expect(page.getByTestId("public-property-location")).toContainText("Salvador");
 
+  const qrToken = new URL(manualQrUrl).pathname.split("/").filter(Boolean).at(-1);
+  expect(qrToken).toBeTruthy();
+  const leadResponse = await page.request.post("/api/public/lead", {
+    data: {
+      qr_token: qrToken,
+      client_phone: leadPhone,
+      nome: leadName,
+      observation: `Lead gerado pelo QA E2E ${runId}.`,
+      intent: "visit_interest",
+    },
+  });
+  const leadBody = (await leadResponse.json()) as { ok?: boolean };
+  expect(leadResponse.status(), JSON.stringify(leadBody)).toBe(200);
+  expect(leadBody.ok).toBe(true);
+
+  await login(page, brokerEmail, brokerPassword);
+  await page.goto("/leads");
+  await expect(page.getByText(leadName)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(leadPhone)).toBeVisible();
+
   await page.goto(`/?q=${encodeURIComponent(manualInternalCode)}#imoveis`);
   await expect(
     page.getByTestId("home-property-card").filter({ hasText: manualPropertyTitle }),
@@ -217,4 +259,17 @@ test("06 QR, pagina publica, homepage e admin encontram o anuncio", async ({ pag
   await expect(adminResult).toBeVisible();
   await expect(adminResult).toContainText(manualInternalCode);
   await expect(adminResult).toContainText(brokerEmail);
+});
+
+test("07 convite cortesia bloqueia anuncio acima do limite", async ({ page }) => {
+  requireStaging();
+  await login(page, brokerEmail, brokerPassword);
+  await page.goto("/properties/new");
+  await fillCorePropertyFields(page, extraPropertyTitle, extraInternalCode);
+  await page.getByTestId("property-submit-create-top").click();
+  await expect(page.getByTestId("property-editor-form")).toContainText(
+    /limite|plano|anuncio|imove/i,
+    { timeout: 60_000 },
+  );
+  await expect(page).not.toHaveURL(/\/properties\/[0-9a-f-]+/);
 });

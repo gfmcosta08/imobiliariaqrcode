@@ -50,7 +50,7 @@ test.describe("QA compliance staging", () => {
       "/plans",
       "/termos",
       "/privacidade",
-      "/cancelamento-reembolso",
+      "/cancelamento-e-reembolso",
       "/remocao-de-conteudo",
       "/login",
     ];
@@ -149,6 +149,7 @@ test.describe("QA compliance staging", () => {
   });
 
   test("05 stripe checkout teste (opcional)", async ({ page }) => {
+    test.setTimeout(180_000);
     requireStaging();
     test.skip(!stripeE2E, "Defina E2E_STRIPE_CHECKOUT=1 para fluxo Stripe completo.");
     await login(page, brokerEmail, brokerPassword);
@@ -163,26 +164,67 @@ test.describe("QA compliance staging", () => {
     await page.getByRole("button", { name: /Assinar Starter/i }).click();
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
     await snap(page, "stripe-checkout");
-    // Stripe Checkout test mode — preenche cartao padrao quando formulario visivel
-    const card = page.frameLocator('iframe[name*="card"], iframe').first();
-    try {
-      await card
-        .locator('[name="cardnumber"], input[placeholder*="1234"]')
-        .fill("4242424242424242");
-      await card.locator('[name="exp-date"], input[placeholder*="MM"]').fill("1234");
-      await card.locator('[name="cvc"], input[placeholder*="CVC"]').fill("123");
-    } catch {
-      await page
-        .locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
-        .fill("4242424242424242");
-    }
+
+    // Stripe Checkout muda markup com frequencia; priorize placeholders/labels visiveis.
+    await page.getByPlaceholder(/1234 1234/).fill("4242424242424242");
+    await page.getByPlaceholder(/MM \/ YY/i).fill("1234");
+    await page.getByPlaceholder(/CVC/i).fill("123");
+    await page.getByPlaceholder(/Full name on card/i).fill("Convidado QA");
+
     await page
       .getByRole("button", { name: /Pay|Pagar|Subscribe|Assinar/i })
       .click({ timeout: 30_000 });
     await page.waitForURL(/\/dashboard/, { timeout: 120_000 });
-    await expect(page.getByText(/Starter|starter_active/i).first()).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect
+      .poll(
+        async () => {
+          await page.goto("/dashboard");
+          const body = await page.locator("body").innerText();
+          return /STARTER\s*\(starter_active\)/i.test(body);
+        },
+        { timeout: 120_000, intervals: [3_000, 5_000, 10_000] },
+      )
+      .toBe(true);
     await snap(page, "dashboard-starter-pos-checkout");
+  });
+
+  test("06 portal stripe cancelamento teste (opcional)", async ({ page }) => {
+    test.setTimeout(180_000);
+    requireStaging();
+    test.skip(!stripeE2E, "Defina E2E_STRIPE_CHECKOUT=1 para fluxo Stripe completo.");
+
+    await login(page, brokerEmail, brokerPassword);
+    await page.goto("/dashboard");
+    await expect(page.getByText(/STARTER\s*\(starter_active\)/i)).toBeVisible({
+      timeout: 60_000,
+    });
+    await page.getByRole("button", { name: /Gerenciar assinatura/i }).click();
+    await page.waitForURL(/billing\.stripe\.com/, { timeout: 60_000 });
+    await snap(page, "stripe-portal-inicial");
+
+    const cancelAction = page
+      .locator("a,button")
+      .filter({
+        hasText: /Cancel subscription|Cancel plan|Cancelar assinatura|Cancelar plano/i,
+      })
+      .first();
+    await expect(cancelAction).toBeVisible({ timeout: 60_000 });
+    await cancelAction.click();
+    await snap(page, "stripe-portal-cancelar");
+
+    const confirmCancel = page
+      .locator("button")
+      .filter({
+        hasText:
+          /Cancel subscription|Cancel plan|Confirm cancellation|Cancelar assinatura|Confirmar cancelamento|Cancelar plano/i,
+      })
+      .last();
+    await expect(confirmCancel).toBeVisible({ timeout: 60_000 });
+    await confirmCancel.click();
+
+    await expect(
+      page.getByText(/canceled|cancelled|cancelada|cancelado|will end|terminara/i).first(),
+    ).toBeVisible({ timeout: 60_000 });
+    await snap(page, "stripe-portal-cancelado");
   });
 });
