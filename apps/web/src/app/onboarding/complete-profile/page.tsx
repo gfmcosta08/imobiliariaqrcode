@@ -65,10 +65,15 @@ export default function CompleteProfilePage() {
 
       // Mudar senha invalida a sessão atual — reautenticar antes de prosseguir
       const supabase = createClient();
-      await supabase.auth.signInWithPassword({
-        email: form.email.trim(),
+      const normalizedEmail = form.email.trim().toLowerCase();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
         password: form.password,
       });
+      if (signInError) {
+        setError(`Falha ao entrar apos salvar perfil: ${signInError.message}`);
+        return;
+      }
 
       router.push("/onboarding/complete-listing");
     } finally {
