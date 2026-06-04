@@ -9,14 +9,12 @@ export type DashboardMoneyMetrics = {
   averageFirstResponseMinutes: number | null;
   topPropertyTitle: string | null;
   topPropertyLeadCount: number;
-  estimatedCommissionBRL: number;
 };
 
 type PropertyRow = {
   id: string;
   title: string | null;
   listing_status: string | null;
-  sale_price: number | null;
 };
 
 type LeadRow = {
@@ -27,24 +25,10 @@ type LeadRow = {
   updated_at?: string | null;
 };
 
-const DEFAULT_COMMISSION_RATE = 0.06;
 const UNANSWERED_STATUSES = new Set(["new", "contact_pending", "contacted"]);
 
 export function countUnansweredLeads(leads: Array<{ status: string | null }>): number {
   return leads.filter((lead) => UNANSWERED_STATUSES.has(lead.status ?? "")).length;
-}
-
-export function estimateCommissionBRL(
-  properties: Array<{ sale_price: number | null }>,
-  _leads: unknown[],
-  rate = DEFAULT_COMMISSION_RATE,
-): number {
-  const totalSale = properties.reduce((sum, property) => {
-    if (property.sale_price == null || property.sale_price <= 0) return sum;
-    return sum + property.sale_price;
-  }, 0);
-  if (totalSale <= 0) return 0;
-  return Math.round(totalSale * rate);
 }
 
 export function formatResponseTime(minutes: number | null): string {
@@ -122,6 +106,5 @@ export function buildDashboardMoneyMetrics(input: {
     averageFirstResponseMinutes,
     topPropertyTitle,
     topPropertyLeadCount,
-    estimatedCommissionBRL: estimateCommissionBRL(properties, leads),
   };
 }

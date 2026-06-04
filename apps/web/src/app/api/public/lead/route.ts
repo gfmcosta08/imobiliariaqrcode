@@ -6,6 +6,8 @@ import { assertQrTokenActive } from "@/lib/public/qr-token-active";
 import { clampString, parseJsonObjectWithLimit, rejectUnknownKeys } from "@/lib/security/json-body";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
+const ALLOWED_LEAD_INTENTS = new Set(["visit_interest", "similar_property_interest"]);
+
 /**
  * Registra interesse de visita a partir do QR público (sem WhatsApp API).
  * Valida o token via Edge `qr-resolve` e chama RPC `upsert_lead_from_qr_event` com service role.
@@ -36,6 +38,9 @@ export async function POST(request: Request) {
   const observation = clampString(parsed.value.observation, { maxLength: 500, trim: true });
   const intent =
     clampString(parsed.value.intent, { maxLength: 80, trim: true }) || "visit_interest";
+  if (!ALLOWED_LEAD_INTENTS.has(intent)) {
+    return NextResponse.json({ ok: false, error: "invalid_intent" }, { status: 400 });
+  }
 
   const phone = normalizeBrazilPhone(client_phone);
   if (!phone) {

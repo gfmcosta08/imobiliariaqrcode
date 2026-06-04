@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { countUnansweredLeads, estimateCommissionBRL, formatResponseTime } from "./metrics";
+import { buildDashboardMoneyMetrics, countUnansweredLeads, formatResponseTime } from "./metrics";
 
 describe("dashboard metrics helpers", () => {
-  it("commission estimate ignores missing prices", () => {
-    expect(estimateCommissionBRL([{ sale_price: null }, { sale_price: 0 }], [])).toBe(0);
-    expect(estimateCommissionBRL([{ sale_price: 1_000_000 }], [])).toBe(60_000);
+  it("does not expose commission estimates before commercial validation", () => {
+    const metrics = buildDashboardMoneyMetrics({
+      properties: [{ id: "p1", title: "Apto", listing_status: "published", sale_price: 1_000_000 }],
+      leads: [{ status: "new", property_id: "p1", created_at: "2026-06-04T12:00:00Z" }],
+      qrScans: 1,
+    });
+
+    expect(metrics).not.toHaveProperty("estimatedCommissionBRL");
   });
 
   it("unanswered leads count statuses new and contact_pending", () => {

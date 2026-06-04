@@ -62,7 +62,7 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 ### Phase 4–8 — Produto
 
-- Home reposicionada (QR → WhatsApp → lead).
+- Home reposicionada (QR -> pagina publica -> lead).
 - Marca `ImoveisQR` em header/login/QR publico.
 - Onboarding `/onboarding/primeiro-qr` + quick-create JSON.
 - Dashboard com metricas de oportunidade (`apps/web/src/lib/dashboard/metrics.ts`).
@@ -82,8 +82,9 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 ## QR Flow Evidence
 
-- Codigo: pagina `/q/[token]` com `wa.me` + `public_id`; lead publico `upsert_lead_from_qr_event`.
-- E2E automatizado em staging: pendente credenciais (`E2E_STAGING_WRITE=1`, `STAGING_BASE_URL`, admin/corretor).
+- Codigo: pagina `/q/[token]` com `public_id`; lead publico `upsert_lead_from_qr_event`.
+- Quando nao houver link de WhatsApp/bot, `/q/[token]` exibe formulario de interesse e grava via `/api/public/lead`.
+- E2E automatizado em staging: pendente credenciais (`E2E_STAGING_WRITE=1`, `STAGING_BASE_URL`, admin/corretor). A validacao obrigatoria de staging nao exige numero real de bot/WhatsApp.
 
 ## Screenshots / Playwright artifacts
 

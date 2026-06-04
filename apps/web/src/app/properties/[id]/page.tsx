@@ -206,15 +206,6 @@ export default async function PropertyDetailPage(props: PageProps) {
                 Abrir pagina do QR
               </a>
               <a
-                href={`/q/${encodeURIComponent(qr?.qr_token ?? "")}`}
-                target="_blank"
-                rel="noreferrer"
-                data-testid="property-qr-whatsapp-test"
-                className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
-              >
-                Testar WhatsApp
-              </a>
-              <a
                 href="#qr-print-area"
                 data-testid="property-qr-print"
                 className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"

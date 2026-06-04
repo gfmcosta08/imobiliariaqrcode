@@ -5,10 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 
 import { ManageSubscriptionButton } from "./manage-subscription-button";
 
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-}
-
 function hasActivePaidPlan(status: string | null | undefined): boolean {
   return status === "starter_active" || status === "pro_active";
 }
@@ -36,7 +32,7 @@ export default async function DashboardPage() {
   const { data: properties } = accountId
     ? await supabase
         .from("properties")
-        .select("id, title, listing_status, sale_price")
+        .select("id, title, listing_status")
         .eq("account_id", accountId)
     : { data: [] };
 
@@ -80,7 +76,7 @@ export default async function DashboardPage() {
           {profile?.full_name ? `Ola, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Acompanhe leads, QR e oportunidades de comissao em um so lugar.
+          Acompanhe leads, QR e oportunidades de atendimento em um so lugar.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -140,7 +136,7 @@ export default async function DashboardPage() {
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
             Oportunidades
           </h2>
-          <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
             <MetricCard
               value={String(metrics.leadsTotal)}
               label="Leads gerados"
@@ -155,10 +151,6 @@ export default async function DashboardPage() {
             <MetricCard
               value={metrics.topPropertyTitle ?? "—"}
               label={`Top imovel (${metrics.topPropertyLeadCount} leads)`}
-            />
-            <MetricCard
-              value={formatBRL(metrics.estimatedCommissionBRL)}
-              label="Comissao estimada"
             />
             <MetricCard
               value={formatResponseTime(metrics.averageFirstResponseMinutes)}

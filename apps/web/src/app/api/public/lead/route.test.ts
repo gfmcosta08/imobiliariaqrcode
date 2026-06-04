@@ -17,4 +17,9 @@ describe("public lead route security", () => {
     expect(routeSource).toContain("rejectUnknownKeys");
     expect(routeSource).toContain("clampString");
   });
+
+  it("allows only lead intents accepted by the database", () => {
+    expect(routeSource).toContain("ALLOWED_LEAD_INTENTS");
+    expect(routeSource).toContain("invalid_intent");
+  });
 });

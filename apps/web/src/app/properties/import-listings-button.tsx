@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { PastedListingDraft } from "@/lib/property-import/pasted-listing";
+
 const MAX_URL_FIELDS = 10;
 
 type ImportStartResponse = {
@@ -72,6 +74,12 @@ type ImportSiteResolve = {
   allowGenericFallback: boolean;
 };
 
+type PasteImportResponse = {
+  ok: boolean;
+  draft?: PastedListingDraft;
+  error?: string;
+};
+
 function badgeClassForTier(tier: ImportSiteResolve["tier"]): string {
   if (tier === "verified") return "border-green-200 bg-green-50 text-green-800";
   if (tier === "unknown") return "border-gray-200 bg-gray-50 text-gray-600";
@@ -97,6 +105,9 @@ export function ImportListingsButton({ enabled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
   const [urlResolves, setUrlResolves] = useState<Array<ImportSiteResolve | null>>([null]);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteLoading, setPasteLoading] = useState(false);
+  const [pasteDraft, setPasteDraft] = useState<PastedListingDraft | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resolveTimersRef = useRef<Array<ReturnType<typeof setTimeout> | null>>([]);
 
@@ -164,6 +175,9 @@ export function ImportListingsButton({ enabled }: Props) {
     setError(null);
     setUrls(emptyUrlFields());
     setUrlResolves([null]);
+    setPasteText("");
+    setPasteLoading(false);
+    setPasteDraft(null);
   }
 
   function addUrlField() {
@@ -242,6 +256,37 @@ export function ImportListingsButton({ enabled }: Props) {
     } catch {
       setError("Erro de conexão.");
       setLoading(false);
+    }
+  }
+
+  async function handlePasteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = pasteText.trim();
+    if (!text) return;
+    setPasteLoading(true);
+    setError(null);
+    setPasteDraft(null);
+
+    try {
+      const res = await fetch("/api/properties/import/paste", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json()) as PasteImportResponse;
+      if (!res.ok || !data.ok || !data.draft) {
+        setError(
+          data.error === "missing_text"
+            ? "Cole o texto do anuncio antes de gerar o rascunho."
+            : (data.error ?? "Nao foi possivel ler o texto colado."),
+        );
+        return;
+      }
+      setPasteDraft(data.draft);
+    } catch {
+      setError("Erro de conexao.");
+    } finally {
+      setPasteLoading(false);
     }
   }
 
@@ -353,6 +398,107 @@ export function ImportListingsButton({ enabled }: Props) {
                   Fechar
                 </button>
               </div>
+            </form>
+
+            <form
+              onSubmit={handlePasteSubmit}
+              className="mt-5 border-t border-gray-200 pt-5"
+              data-testid="import-paste-form"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Colar texto do anuncio</h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Use quando o portal bloquear a URL ou quando o corretor so conseguir enviar o
+                    texto copiado do anuncio.
+                  </p>
+                </div>
+              </div>
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                rows={5}
+                maxLength={20_000}
+                className="mt-3 w-full border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Cole titulo, descricao, bairro, cidade, valor, quartos, banheiros e vagas."
+                disabled={pasteLoading}
+                data-testid="import-paste-text"
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={pasteLoading || !pasteText.trim()}
+                  className="bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+                  data-testid="import-paste-submit"
+                >
+                  {pasteLoading ? "Lendo..." : "Gerar rascunho"}
+                </button>
+                <a
+                  href="/onboarding/primeiro-qr"
+                  className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
+                >
+                  Usar cadastro rapido
+                </a>
+              </div>
+              {pasteDraft ? (
+                <div
+                  className="mt-4 border border-gray-200 p-3 text-sm"
+                  data-testid="import-paste-draft"
+                >
+                  <p className="font-medium text-gray-900">
+                    {pasteDraft.title ?? "Titulo nao identificado"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {[pasteDraft.neighborhood, pasteDraft.city].filter(Boolean).join(" / ") ||
+                      "Localizacao nao identificada"}
+                  </p>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <div>
+                      <dt className="text-gray-400">Venda</dt>
+                      <dd>
+                        {pasteDraft.sale_price
+                          ? pasteDraft.sale_price.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })
+                          : "Nao informado"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400">Aluguel</dt>
+                      <dd>
+                        {pasteDraft.rent_price
+                          ? pasteDraft.rent_price.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })
+                          : "Nao informado"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400">Quartos</dt>
+                      <dd>{pasteDraft.bedrooms ?? "Nao informado"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400">Banheiros</dt>
+                      <dd>{pasteDraft.bathrooms ?? "Nao informado"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400">Vagas</dt>
+                      <dd>{pasteDraft.parking_spaces ?? "Nao informado"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400">Area</dt>
+                      <dd>{pasteDraft.area ? `${pasteDraft.area} m2` : "Nao informado"}</dd>
+                    </div>
+                  </dl>
+                  {pasteDraft.description ? (
+                    <p className="mt-3 line-clamp-3 text-xs text-gray-500">
+                      {pasteDraft.description}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </form>
 
             {error ? (
