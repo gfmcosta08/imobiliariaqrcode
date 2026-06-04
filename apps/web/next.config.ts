@@ -7,6 +7,20 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "api.qrserver.com", pathname: "/v1/create-qr-code/**" },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/imovel/:public_id",
+        destination: "/imoveis/:public_id",
+        permanent: true,
+      },
+      {
+        source: "/anuncio/:public_id",
+        destination: "/imoveis/:public_id",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

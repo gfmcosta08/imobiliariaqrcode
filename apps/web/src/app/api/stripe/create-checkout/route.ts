@@ -29,7 +29,8 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 
-  const priceId = process.env.STRIPE_STARTER_PRICE_ID?.trim();
+  const priceId =
+    process.env.STRIPE_STARTER_PRICE_ID?.trim() || process.env.STRIPE_PRICE_STARTER?.trim();
   if (!priceId) {
     return NextResponse.json({ ok: false, error: "stripe_price_missing" }, { status: 500 });
   }

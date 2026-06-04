@@ -119,6 +119,17 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 - Screenshots locais gerados em `output/playwright/home.png`, `output/playwright/teste-gratis.png`, `output/playwright/como-funciona.png`, `output/playwright/login-signup.png`.
 - Verificacao local: `pnpm test` PASS (web 117 + importer 47), `pnpm --filter web run typecheck` PASS, `pnpm --filter web run lint` PASS, `pnpm --filter web run build` PASS, Prettier dos arquivos tocados PASS.
 
+## Rodada QA navegador 2026-06-04
+
+- Deploy staging oficial: `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-1ign7dh2m.vercel.app` (`dpl_GPCzPNNkkza6EqjX7a8ZWbzba1gZ`, target preview, Ready).
+- Rotas legadas corrigidas: `/imovel/:public_id` e `/anuncio/:public_id` agora respondem HTTP `308` para `/imoveis/:public_id`; a rota canonica `/imoveis/:public_id` responde HTTP `200`.
+- Checkout Starter endurecido: `/api/stripe/create-checkout` continua retornando `401 unauthenticated` sem sessao e agora aceita `STRIPE_PRICE_STARTER` como alias temporario de `STRIPE_STARTER_PRICE_ID`.
+- Bloqueio Stripe restante e externo: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `STRIPE_PRICE_STARTER` ainda aparecem no Vercel apenas como Preview escopado para a branch `codex/homologacao-segura`; para validar checkout real no staging fixo, configurar esses envs no Preview geral ou na branch atual de staging.
+- Metricas de ativacao admin corrigidas para fallback operacional: quando `activation_events` estiver vazio/indisponivel, o painel mostra contadores agregados de `profiles`, `properties`, `property_qrcodes`, `leads` e `subscriptions`, sinalizando fonte `metricas_operacionais`.
+- Evidencia agregada staging: `activation_events=0`, `broker_profiles=222`, `properties=1060`, `active_qrcodes=1409`, `leads=24`, `paid_subscriptions=28`.
+- Verificacao local atualizada: `pnpm --filter web run typecheck` PASS, `pnpm --filter web run lint` PASS, `pnpm --filter web run test` PASS (123), `pnpm --filter web run build` PASS.
+- Smoke staging Playwright no alias fixo oficial: `staging-security-smoke.spec.ts` + `homepage-mobile.spec.ts` PASS (6/6).
+
 ## Supabase staging
 
 - Project ID: `imobiliariaqrcode-staging` (sem expor secrets neste relatorio).

@@ -29,4 +29,9 @@ describe("create-checkout route", () => {
     expect(guardIndex).toBeGreaterThan(authIndex);
     expect(priceIndex).toBeGreaterThan(authIndex);
   });
+
+  it("accepts the legacy staging Starter price env name while staging is being realigned", () => {
+    expect(source).toContain("STRIPE_STARTER_PRICE_ID");
+    expect(source).toContain("STRIPE_PRICE_STARTER");
+  });
 });
