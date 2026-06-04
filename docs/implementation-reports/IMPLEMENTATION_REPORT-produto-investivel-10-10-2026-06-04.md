@@ -16,7 +16,8 @@ Final commit: 0f331b906f6e57addb34e2ec5dd3afbaa9431b7e
 | pnpm --filter web run lint | PASS | |
 | pnpm --filter web run build | PASS | Next.js 15.2.8 |
 | pnpm format:check | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
-| vercel alias set farollimoveis-8c9ajvb7a.vercel.app farollimoveis-staging.vercel.app | PASS | Alias fixo oficial de staging atualizado |
+| vercel deploy --yes | PASS | Deployment preview `farollimoveis-k624vyycd.vercel.app` READY |
+| vercel alias set farollimoveis-k624vyycd.vercel.app farollimoveis-staging.vercel.app | PASS | Alias fixo oficial de staging atualizado |
 | Invoke-WebRequest https://farollimoveis-staging.vercel.app | PASS | HTTP 200; home contem promessa central |
 | pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS | 6/6 contra URL fixa oficial |
 | pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts | SKIPPED | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1` |
@@ -34,7 +35,7 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 - Branch local: `codex/produto-investivel-10-10-staging`
 - Alvo oficial de teste: `https://farollimoveis-staging.vercel.app`
-- Deployment preview apontado pelo alias fixo: `https://farollimoveis-8c9ajvb7a.vercel.app`
+- Deployment preview apontado pelo alias fixo: `https://farollimoveis-k624vyycd.vercel.app`
 - Supabase staging: projeto `imobiliariaqrcode-staging`
 - Sem `vercel --prod`, sem `supabase db push` em producao
 
