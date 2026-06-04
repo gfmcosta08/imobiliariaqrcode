@@ -6,10 +6,31 @@ import { corsHeaders } from "../_shared/cors.ts";
  * Esta função pode ser chamada manualmente via API ou por outras funções.
  * O trigger de banco em public.leads já enfileira a notificação básica de WhatsApp.
  */
+function validateCronBearer(req: Request): Response | null {
+  const secret = Deno.env.get("CRON_SECRET")?.trim();
+  if (!secret) {
+    return new Response(JSON.stringify({ ok: false, error: "cron_secret_missing" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const auth = req.headers.get("Authorization");
+  if (auth !== `Bearer ${secret}`) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const authError = validateCronBearer(req);
+  if (authError) return authError;
 
   try {
     const { lead_id } = await req.json();

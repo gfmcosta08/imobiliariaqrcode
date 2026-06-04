@@ -29,10 +29,7 @@ export type ImportJobItemResult = {
 function isBlockedListingTitle(title: string | null | undefined): boolean {
   const t = (title ?? "").trim().toLowerCase();
   if (!t) return true;
-  return (
-    /^olx - o maior site/.test(t) ||
-    /^vivanci imobili[aá]ria - im[oó]veis em/.test(t)
-  );
+  return /^olx - o maior site/.test(t) || /^vivanci imobili[aá]ria - im[oó]veis em/.test(t);
 }
 
 const SOURCE_URLS_SEPARATOR = "\n";
@@ -63,7 +60,10 @@ function summarizeImportFailure(results: ImportJobItemResult[]): string {
   return "Nenhum imóvel importado com sucesso.";
 }
 
-function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: { expanded?: boolean } | null }): boolean {
+function looksLikeIncompleteDescription(listing: {
+  full_description?: string | null;
+  debug?: { expanded?: boolean } | null;
+}): boolean {
   const text = (listing.full_description ?? "").trim();
   if (!text) return false;
 
@@ -211,9 +211,7 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
       }
 
       const parserMeta =
-        siteDef != null
-          ? { parser_id: siteDef.id, parser_tier: siteDef.tier }
-          : {};
+        siteDef != null ? { parser_id: siteDef.id, parser_tier: siteDef.tier } : {};
 
       let listing: Awaited<ReturnType<typeof extractListingWithSiteParser>> | null =
         await extractListingWithSiteParser(url, extratorBase);
@@ -239,7 +237,12 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
           extractOptions: { downloadImages: false, maxImages: 10 },
         });
         if (!item) {
-          results.push({ source_url: sourceUrl, status: "error", error: "extract_failed", ...parserMeta });
+          results.push({
+            source_url: sourceUrl,
+            status: "error",
+            error: "extract_failed",
+            ...parserMeta,
+          });
           processed += 1;
           await admin
             .from("property_import_jobs")

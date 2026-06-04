@@ -1,3 +1,4 @@
+import { recordActivationEvent } from "@/lib/analytics/activation-events";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -42,7 +43,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    const alreadyExists = error.message.toLowerCase().includes("already") || error.message.toLowerCase().includes("exists");
+    const alreadyExists =
+      error.message.toLowerCase().includes("already") ||
+      error.message.toLowerCase().includes("exists");
     return NextResponse.json(
       { error: alreadyExists ? "Este e-mail ja esta cadastrado." : error.message },
       { status: alreadyExists ? 409 : 400 },
@@ -130,6 +133,12 @@ export async function POST(req: NextRequest) {
     },
     { onConflict: "account_id" },
   );
+
+  await recordActivationEvent(supabase, {
+    account_id: accountId,
+    profile_id: userId,
+    event_name: "account_created",
+  });
 
   return NextResponse.json({ ok: true });
 }

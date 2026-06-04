@@ -48,7 +48,7 @@ export function PublicQrActive({ body }: Props) {
     <div className="min-h-screen bg-white">
       {/* Nav */}
       <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-900">IMOBQR</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-gray-900">ImoveisQR</span>
       </header>
 
       <div className="mx-auto max-w-lg px-6 py-10">

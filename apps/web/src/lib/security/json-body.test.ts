@@ -13,4 +13,3 @@ describe("json-body helpers", () => {
     expect(bad).toBe("b");
   });
 });
-

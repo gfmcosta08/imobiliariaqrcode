@@ -54,8 +54,8 @@ describe("WhatsApp guardrails contracts", () => {
     expect(src).toContain("function classifyConversationIntent");
     expect(src).toContain('"post_similar_property_id"');
     expect(src).toContain('"visit_property_id"');
-    expect(src).toContain("conversationIntent === \"visit_property_id\"");
-    expect(src).toContain("conversationIntent === \"post_similar_property_id\"");
+    expect(src).toContain('conversationIntent === "visit_property_id"');
+    expect(src).toContain('conversationIntent === "post_similar_property_id"');
 
     const qrBranchIndex = src.indexOf("if (qrToken) {");
     const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
@@ -97,7 +97,7 @@ describe("WhatsApp guardrails contracts", () => {
     expect(resolverBlock?.[0]).toBeTruthy();
     expect(resolverBlock?.[0]).toContain("shownIds: string[] = []");
     expect(resolverBlock?.[0]).toContain("[...recommendedIds, ...shownIds]");
-    expect(resolverBlock?.[0]).toContain(".in(\"id\", candidateIds)");
+    expect(resolverBlock?.[0]).toContain('.in("id", candidateIds)');
     expect(resolverBlock?.[0]).toContain("trimmed === internalId");
     expect(resolverBlock?.[0]).toContain("normalizePropertyCode(p.public_id)");
     expect(selectionHandlerBlock?.[0]).toContain("session.similar_shown_property_ids");
@@ -170,7 +170,9 @@ describe("WhatsApp guardrails contracts", () => {
 
     expect(originContactBlock?.[0]).toBeTruthy();
     expect(originContactBlock?.[0]).toContain("loadOriginPropertyForSession");
-    expect(originContactBlock?.[0]).toContain("const originBrokerId = fmt(originProperty?.broker_id)");
+    expect(originContactBlock?.[0]).toContain(
+      "const originBrokerId = fmt(originProperty?.broker_id)",
+    );
     expect(originContactBlock?.[0]).toContain("loadBrokerContact(supabase, originBrokerId)");
     expect(originContactBlock?.[0]).toContain("fallbackBrokerId");
     expect(mainChoiceBlock?.[0]).toContain("loadLeadOriginBrokerContact(");

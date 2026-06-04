@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { isAllowedImportImageUrl, isPropertyImportImageUrl } from "@imobiliariaqrcode/property-importer";
+import {
+  isAllowedImportImageUrl,
+  isPropertyImportImageUrl,
+} from "@imobiliariaqrcode/property-importer";
 
 const BUCKET = "property-media";
 const MAX_FILE_SIZE = 15 * 1024 * 1024;

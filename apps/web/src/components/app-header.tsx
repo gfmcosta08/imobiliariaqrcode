@@ -22,7 +22,9 @@ export function AppHeader({ active, isAdmin }: { active?: string; isAdmin?: bool
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-8 py-4">
         <Link href="/dashboard" className="shrink-0">
-          <span className="text-sm font-bold uppercase tracking-widest text-gray-900">IMOBQR</span>
+          <span className="text-sm font-bold uppercase tracking-widest text-gray-900">
+            ImoveisQR
+          </span>
         </Link>
 
         <nav className="order-3 flex w-full flex-wrap items-center gap-x-6 gap-y-2 md:order-2 md:w-auto md:gap-8">

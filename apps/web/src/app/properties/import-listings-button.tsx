@@ -42,10 +42,10 @@ function humanizeImportError(message: string): string {
     return `O site bloqueou a leitura automática (HTTP ${status}). Cole a URL direta de um anúncio individual (/imovel/...) ou tente outro portal.`;
   }
   if (message === "no_properties_found") {
-    return "Nenhum imóvel encontrado nessa URL. Sites em React (ex.: Vivanci) costumam funcionar melhor com a página /imoveis ou o link direto de um anúncio (/imovel/...).";
+    return "Nao encontramos anuncios nessa pagina. Tente o link direto do imovel ou use o cadastro rapido.";
   }
   if (message === "site_blocked_cloudflare" || message.includes("site_blocked_cloudflare")) {
-    return "A OLX bloqueou a importação automática neste servidor. Cole manualmente os dados ou use outro portal.";
+    return "Esse site nao liberou a leitura automatica. Voce pode colar o texto do anuncio ou cadastrar rapido.";
   }
   if (message === "all_listings_empty_or_unavailable") {
     return "Encontramos links na página, mas nenhum anúncio pôde ser lido. Tente a URL direta de um imóvel (/imovel/...) ou outro portal.";
@@ -54,7 +54,7 @@ function humanizeImportError(message: string): string {
     return "Serviço de extração indisponível no momento (502/503). Tente novamente em alguns minutos.";
   }
   if (message === "job_stale_or_interrupted" || message === "import_job_interrupted") {
-    return "A importação foi interrompida (tempo limite do servidor). Tente com menos URLs por vez (1–3 anúncios).";
+    return "A importacao demorou demais. Tente uma URL por vez ou cadastre rapido.";
   }
   if (message === "parser_verified_failed") {
     return "Falha no parser homologado deste site. Não usamos extrator genérico para evitar dados incompatíveis — tente novamente ou outro anúncio.";
@@ -224,12 +224,12 @@ export function ImportListingsButton({ enabled }: Props) {
           data.error === "feature_disabled"
             ? "Importação disponível apenas no ambiente de homologação."
             : data.error === "extrator_not_configured"
-              ? data.detail ?? "Serviço de extração não configurado no staging."
+              ? (data.detail ?? "Serviço de extração não configurado no staging.")
               : data.error === "host_not_allowed"
                 ? "URL inválida ou não permitida para importação."
                 : data.error === "too_many_urls"
                   ? `Máximo de ${MAX_URL_FIELDS} URLs por importação.`
-                  : data.error ?? "Não foi possível iniciar a importação.";
+                  : (data.error ?? "Não foi possível iniciar a importação.");
         setError(msg);
         setLoading(false);
         return;
@@ -270,9 +270,9 @@ export function ImportListingsButton({ enabled }: Props) {
               Importar anúncios (homologação)
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Cole uma ou mais URLs de imóveis, listagens ou páginas iniciais de sites
-              imobiliários (HTTPS). Máximo {MAX_URL_FIELDS} URLs e {MAX_URL_FIELDS} imóveis; todos
-              entram como rascunho sem mapa até você informar a geolocalização.
+              Cole uma ou mais URLs de imóveis, listagens ou páginas iniciais de sites imobiliários
+              (HTTPS). Máximo {MAX_URL_FIELDS} URLs e {MAX_URL_FIELDS} imóveis; todos entram como
+              rascunho sem mapa até você informar a geolocalização.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">
@@ -294,42 +294,44 @@ export function ImportListingsButton({ enabled }: Props) {
                 {urls.map((url, index) => {
                   const resolve = urlResolves[index];
                   return (
-                  <div key={index} className="space-y-1">
-                    <div className="flex gap-2">
-                    <input
-                      id={index === 0 ? "import-url" : undefined}
-                      type="url"
-                      required={index === 0}
-                      placeholder="https://www.exemplo.com.br/imovel/..."
-                      value={url}
-                      onChange={(e) => updateUrlField(index, e.target.value)}
-                      className="min-w-0 flex-1 border border-gray-300 px-3 py-2 text-sm"
-                      disabled={loading}
-                      data-testid={index === 0 ? "import-listings-url" : `import-listings-url-${index}`}
-                    />
-                    {urls.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => removeUrlField(index)}
-                        disabled={loading}
-                        className="border border-gray-300 px-2 py-2 text-sm disabled:opacity-50"
-                        aria-label={`Remover URL ${index + 1}`}
-                        data-testid={`import-listings-remove-url-${index}`}
-                      >
-                        −
-                      </button>
-                    ) : null}
+                    <div key={index} className="space-y-1">
+                      <div className="flex gap-2">
+                        <input
+                          id={index === 0 ? "import-url" : undefined}
+                          type="url"
+                          required={index === 0}
+                          placeholder="https://www.exemplo.com.br/imovel/..."
+                          value={url}
+                          onChange={(e) => updateUrlField(index, e.target.value)}
+                          className="min-w-0 flex-1 border border-gray-300 px-3 py-2 text-sm"
+                          disabled={loading}
+                          data-testid={
+                            index === 0 ? "import-listings-url" : `import-listings-url-${index}`
+                          }
+                        />
+                        {urls.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => removeUrlField(index)}
+                            disabled={loading}
+                            className="border border-gray-300 px-2 py-2 text-sm disabled:opacity-50"
+                            aria-label={`Remover URL ${index + 1}`}
+                            data-testid={`import-listings-remove-url-${index}`}
+                          >
+                            −
+                          </button>
+                        ) : null}
+                      </div>
+                      {resolve?.message ? (
+                        <p
+                          className={`flex flex-wrap items-center gap-2 border px-2 py-1 text-xs ${badgeClassForTier(resolve.tier)}`}
+                          data-testid={`import-listings-resolve-${index}`}
+                        >
+                          <span className="font-medium">{badgeLabelForTier(resolve.tier)}</span>
+                          <span>{resolve.message}</span>
+                        </p>
+                      ) : null}
                     </div>
-                    {resolve?.message ? (
-                      <p
-                        className={`flex flex-wrap items-center gap-2 border px-2 py-1 text-xs ${badgeClassForTier(resolve.tier)}`}
-                        data-testid={`import-listings-resolve-${index}`}
-                      >
-                        <span className="font-medium">{badgeLabelForTier(resolve.tier)}</span>
-                        <span>{resolve.message}</span>
-                      </p>
-                    ) : null}
-                  </div>
                   );
                 })}
               </div>
@@ -360,9 +362,13 @@ export function ImportListingsButton({ enabled }: Props) {
             ) : null}
 
             {job ? (
-              <div className="mt-4 border border-gray-200 p-3 text-sm" data-testid="import-job-status">
+              <div
+                className="mt-4 border border-gray-200 p-3 text-sm"
+                data-testid="import-job-status"
+              >
                 <p>
-                  Status: <strong>{job.status}</strong> ({job.processed_count}/{job.total_count || "?"})
+                  Status: <strong>{job.status}</strong> ({job.processed_count}/
+                  {job.total_count || "?"})
                 </p>
                 {job.error_message ? (
                   <p className="mt-1 text-red-600">{humanizeImportError(job.error_message)}</p>

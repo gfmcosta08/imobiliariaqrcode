@@ -55,9 +55,12 @@ Deno.serve(async (req) => {
 
     if (error) {
       if (error.code === "23505") {
-        return new Response(JSON.stringify({ ok: true, duplicate: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ ok: true, duplicate: true, not_authoritative_for_saas_billing: true }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       return new Response(JSON.stringify({ ok: false, detail: error.message }), {
         status: 500,
@@ -65,9 +68,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, stored: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, stored: true, not_authoritative_for_saas_billing: true }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return new Response(JSON.stringify({ ok: false, detail: message }), {

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("homepage mobile mantém busca, filtros e cards utilizaveis", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Encontre seu lugar")).toBeVisible();
+  await expect(page.getByText(/Cole esse QR no imovel/i)).toBeVisible();
   await expect(page.getByTestId("home-hero-search")).toBeVisible();
   await page.getByTestId("home-hero-search").fill("Salvador");
   await page.getByTestId("home-hero-search-submit").click();

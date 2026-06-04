@@ -22,7 +22,11 @@ export async function PATCH(
     const value = body[field];
     if (value !== undefined && value !== null && (!Number.isInteger(value) || value < 1)) {
       return NextResponse.json(
-        { ok: false, error: "invalid_plan_config", detail: `${field} deve ser nulo ou inteiro maior ou igual a 1.` },
+        {
+          ok: false,
+          error: "invalid_plan_config",
+          detail: `${field} deve ser nulo ou inteiro maior ou igual a 1.`,
+        },
         { status: 400 },
       );
     }

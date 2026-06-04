@@ -37,7 +37,9 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
 
       if (!res.ok || !data.ok) {
         setError(
-          data.detail ? `${data.error}: ${data.detail}` : (data.error ?? "Falha ao excluir convite."),
+          data.detail
+            ? `${data.error}: ${data.detail}`
+            : (data.error ?? "Falha ao excluir convite."),
         );
         return;
       }
@@ -72,7 +74,9 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
 
   return (
     <div className="mt-12 border border-gray-200 p-6">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Convites gerados</h3>
+      <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+        Convites gerados
+      </h3>
 
       {error ? <p className="mt-4 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p> : null}
 
@@ -100,10 +104,14 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
                   {inv.property_count} imovel(is) · {inv.expiration_days_configured} dias
                 </span>
                 {inv.claimed_at ? (
-                  <span className="ml-3 text-xs text-gray-400">Ativado: {formatDate(inv.claimed_at)}</span>
+                  <span className="ml-3 text-xs text-gray-400">
+                    Ativado: {formatDate(inv.claimed_at)}
+                  </span>
                 ) : null}
                 {inv.completed_at ? (
-                  <span className="ml-3 text-xs text-gray-400">Concluido: {formatDate(inv.completed_at)}</span>
+                  <span className="ml-3 text-xs text-gray-400">
+                    Concluido: {formatDate(inv.completed_at)}
+                  </span>
                 ) : null}
               </div>
 

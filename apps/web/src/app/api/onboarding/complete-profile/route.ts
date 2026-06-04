@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
 
   const { fullName, email, whatsapp, password } = await req.json();
   const normalizedName = String(fullName ?? "").trim();
-  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const normalizedEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const normalizedWhatsapp = String(whatsapp ?? "").replace(/\D/g, "");
   const safeWhatsapp = normalizedWhatsapp || `pending-${user.id.replace(/-/g, "")}`.slice(0, 40);
 
@@ -48,7 +50,10 @@ export async function POST(req: NextRequest) {
     .neq("id", user.id)
     .maybeSingle();
   if (duplicatedEmail) {
-    return NextResponse.json({ error: "Este e-mail ja esta cadastrado em outra conta." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Este e-mail ja esta cadastrado em outra conta." },
+      { status: 400 },
+    );
   }
 
   if (normalizedWhatsapp) {
@@ -60,7 +65,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (duplicatedWhatsapp) {
       return NextResponse.json(
-        { error: "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco." },
+        {
+          error:
+            "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco.",
+        },
         { status: 400 },
       );
     }
@@ -94,7 +102,10 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id);
 
   if (profileError) {
-    return NextResponse.json({ error: friendlyDatabaseError(profileError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(profileError.message) },
+      { status: 400 },
+    );
   }
 
   const { error: brokerError } = await admin
@@ -106,7 +117,10 @@ export async function POST(req: NextRequest) {
     .eq("profile_id", user.id);
 
   if (brokerError) {
-    return NextResponse.json({ error: friendlyDatabaseError(brokerError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(brokerError.message) },
+      { status: 400 },
+    );
   }
 
   const { error: invitationError } = await admin

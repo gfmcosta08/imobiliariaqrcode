@@ -36,9 +36,7 @@ function parseUrlList(raw: unknown): string[] | null {
   return single ? [single] : null;
 }
 
-function inferCombinedImportMode(
-  validatedUrls: URL[],
-): "single" | "listing" | "homepage" {
+function inferCombinedImportMode(validatedUrls: URL[]): "single" | "listing" | "homepage" {
   const modes = validatedUrls.map((url) => inferImportMode(url));
   if (modes.includes("homepage")) return "homepage";
   if (modes.includes("listing")) return "listing";

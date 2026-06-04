@@ -157,7 +157,8 @@ function parseNaturalDecimal(raw: string): number | null {
   const hasComma = cleaned.includes(",");
   const dotMatches = cleaned.match(/\./g) ?? [];
   const lastDotGroup = cleaned.split(".").at(-1) ?? "";
-  const decimalDot = !hasComma && dotMatches.length === 1 && lastDotGroup.length > 0 && lastDotGroup.length <= 2;
+  const decimalDot =
+    !hasComma && dotMatches.length === 1 && lastDotGroup.length > 0 && lastDotGroup.length <= 2;
   const normalized = hasComma
     ? cleaned.replace(/\./g, "").replace(",", ".")
     : decimalDot
@@ -214,7 +215,9 @@ function FieldLabel(props: {
         {props.required ? <span className="ml-1 text-red-600">*</span> : null}
       </span>
       {props.children}
-      {props.hint ? <span className="text-xs text-zinc-500 dark:text-zinc-400">{props.hint}</span> : null}
+      {props.hint ? (
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">{props.hint}</span>
+      ) : null}
     </label>
   );
 }

@@ -20,7 +20,10 @@ export default function NewPropertyPage() {
             </p>
             <h1 className="mt-2 text-3xl font-bold text-gray-900">Novo imóvel</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Limites FREE/PRO são aplicados automaticamente.
+              Limites FREE/PRO são aplicados automaticamente.{" "}
+              <Link href="/onboarding/primeiro-qr" className="font-medium text-black underline">
+                Cadastro rapido do primeiro QR
+              </Link>
             </p>
           </div>
           <div className="shrink-0">

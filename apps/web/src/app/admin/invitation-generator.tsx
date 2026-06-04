@@ -135,18 +135,14 @@ export function InvitationGenerator() {
                     <span className="block text-xs text-gray-500">Login</span>
                     <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
                       <span className="sr-only">Login gerado: </span>
-                      <span data-testid="admin-invite-login-code">
-                      {result.login_code}
-                      </span>
+                      <span data-testid="admin-invite-login-code">{result.login_code}</span>
                     </span>
                   </div>
                   <div>
                     <span className="block text-xs text-gray-500">Senha</span>
                     <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
                       <span className="sr-only">Senha gerada: </span>
-                      <span data-testid="admin-invite-access-code">
-                      {result.access_code}
-                      </span>
+                      <span data-testid="admin-invite-access-code">{result.access_code}</span>
                     </span>
                   </div>
                 </div>

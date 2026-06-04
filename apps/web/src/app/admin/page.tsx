@@ -6,6 +6,7 @@ import { PendingInvitationsList } from "./pending-invitations-list";
 import { PlansEditor } from "./plans-editor";
 import { SubscriptionsManager } from "./subscriptions-manager";
 import { PropertiesManager } from "./properties-manager";
+import { ActivationSummary } from "./activation-summary";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -37,14 +38,22 @@ export default async function AdminPage() {
       <main className="mx-auto max-w-6xl px-8 py-12 space-y-16">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Painel Admin</h1>
-          <p className="mt-1 text-sm text-gray-500">Gerencie planos, assinaturas, anuncios e convites.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Gerencie planos, assinaturas, anuncios e convites.
+          </p>
         </div>
+
+        <section>
+          <h2 className="text-lg font-bold text-gray-900">Ativacao (staging)</h2>
+          <p className="mt-1 text-sm text-gray-500">Resumo de eventos de funil para homologacao.</p>
+          <ActivationSummary />
+        </section>
 
         <section data-testid="admin-section-plans">
           <h2 className="text-lg font-bold text-gray-900">Planos</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Edite em uma unica tela o conteudo publico e as variaveis tecnicas de cada plano.
-            O preco exibido nao altera o valor cobrado pelo Stripe.
+            Edite em uma unica tela o conteudo publico e as variaveis tecnicas de cada plano. O
+            preco exibido nao altera o valor cobrado pelo Stripe.
           </p>
           <div className="mt-6">
             <PlansEditor />
@@ -64,8 +73,8 @@ export default async function AdminPage() {
         <section data-testid="admin-section-properties">
           <h2 className="text-lg font-bold text-gray-900">Anuncios</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Busque um anuncio por codigo (IMV-...) ou titulo e edite validade e status.
-            Reativar um anuncio reativa o QR Code automaticamente.
+            Busque um anuncio por codigo (IMV-...) ou titulo e edite validade e status. Reativar um
+            anuncio reativa o QR Code automaticamente.
           </p>
           <div className="mt-6">
             <PropertiesManager />

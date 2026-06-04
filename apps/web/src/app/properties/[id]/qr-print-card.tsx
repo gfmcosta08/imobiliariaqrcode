@@ -158,7 +158,10 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
 
       <div className="mt-5 grid gap-6 xl:grid-cols-2">
         {PLATE_TEMPLATES.map((template) => (
-          <div key={template.id} className="qr-print-card-shell border border-gray-200 bg-white p-4 shadow-sm">
+          <div
+            key={template.id}
+            className="qr-print-card-shell border border-gray-200 bg-white p-4 shadow-sm"
+          >
             <div className="qr-screen-only mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-gray-950">{template.label}</h3>
@@ -227,7 +230,10 @@ export function QrPrintCard({ publicId, internalCode, publicQrUrl, qrReads }: Qr
                 <p className="mt-1" data-testid={testId("qr-print-internal-code", template)}>
                   <span className="font-semibold">Codigo interno:</span> {printableInternalCode}
                 </p>
-                <p className="mt-3 break-all text-xs text-gray-500" data-testid={testId("qr-print-public-url", template)}>
+                <p
+                  className="mt-3 break-all text-xs text-gray-500"
+                  data-testid={testId("qr-print-public-url", template)}
+                >
                   {publicQrUrl}
                 </p>
               </div>

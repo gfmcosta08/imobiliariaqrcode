@@ -75,9 +75,7 @@ export function PlansDisplayEditor() {
         setError(data.error ?? "Erro ao salvar");
         return;
       }
-      setPlans((prev) =>
-        prev.map((p) => (p.plan_code === form.plan_code ? { ...form } : p)),
-      );
+      setPlans((prev) => prev.map((p) => (p.plan_code === form.plan_code ? { ...form } : p)));
       setSaved(form.plan_code);
       setEditingCode(null);
       setForm(null);
@@ -158,9 +156,7 @@ export function PlansDisplayEditor() {
               </div>
 
               <label className="block">
-                <span className="text-xs text-gray-500">
-                  Benefícios (um por linha)
-                </span>
+                <span className="text-xs text-gray-500">Benefícios (um por linha)</span>
                 <textarea
                   className="mt-1 w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
                   rows={5}
@@ -168,15 +164,16 @@ export function PlansDisplayEditor() {
                   onChange={(e) =>
                     setField(
                       "features",
-                      e.target.value.split("\n").map((l) => l.trim()).filter(Boolean),
+                      e.target.value
+                        .split("\n")
+                        .map((l) => l.trim())
+                        .filter(Boolean),
                     )
                   }
                 />
               </label>
 
-              {error && (
-                <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{error}</p>}
 
               <div className="flex gap-3">
                 <button

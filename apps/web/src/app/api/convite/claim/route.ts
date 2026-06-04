@@ -52,7 +52,10 @@ export async function POST(request: Request) {
     const now = new Date();
     const expiresAt = invitation.expires_at ? new Date(String(invitation.expires_at)) : null;
     if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt < now) {
-      await supabase.from("broker_invitations").update({ status: "expired" }).eq("id", invitation.id);
+      await supabase
+        .from("broker_invitations")
+        .update({ status: "expired" })
+        .eq("id", invitation.id);
       return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 401 });
     }
 

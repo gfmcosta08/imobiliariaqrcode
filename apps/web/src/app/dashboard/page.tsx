@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { buildDashboardMoneyMetrics, formatResponseTime } from "@/lib/dashboard/metrics";
 import { createClient } from "@/lib/supabase/server";
 
-type MyMetrics = {
-  total_properties: number;
-  total_sold: number;
-  total_clients: number;
-  total_commission: number;
-};
+import { ManageSubscriptionButton } from "./manage-subscription-button";
 
 function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function hasActivePaidPlan(status: string | null | undefined): boolean {
+  return status === "starter_active" || status === "pro_active";
 }
 
 export default async function DashboardPage() {
@@ -21,7 +21,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, whatsapp_number, role")
+    .select("full_name, whatsapp_number, role, account_id")
     .eq("id", user?.id ?? "")
     .maybeSingle();
 
@@ -30,50 +30,79 @@ export default async function DashboardPage() {
     .select("plan_code, status")
     .maybeSingle();
 
-  const isPro = subscription?.plan_code === "pro" && subscription?.status === "pro_active";
+  const accountId = profile?.account_id as string | undefined;
+  const paidPlan = hasActivePaidPlan(subscription?.status);
 
-  const fallback: MyMetrics = {
-    total_properties: 0,
-    total_sold: 0,
-    total_clients: 0,
-    total_commission: 0,
-  };
+  const { data: properties } = accountId
+    ? await supabase
+        .from("properties")
+        .select("id, title, listing_status, sale_price")
+        .eq("account_id", accountId)
+    : { data: [] };
 
-  let metrics = fallback;
-  if (isPro) {
-    const { data } = await supabase.rpc("get_my_dashboard_metrics");
-    if (data && typeof data === "object") {
-      const d = data as Partial<MyMetrics>;
-      metrics = {
-        total_properties: Number(d.total_properties ?? 0),
-        total_sold: Number(d.total_sold ?? 0),
-        total_clients: Number(d.total_clients ?? 0),
-        total_commission: Number(d.total_commission ?? 0),
-      };
+  const { data: leads } = await supabase
+    .from("leads")
+    .select("status, property_id, created_at, updated_at");
+
+  let qrScans = 0;
+  if (accountId) {
+    const propertyIds = (properties ?? []).map((p) => p.id);
+    if (propertyIds.length > 0) {
+      const { data: qrRows } = await supabase
+        .from("property_qrcodes")
+        .select("qr_token")
+        .in("property_id", propertyIds)
+        .eq("is_active", true);
+      const tokens = (qrRows ?? []).map((row) => row.qr_token).filter(Boolean);
+      if (tokens.length > 0) {
+        const { count } = await supabase
+          .from("qr_access_events")
+          .select("id", { count: "exact", head: true })
+          .in("qr_token", tokens);
+        qrScans = count ?? 0;
+      }
     }
   }
+
+  const metrics = buildDashboardMoneyMetrics({
+    properties: properties ?? [],
+    leads: leads ?? [],
+    qrScans,
+  });
+
+  const hasProperties = metrics.totalProperties > 0;
 
   return (
     <div className="min-h-screen bg-white">
       <AppHeader isAdmin={profile?.role === "admin"} />
       <main className="mx-auto max-w-6xl px-8 py-12">
         <h1 className="text-3xl font-bold text-gray-900">
-          {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
+          {profile?.full_name ? `Ola, ${profile.full_name.split(" ")[0]}` : "Seu painel"}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">Bem-vindo ao seu painel de corretagem.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Acompanhe leads, QR e oportunidades de comissao em um so lugar.
+        </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
+          {!hasProperties ? (
+            <Link
+              href="/onboarding/primeiro-qr"
+              className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+            >
+              Criar meu primeiro QR
+            </Link>
+          ) : null}
           <Link
             href="/properties/new"
-            className="bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+            className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
           >
-            Cadastrar imóvel
+            Cadastrar imovel
           </Link>
           <Link
             href="/properties"
             className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
           >
-            Meus Imóveis
+            Meus Imoveis
           </Link>
           <Link
             href="/leads"
@@ -97,16 +126,6 @@ export default async function DashboardPage() {
               <p className="mt-1 text-sm font-medium text-gray-800">{user?.email ?? "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Nome</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">{profile?.full_name ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">WhatsApp</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">
-                {profile?.whatsapp_number ?? "—"}
-              </p>
-            </div>
-            <div>
               <p className="text-xs text-gray-400">Plano</p>
               <p className="mt-1 text-sm font-medium text-gray-800">
                 {subscription?.plan_code?.toUpperCase() ?? "FREE"}{" "}
@@ -114,50 +133,49 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <Link
-            href="/profile"
-            className="mt-5 inline-block text-sm font-medium text-black transition hover:underline"
-          >
-            Editar perfil
-          </Link>
+          {paidPlan ? <ManageSubscriptionButton /> : null}
         </div>
 
-        {isPro ? (
-          <div className="mt-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Métricas</h2>
-            <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <div className="border border-gray-200 p-5">
-                <p className="text-3xl font-bold text-gray-900">{metrics.total_properties}</p>
-                <p className="mt-1 text-xs text-gray-500">Imóveis cadastrados</p>
-              </div>
-              <div className="border border-gray-200 p-5">
-                <p className="text-3xl font-bold text-gray-900">{metrics.total_sold}</p>
-                <p className="mt-1 text-xs text-gray-500">Imóveis vendidos</p>
-              </div>
-              <div className="border border-gray-200 p-5">
-                <p className="text-3xl font-bold text-gray-900">{metrics.total_clients}</p>
-                <p className="mt-1 text-xs text-gray-500">Clientes atendidos</p>
-              </div>
-              <div className="border border-gray-200 p-5">
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatBRL(metrics.total_commission)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">Comissão acumulada</p>
-              </div>
-            </div>
+        <div className="mt-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Oportunidades
+          </h2>
+          <div className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+            <MetricCard
+              value={String(metrics.leadsTotal)}
+              label="Leads gerados"
+              testId="dashboard-metric-leads-total"
+            />
+            <MetricCard
+              value={String(metrics.leadsUnanswered)}
+              label="Sem resposta"
+              testId="dashboard-metric-leads-unanswered"
+            />
+            <MetricCard value={String(metrics.qrScans)} label="Leituras de QR" />
+            <MetricCard
+              value={metrics.topPropertyTitle ?? "—"}
+              label={`Top imovel (${metrics.topPropertyLeadCount} leads)`}
+            />
+            <MetricCard
+              value={formatBRL(metrics.estimatedCommissionBRL)}
+              label="Comissao estimada"
+            />
+            <MetricCard
+              value={formatResponseTime(metrics.averageFirstResponseMinutes)}
+              label="Tempo 1a resposta"
+            />
           </div>
-        ) : (
-          <div className="mt-8 border border-gray-200 bg-gray-50 p-6">
-            <p className="text-sm text-gray-600">Métricas detalhadas disponíveis no plano PRO.</p>
-            <Link
-              href="/plans"
-              className="mt-4 inline-block bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-            >
-              Ver planos
-            </Link>
-          </div>
-        )}
+        </div>
       </main>
+    </div>
+  );
+}
+
+function MetricCard({ value, label, testId }: { value: string; label: string; testId?: string }) {
+  return (
+    <div className="border border-gray-200 p-5" data-testid={testId}>
+      <p className="text-lg font-bold text-gray-900">{value}</p>
+      <p className="mt-1 text-xs text-gray-500">{label}</p>
     </div>
   );
 }

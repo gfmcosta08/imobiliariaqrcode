@@ -30,11 +30,12 @@ async function generateUniqueLoginCode(
 
 function isMissingTrialColumn(error: PostgrestLikeError | null): boolean {
   if (!error) return false;
-  const haystack = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+  const haystack =
+    `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
   return (
     haystack.includes("trial_started_at") ||
     haystack.includes("trial_used_at") ||
-    haystack.includes("column") && haystack.includes("accounts")
+    (haystack.includes("column") && haystack.includes("accounts"))
   );
 }
 
@@ -140,14 +141,22 @@ export async function POST(req: Request) {
 
   if (!Number.isInteger(propertyCount) || propertyCount < 1) {
     return NextResponse.json(
-      { ok: false, error: "invalid_property_count", detail: "Informe um inteiro maior ou igual a 1." },
+      {
+        ok: false,
+        error: "invalid_property_count",
+        detail: "Informe um inteiro maior ou igual a 1.",
+      },
       { status: 400 },
     );
   }
 
   if (!Number.isInteger(expirationDays) || expirationDays < 1) {
     return NextResponse.json(
-      { ok: false, error: "invalid_expiration_days", detail: "Informe um inteiro maior ou igual a 1." },
+      {
+        ok: false,
+        error: "invalid_expiration_days",
+        detail: "Informe um inteiro maior ou igual a 1.",
+      },
       { status: 400 },
     );
   }
@@ -208,7 +217,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const accountState = await updateAccountTrialState(supabase, broker.account_id, now.toISOString());
+  const accountState = await updateAccountTrialState(
+    supabase,
+    broker.account_id,
+    now.toISOString(),
+  );
   if (!accountState.ok) {
     await supabase.auth.admin.deleteUser(authUserId);
     return NextResponse.json(
@@ -318,10 +331,7 @@ export async function DELETE(req: Request) {
 
   const invitationId = new URL(req.url).searchParams.get("id")?.trim();
   if (!invitationId) {
-    return NextResponse.json(
-      { ok: false, error: "missing_invitation_id" },
-      { status: 400 },
-    );
+    return NextResponse.json({ ok: false, error: "missing_invitation_id" }, { status: 400 });
   }
 
   const { supabase } = admin;
@@ -343,10 +353,7 @@ export async function DELETE(req: Request) {
   }
 
   if (invitation.status !== "pending") {
-    return NextResponse.json(
-      { ok: false, error: "invitation_not_pending" },
-      { status: 409 },
-    );
+    return NextResponse.json({ ok: false, error: "invitation_not_pending" }, { status: 409 });
   }
 
   const tryCancel = async (status: "canceled" | "expired") =>

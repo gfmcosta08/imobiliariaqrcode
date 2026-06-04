@@ -214,7 +214,7 @@ export default function LoginPage() {
       >
         <div className="flex h-full flex-col justify-between bg-black/30 p-10">
           <Link href="/">
-            <span className="text-sm font-bold uppercase tracking-widest text-white">IMOBQR</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-white">ImoveisQR</span>
           </Link>
           <p className="text-2xl font-bold leading-snug text-white">
             A plataforma de QR Code para corretores de imóveis.
@@ -229,7 +229,7 @@ export default function LoginPage() {
           <div className="mb-8 lg:hidden">
             <Link href="/">
               <span className="text-sm font-bold uppercase tracking-widest text-gray-900">
-                IMOBQR
+                ImoveisQR
               </span>
             </Link>
           </div>
@@ -286,7 +286,10 @@ export default function LoginPage() {
               ) : null}
 
               <div>
-                <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="login-identifier"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
                   {mode === "login" ? "E-mail ou codigo de convite" : "E-mail"}
                 </label>
                 <input
