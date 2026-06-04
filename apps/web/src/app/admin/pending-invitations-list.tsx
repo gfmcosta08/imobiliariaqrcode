@@ -21,7 +21,77 @@ type Props = {
 export function PendingInvitationsList({ initialInvitations }: Props) {
   const [items, setItems] = useState<PendingInvitation[]>(initialInvitations);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [editPropertyCount, setEditPropertyCount] = useState("1");
+  const [editExpiresAt, setEditExpiresAt] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  function toDateInput(value: string | null): string {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+  }
+
+  function startEdit(invitation: PendingInvitation) {
+    setEditingId(invitation.id);
+    setEditPropertyCount(String(invitation.property_count));
+    setEditExpiresAt(toDateInput(invitation.expires_at));
+    setError(null);
+  }
+
+  async function handleSave(invitation: PendingInvitation) {
+    setSavingId(invitation.id);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/invitations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: invitation.id,
+          property_count: Number(editPropertyCount),
+          expires_at: editExpiresAt,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        detail?: string;
+        invitation?: PendingInvitation;
+      };
+
+      if (!res.ok || !data.ok || !data.invitation) {
+        setError(
+          data.detail
+            ? `${data.error}: ${data.detail}`
+            : (data.error ?? "Falha ao salvar convite."),
+        );
+        return;
+      }
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === invitation.id
+            ? {
+                ...item,
+                ...data.invitation,
+                property_count: Number(data.invitation?.property_count ?? item.property_count),
+                expiration_days_configured: Number(
+                  data.invitation?.expiration_days_configured ?? item.expiration_days_configured,
+                ),
+              }
+            : item,
+        ),
+      );
+      setEditingId(null);
+    } catch {
+      setError("Erro de conexao ao salvar convite.");
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   async function handleDelete(invitation: PendingInvitation) {
     if (!confirm(`Cancelar convite pendente ${invitation.login_code}?`)) return;
@@ -87,7 +157,7 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
           {items.map((inv) => (
             <li
               key={inv.id}
-              className="flex items-center justify-between py-3"
+              className="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between"
               data-testid="admin-invitation-item"
             >
               <div>
@@ -113,9 +183,35 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
                     Concluido: {formatDate(inv.completed_at)}
                   </span>
                 ) : null}
+                {editingId === inv.id ? (
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Imoveis
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={editPropertyCount}
+                        onChange={(event) => setEditPropertyCount(event.target.value)}
+                        data-testid="admin-invitation-property-count"
+                        className="mt-1 block w-24 border border-gray-200 px-2 py-2 text-sm font-normal normal-case tracking-normal text-gray-900"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Validade
+                      <input
+                        type="date"
+                        value={editExpiresAt}
+                        onChange={(event) => setEditExpiresAt(event.target.value)}
+                        data-testid="admin-invitation-expires-at"
+                        className="mt-1 block border border-gray-200 px-2 py-2 text-sm font-normal normal-case tracking-normal text-gray-900"
+                      />
+                    </label>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 self-start md:self-center">
                 <span
                   className={`text-xs font-semibold uppercase tracking-wide ${statusClass(inv.status)}`}
                   data-testid="admin-invitation-status"
@@ -123,15 +219,45 @@ export function PendingInvitationsList({ initialInvitations }: Props) {
                   {statusLabel(inv.status)}
                 </span>
                 {inv.status === "pending" ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(inv)}
-                    disabled={deletingId === inv.id}
-                    data-testid="admin-invitation-cancel"
-                    className="border border-red-300 px-3 py-1 text-xs text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-                  >
-                    {deletingId === inv.id ? "Cancelando..." : "Cancelar"}
-                  </button>
+                  editingId === inv.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleSave(inv)}
+                        disabled={savingId === inv.id}
+                        className="border border-gray-900 bg-gray-900 px-3 py-1 text-xs text-white transition hover:bg-black disabled:opacity-60"
+                      >
+                        {savingId === inv.id ? "Salvando..." : "Salvar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="border border-gray-300 px-3 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(inv)}
+                        data-testid="admin-invitation-edit"
+                        className="border border-gray-300 px-3 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(inv)}
+                        disabled={deletingId === inv.id}
+                        data-testid="admin-invitation-cancel"
+                        className="border border-red-300 px-3 py-1 text-xs text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {deletingId === inv.id ? "Cancelando..." : "Cancelar"}
+                      </button>
+                    </>
+                  )
                 ) : null}
               </div>
             </li>

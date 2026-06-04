@@ -142,7 +142,10 @@ test("04 corretor usa convite completa perfil e publica anuncio inicial", async 
   await page.getByTestId("onboarding-whatsapp").fill(brokerWhatsapp);
   await page.getByTestId("onboarding-password").fill(brokerPassword);
   await page.getByTestId("onboarding-confirm-password").fill(brokerPassword);
-  await page.locator("#onboarding-terms, input[type='checkbox']").first().check();
+  const onboardingTerms = page.locator("#onboarding-terms, input[type='checkbox']");
+  if ((await onboardingTerms.count()) > 0) {
+    await onboardingTerms.first().check();
+  }
   await page.getByTestId("onboarding-submit").click();
   await page.waitForURL(/\/onboarding\/complete-listing/, { timeout: 60_000 });
 

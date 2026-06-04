@@ -8,19 +8,19 @@ Final commit: 0f331b906f6e57addb34e2ec5dd3afbaa9431b7e
 
 ## Commands
 
-| Command | Result | Notes |
-|---|---|---|
-| pnpm --filter web run test | PASS | 102 testes |
-| pnpm --filter @imobiliariaqrcode/property-importer run test | PASS | 47 testes |
-| pnpm --filter web run typecheck | PASS | |
-| pnpm --filter web run lint | PASS | |
-| pnpm --filter web run build | PASS | Next.js 15.2.8 |
-| pnpm format:check | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
-| vercel deploy --yes | PASS | Deployment preview `farollimoveis-k624vyycd.vercel.app` READY |
-| vercel alias set farollimoveis-k624vyycd.vercel.app farollimoveis-staging.vercel.app | PASS | Alias fixo oficial de staging atualizado |
-| Invoke-WebRequest https://farollimoveis-staging.vercel.app | PASS | HTTP 200; home contem promessa central |
-| pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS | 6/6 contra URL fixa oficial |
-| pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts | SKIPPED | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1` |
+| Command                                                                                                                                         | Result           | Notes                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| pnpm --filter web run test                                                                                                                      | PASS             | 102 testes                                                                                                                             |
+| pnpm --filter @imobiliariaqrcode/property-importer run test                                                                                     | PASS             | 47 testes                                                                                                                              |
+| pnpm --filter web run typecheck                                                                                                                 | PASS             |                                                                                                                                        |
+| pnpm --filter web run lint                                                                                                                      | PASS             |                                                                                                                                        |
+| pnpm --filter web run build                                                                                                                     | PASS             | Next.js 15.2.8                                                                                                                         |
+| pnpm format:check                                                                                                                               | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
+| vercel deploy --yes                                                                                                                             | PASS             | Deployment preview `farollimoveis-k624vyycd.vercel.app` READY                                                                          |
+| vercel alias set farollimoveis-k624vyycd.vercel.app farollimoveis-staging.vercel.app                                                            | PASS             | Alias fixo oficial de staging atualizado                                                                                               |
+| Invoke-WebRequest https://farollimoveis-staging.vercel.app                                                                                      | PASS             | HTTP 200; home contem promessa central                                                                                                 |
+| pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS             | 6/6 contra URL fixa oficial                                                                                                            |
+| pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts                                        | SKIPPED          | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1`                                                  |
 
 ## Changed Files
 
@@ -100,6 +100,19 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 - Home (local): nao gerado — conexao recusada sem dev server.
 - Staging suite existente: `apps/web/tests/e2e/staging-full-flow.spec.ts` (atualizado hero QR).
 - Ultima falha local: `apps/web/test-results/homepage-mobile-*/` (connection refused).
+
+## Rodada Pos-QA 2026-06-04
+
+- BUG-001 corrigido: cadastro Free exige aceite legal na UI (`#signup-terms`) e na API `/api/auth/signup`; metadata registra `legal_terms_accepted`, `legal_privacy_accepted`, `legal_version` e `legal_accepted_at`.
+- BUG-002 corrigido: `/api/stripe/create-checkout` autentica antes de validar `STRIPE_SECRET_KEY` / `STRIPE_STARTER_PRICE_ID`; usuario anonimo recebe `401 unauthenticated`.
+- BUG-003 mitigado: `/q/[token]` preserva CTA de WhatsApp e exibe formulario de fallback para registrar interesse quando WhatsApp nao abrir.
+- BUG-004 corrigido no E2E: onboarding por convite aceita ausencia do antigo `#onboarding-terms` sem quebrar a suite.
+- BUG-005 corrigido: admin agora edita convite pendente (`property_count`, `expires_at`) via UI e `PATCH /api/admin/invitations`; aumento de quantidade cria rascunhos adicionais para manter consistencia.
+- Home mantem listagens publicas como secao secundaria e envia `Criar meu primeiro QR` para `/teste-gratis`; `Ver como funciona` abre `/como-funciona`.
+- Novas paginas publicas: `/teste-gratis` explica conta teste gratuita antes do cadastro; `/como-funciona` explica o fluxo QR -> interessado -> WhatsApp/formulario -> lead no painel com imagens.
+- Smoke local Playwright: `CTA_AND_LEGAL_SMOKE_PASS` em `http://127.0.0.1:3000`.
+- Screenshots locais gerados em `output/playwright/home.png`, `output/playwright/teste-gratis.png`, `output/playwright/como-funciona.png`, `output/playwright/login-signup.png`.
+- Verificacao local: `pnpm test` PASS (web 117 + importer 47), `pnpm --filter web run typecheck` PASS, `pnpm --filter web run lint` PASS, `pnpm --filter web run build` PASS, Prettier dos arquivos tocados PASS.
 
 ## Supabase staging
 

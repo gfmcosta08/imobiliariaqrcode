@@ -34,6 +34,7 @@ export function PublicQrActive({ token, body }: Props) {
   const headline = listing.title?.trim() || publicId;
 
   const targetLink = useMemo(() => whatsappLink ?? null, [whatsappLink]);
+  const leadPathLabel = targetLink ? "whatsapp" : "form";
 
   useEffect(() => {
     if (!targetLink) return;
@@ -118,73 +119,85 @@ export function PublicQrActive({ token, body }: Props) {
             >
               Abrir WhatsApp
             </a>
+            <p className="mt-4 text-sm font-medium text-gray-900">
+              WhatsApp nao abriu? Deixe seu contato no formulario abaixo.
+            </p>
           </>
         ) : (
-          <form onSubmit={handleLeadSubmit} className="space-y-4" data-testid="public-qr-lead-form">
-            <div>
-              <label htmlFor="public-qr-name" className="text-xs font-medium text-gray-500">
-                Nome
-              </label>
-              <input
-                id="public-qr-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={120}
-                className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-                placeholder="Seu nome"
-                data-testid="public-qr-lead-name"
-              />
-            </div>
-            <div>
-              <label htmlFor="public-qr-phone" className="text-xs font-medium text-gray-500">
-                WhatsApp
-              </label>
-              <input
-                id="public-qr-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={32}
-                className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-                placeholder="(11) 99999-9999"
-                required
-                data-testid="public-qr-lead-phone"
-              />
-            </div>
-            <div>
-              <label htmlFor="public-qr-observation" className="text-xs font-medium text-gray-500">
-                Mensagem
-              </label>
-              <textarea
-                id="public-qr-observation"
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-                maxLength={500}
-                rows={3}
-                className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-                placeholder="Quero mais informacoes sobre este imovel."
-                data-testid="public-qr-lead-observation"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitStatus === "submitting" || submitStatus === "success"}
-              className="flex w-full items-center justify-center bg-black px-4 py-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
-              data-testid="public-qr-lead-submit"
-            >
-              {submitStatus === "submitting" ? "Enviando..." : "Tenho interesse"}
-            </button>
-            {submitStatus === "success" ? (
-              <p className="text-sm text-green-700" role="status">
-                Interesse registrado. O corretor podera ver seu contato.
-              </p>
-            ) : null}
-            {submitError ? (
-              <p className="text-sm text-red-600" role="alert">
-                {submitError}
-              </p>
-            ) : null}
-          </form>
+          <p className="text-sm font-medium text-gray-900">
+            Deixe seu contato para o corretor retornar.
+          </p>
         )}
+
+        <form
+          onSubmit={handleLeadSubmit}
+          className="mt-5 space-y-4"
+          data-testid="public-qr-lead-form"
+          data-lead-path={leadPathLabel}
+        >
+          <div>
+            <label htmlFor="public-qr-name" className="text-xs font-medium text-gray-500">
+              Nome
+            </label>
+            <input
+              id="public-qr-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={120}
+              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
+              placeholder="Seu nome"
+              data-testid="public-qr-lead-name"
+            />
+          </div>
+          <div>
+            <label htmlFor="public-qr-phone" className="text-xs font-medium text-gray-500">
+              WhatsApp
+            </label>
+            <input
+              id="public-qr-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              maxLength={32}
+              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
+              placeholder="(11) 99999-9999"
+              required
+              data-testid="public-qr-lead-phone"
+            />
+          </div>
+          <div>
+            <label htmlFor="public-qr-observation" className="text-xs font-medium text-gray-500">
+              Mensagem
+            </label>
+            <textarea
+              id="public-qr-observation"
+              value={observation}
+              onChange={(e) => setObservation(e.target.value)}
+              maxLength={500}
+              rows={3}
+              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
+              placeholder="Quero mais informacoes sobre este imovel."
+              data-testid="public-qr-lead-observation"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitStatus === "submitting" || submitStatus === "success"}
+            className="flex w-full items-center justify-center bg-black px-4 py-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+            data-testid="public-qr-lead-submit"
+          >
+            {submitStatus === "submitting" ? "Enviando..." : "Tenho interesse"}
+          </button>
+          {submitStatus === "success" ? (
+            <p className="text-sm text-green-700" role="status">
+              Interesse registrado. O corretor podera ver seu contato.
+            </p>
+          ) : null}
+          {submitError ? (
+            <p className="text-sm text-red-600" role="alert">
+              {submitError}
+            </p>
+          ) : null}
+        </form>
 
         {targetLink && autoStatus === "pending" ? (
           <p className="mt-3 text-center text-xs text-gray-400">

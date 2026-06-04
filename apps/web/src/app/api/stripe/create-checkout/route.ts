@@ -8,18 +8,6 @@ import { assertStripeTestModeAllowed } from "@/lib/stripe-guard";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export async function POST() {
-  try {
-    assertStripeTestModeAllowed();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "stripe_config_invalid";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  }
-
-  const priceId = process.env.STRIPE_STARTER_PRICE_ID?.trim();
-  if (!priceId) {
-    return NextResponse.json({ ok: false, error: "stripe_price_missing" }, { status: 500 });
-  }
-
   const cookieStore = await cookies();
   const supabaseUser = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +20,18 @@ export async function POST() {
   } = await supabaseUser.auth.getUser();
   if (!user) {
     return NextResponse.json({ ok: false, error: "unauthenticated" }, { status: 401 });
+  }
+
+  try {
+    assertStripeTestModeAllowed();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "stripe_config_invalid";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+
+  const priceId = process.env.STRIPE_STARTER_PRICE_ID?.trim();
+  if (!priceId) {
+    return NextResponse.json({ ok: false, error: "stripe_price_missing" }, { status: 500 });
   }
 
   const admin = createServiceRoleClient();

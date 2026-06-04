@@ -1,4 +1,5 @@
 import { recordActivationEvent } from "@/lib/analytics/activation-events";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,13 +8,24 @@ type Body = {
   password?: string;
   fullName?: string;
   whatsapp?: string;
+  acceptedLegal?: boolean;
 };
 
 export async function POST(req: NextRequest) {
-  const { email, password, fullName, whatsapp } = (await req.json()) as Body;
+  const { email, password, fullName, whatsapp, acceptedLegal } = (await req.json()) as Body;
 
   if (!email?.trim() || !password) {
     return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 });
+  }
+
+  if (acceptedLegal !== true) {
+    return NextResponse.json(
+      {
+        error: "legal_acceptance_required",
+        detail: "Aceite os Termos de Uso e a Politica de Privacidade para criar a conta.",
+      },
+      { status: 400 },
+    );
   }
 
   const supabase = createServiceRoleClient();
@@ -22,6 +34,7 @@ export async function POST(req: NextRequest) {
   const normalizedName = fullName?.trim() || normalizedEmail.split("@")[0] || "Corretor";
   const normalizedWhatsapp = (whatsapp ?? "").replace(/\D/g, "");
   const triggerSafeWhatsapp = `pending-${crypto.randomUUID().replace(/-/g, "")}`.slice(0, 40);
+  const legalAcceptedAt = new Date().toISOString();
 
   const { data: existingProfile } = await supabase
     .from("profiles")
@@ -39,6 +52,10 @@ export async function POST(req: NextRequest) {
     user_metadata: {
       full_name: normalizedName,
       whatsapp_number: triggerSafeWhatsapp,
+      legal_terms_accepted: true,
+      legal_privacy_accepted: true,
+      legal_version: LEGAL_VERSION,
+      legal_accepted_at: legalAcceptedAt,
     },
   });
 

@@ -9,6 +9,16 @@ type PostgrestLikeError = {
   message: string;
 };
 
+type PendingInvitationRow = {
+  id: string;
+  status: string;
+  temp_auth_user_id: string | null;
+  property_id: string | null;
+  property_ids: string[] | null;
+  property_count: number | null;
+  expiration_days_configured: number | null;
+};
+
 function randomSixDigits(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -88,6 +98,32 @@ async function ensureBrokerForInvitation(
     .single();
   if (brokerErr || !brokerCreated) return null;
   return brokerCreated as { id: string; account_id: string };
+}
+
+async function createDraftPropertyForBroker(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  broker: { id: string; account_id: string },
+): Promise<string | null> {
+  const { data: property, error } = await supabase
+    .from("properties")
+    .insert({
+      account_id: broker.account_id,
+      broker_id: broker.id,
+      origin_plan_code: "free",
+      listing_status: "draft",
+      property_type: "Residencial",
+      property_subtype: "Apartamento",
+      purpose: "sale",
+      title: null,
+      description: "",
+      city: "A preencher",
+      state: "A preencher",
+    })
+    .select("id")
+    .single();
+
+  if (error || !property?.id) return null;
+  return property.id as string;
 }
 
 async function updateAccountTrialState(
@@ -321,6 +357,148 @@ export async function POST(req: Request) {
     property_id: firstPropertyId,
     property_count: propertyCount,
   });
+}
+
+export async function PATCH(req: Request) {
+  const admin = await getAdminContext();
+  if (!admin.ok) {
+    return NextResponse.json({ ok: false, error: admin.error }, { status: admin.status });
+  }
+
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    property_count?: number | string;
+    expires_at?: string | null;
+  };
+  const invitationId = body.id?.trim();
+  if (!invitationId) {
+    return NextResponse.json({ ok: false, error: "missing_invitation_id" }, { status: 400 });
+  }
+
+  const propertyCount = body.property_count === undefined ? undefined : Number(body.property_count);
+  if (
+    propertyCount !== undefined &&
+    (!Number.isInteger(propertyCount) || propertyCount < 1 || propertyCount > 50)
+  ) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "invalid_property_count",
+        detail: "Informe um inteiro entre 1 e 50.",
+      },
+      { status: 400 },
+    );
+  }
+
+  let expiresAtIso: string | undefined;
+  let expirationDaysConfigured: number | undefined;
+  if (body.expires_at !== undefined) {
+    if (!body.expires_at) {
+      return NextResponse.json({ ok: false, error: "invalid_expires_at" }, { status: 400 });
+    }
+    const parsed = new Date(body.expires_at);
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ ok: false, error: "invalid_expires_at" }, { status: 400 });
+    }
+    expiresAtIso = parsed.toISOString();
+    expirationDaysConfigured = Math.max(1, Math.ceil((parsed.getTime() - Date.now()) / 86400000));
+  }
+
+  const { supabase } = admin;
+  const { data: invitation, error: loadError } = await supabase
+    .from("broker_invitations")
+    .select(
+      "id, status, temp_auth_user_id, property_id, property_ids, property_count, expiration_days_configured",
+    )
+    .eq("id", invitationId)
+    .maybeSingle();
+
+  if (loadError) {
+    return NextResponse.json(
+      { ok: false, error: "invitation_load_failed", detail: loadError.message },
+      { status: 500 },
+    );
+  }
+  if (!invitation) {
+    return NextResponse.json({ ok: false, error: "invitation_not_found" }, { status: 404 });
+  }
+
+  const pendingInvitation = invitation as PendingInvitationRow;
+  if (pendingInvitation.status !== "pending") {
+    return NextResponse.json({ ok: false, error: "invitation_not_pending" }, { status: 409 });
+  }
+
+  const currentPropertyIds = Array.isArray(pendingInvitation.property_ids)
+    ? [...pendingInvitation.property_ids]
+    : pendingInvitation.property_id
+      ? [pendingInvitation.property_id]
+      : [];
+  const nextPropertyIds = [...currentPropertyIds];
+  let broker: { id: string; account_id: string } | null = null;
+
+  if (pendingInvitation.temp_auth_user_id) {
+    const { data: brokerData } = await supabase
+      .from("brokers")
+      .select("id, account_id")
+      .eq("profile_id", pendingInvitation.temp_auth_user_id)
+      .maybeSingle();
+    broker = brokerData as { id: string; account_id: string } | null;
+  }
+
+  if (propertyCount !== undefined && propertyCount > nextPropertyIds.length) {
+    if (!broker) {
+      return NextResponse.json(
+        { ok: false, error: "invitation_broker_not_found" },
+        { status: 409 },
+      );
+    }
+
+    while (nextPropertyIds.length < propertyCount) {
+      const propertyId = await createDraftPropertyForBroker(supabase, broker);
+      if (!propertyId) {
+        return NextResponse.json({ ok: false, error: "property_create_failed" }, { status: 500 });
+      }
+      nextPropertyIds.push(propertyId);
+    }
+  }
+
+  const updatePayload: Record<string, unknown> = {};
+  if (propertyCount !== undefined) updatePayload.property_count = propertyCount;
+  if (expiresAtIso !== undefined) {
+    updatePayload.expires_at = expiresAtIso;
+    updatePayload.expiration_days_configured = expirationDaysConfigured;
+  }
+  if (nextPropertyIds.length !== currentPropertyIds.length) {
+    updatePayload.property_ids = nextPropertyIds;
+    updatePayload.property_id = nextPropertyIds[0] ?? null;
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("broker_invitations")
+    .update(updatePayload)
+    .eq("id", invitationId)
+    .eq("status", "pending")
+    .select(
+      "id, login_code, status, generated_at, expires_at, claimed_at, completed_at, property_count, expiration_days_configured",
+    )
+    .single();
+
+  if (updateError || !updated) {
+    return NextResponse.json(
+      { ok: false, error: "invitation_update_failed", detail: updateError?.message },
+      { status: 500 },
+    );
+  }
+
+  if (broker && expiresAtIso) {
+    await supabase
+      .from("subscriptions")
+      .update({ current_period_end: expiresAtIso, updated_at: new Date().toISOString() })
+      .eq("account_id", broker.account_id)
+      .eq("status", "free");
+  }
+
+  return NextResponse.json({ ok: true, invitation: updated });
 }
 
 export async function DELETE(req: Request) {

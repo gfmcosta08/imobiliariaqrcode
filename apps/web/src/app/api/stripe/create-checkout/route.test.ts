@@ -19,4 +19,14 @@ describe("create-checkout route", () => {
     expect(source).toContain("plan_code");
     expect(source).toContain("starter");
   });
+
+  it("authenticates the request before exposing Stripe configuration state", () => {
+    const authIndex = source.indexOf("auth.getUser");
+    const guardIndex = source.indexOf("assertStripeTestModeAllowed();");
+    const priceIndex = source.indexOf("STRIPE_STARTER_PRICE_ID");
+
+    expect(authIndex).toBeGreaterThan(-1);
+    expect(guardIndex).toBeGreaterThan(authIndex);
+    expect(priceIndex).toBeGreaterThan(authIndex);
+  });
 });

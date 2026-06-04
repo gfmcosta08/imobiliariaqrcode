@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup" | "forgot";
@@ -12,6 +12,13 @@ type InviteClaimResponse = {
   access_token?: string;
   refresh_token?: string;
 };
+
+function safeNextPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("://")) {
+    return "/dashboard";
+  }
+  return value;
+}
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -49,13 +56,17 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const signupModeUrl = "/login?mode=signup";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -65,6 +76,7 @@ export default function LoginPage() {
     setMode(next);
     setError(null);
     setInfo(null);
+    setAcceptedLegal(false);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -91,6 +103,10 @@ export default function LoginPage() {
       }
 
       if (mode === "signup") {
+        if (!acceptedLegal) {
+          setError("Voce precisa aceitar os Termos de Uso e a Politica de Privacidade.");
+          return;
+        }
         const normalizedEmail = email.trim().toLowerCase();
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -100,6 +116,7 @@ export default function LoginPage() {
             password,
             fullName,
             whatsapp: whatsapp.replace(/\D/g, ""),
+            acceptedLegal,
           }),
         });
 
@@ -118,7 +135,7 @@ export default function LoginPage() {
           return;
         }
 
-        router.push("/dashboard");
+        router.push(safeNextPath(searchParams.get("next")));
         router.refresh();
         return;
       }
@@ -214,7 +231,9 @@ export default function LoginPage() {
       >
         <div className="flex h-full flex-col justify-between bg-black/30 p-10">
           <Link href="/">
-            <span className="text-sm font-bold uppercase tracking-widest text-white">ImoveisQR</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-white">
+              ImoveisQR
+            </span>
           </Link>
           <p className="text-2xl font-bold leading-snug text-white">
             A plataforma de QR Code para corretores de imóveis.
@@ -236,6 +255,12 @@ export default function LoginPage() {
 
           <h1 className="text-2xl font-bold text-gray-900">{titles[mode]}</h1>
           <p className="mt-2 text-sm text-gray-500">{subtitles[mode]}</p>
+          {mode === "signup" ? (
+            <p className="mt-3 text-xs text-gray-500">
+              Conta teste gratuita: 1 imovel ativo, QR Code e painel de leads. Sem cartao de
+              credito.
+            </p>
+          ) : null}
 
           {info ? (
             <div className="mt-6 border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
@@ -352,6 +377,29 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
+              {mode === "signup" ? (
+                <label className="flex items-start gap-3 text-xs leading-relaxed text-gray-600">
+                  <input
+                    id="signup-terms"
+                    type="checkbox"
+                    checked={acceptedLegal}
+                    onChange={(event) => setAcceptedLegal(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 border-gray-300"
+                  />
+                  <span>
+                    Aceito os{" "}
+                    <Link href="/termos" className="font-medium text-black underline">
+                      Termos de Uso
+                    </Link>{" "}
+                    e a{" "}
+                    <Link href="/privacidade" className="font-medium text-black underline">
+                      Politica de Privacidade
+                    </Link>
+                    .
+                  </span>
+                </label>
+              ) : null}
+
               {error ? (
                 <p className="text-sm text-red-600" role="alert">
                   {error}
@@ -411,6 +459,7 @@ export default function LoginPage() {
                 </button>
               </p>
             ) : null}
+            <span className="sr-only">{signupModeUrl}</span>
           </div>
 
           <p className="mt-8 text-center text-xs text-gray-400">
@@ -421,5 +470,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

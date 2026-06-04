@@ -137,22 +137,22 @@ export default async function Home({ searchParams }: PageProps) {
             Cole esse QR no imovel e nunca mais perca um interessado anonimo.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-white/90">
-            Gere um QR para cada imovel, leve o interessado para o WhatsApp e acompanhe leads no
-            painel.
+            Gere um QR para cada imovel, capture o interessado pelo WhatsApp ou formulario e
+            acompanhe tudo no painel.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
-              href="/onboarding/primeiro-qr"
+              href="/teste-gratis"
               className="bg-white px-6 py-3 text-sm font-semibold text-gray-900"
             >
               Criar meu primeiro QR
             </Link>
-            <a
-              href="#imoveis"
+            <Link
+              href="/como-funciona"
               className="border border-white px-6 py-3 text-sm font-semibold text-white"
             >
               Ver como funciona
-            </a>
+            </Link>
           </div>
 
           <div className="mt-10 w-full max-w-3xl">

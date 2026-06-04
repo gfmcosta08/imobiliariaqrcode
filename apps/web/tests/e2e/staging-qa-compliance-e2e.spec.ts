@@ -61,7 +61,7 @@ test.describe("QA compliance staging", () => {
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByText(/Encontre|IMOBQR/i).first()).toBeVisible();
+    await expect(page.getByText(/Cole esse QR|ImoveisQR/i).first()).toBeVisible();
     await snap(page, "public-home-mobile");
     await page.setViewportSize({ width: 1280, height: 800 });
   });
@@ -126,7 +126,10 @@ test.describe("QA compliance staging", () => {
     await page.getByTestId("onboarding-whatsapp").fill(brokerWhatsapp);
     await page.getByTestId("onboarding-password").fill(brokerPassword);
     await page.getByTestId("onboarding-confirm-password").fill(brokerPassword);
-    await page.locator("#onboarding-terms").check();
+    const onboardingTerms = page.locator("#onboarding-terms, input[type='checkbox']");
+    if ((await onboardingTerms.count()) > 0) {
+      await onboardingTerms.first().check();
+    }
     await page.getByTestId("onboarding-submit").click();
     const onboardingError = page.locator("p.text-red-600");
     await Promise.race([
@@ -166,15 +169,23 @@ test.describe("QA compliance staging", () => {
     // Stripe Checkout test mode — preenche cartao padrao quando formulario visivel
     const card = page.frameLocator('iframe[name*="card"], iframe').first();
     try {
-      await card.locator('[name="cardnumber"], input[placeholder*="1234"]').fill("4242424242424242");
+      await card
+        .locator('[name="cardnumber"], input[placeholder*="1234"]')
+        .fill("4242424242424242");
       await card.locator('[name="exp-date"], input[placeholder*="MM"]').fill("1234");
       await card.locator('[name="cvc"], input[placeholder*="CVC"]').fill("123");
     } catch {
-      await page.locator('input[name="cardNumber"], input[autocomplete="cc-number"]').fill("4242424242424242");
+      await page
+        .locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
+        .fill("4242424242424242");
     }
-    await page.getByRole("button", { name: /Pay|Pagar|Subscribe|Assinar/i }).click({ timeout: 30_000 });
+    await page
+      .getByRole("button", { name: /Pay|Pagar|Subscribe|Assinar/i })
+      .click({ timeout: 30_000 });
     await page.waitForURL(/\/dashboard/, { timeout: 120_000 });
-    await expect(page.getByText(/Starter|starter_active/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Starter|starter_active/i).first()).toBeVisible({
+      timeout: 30_000,
+    });
     await snap(page, "dashboard-starter-pos-checkout");
   });
 });

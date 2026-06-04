@@ -14,4 +14,10 @@ describe("PublicQrActive", () => {
     expect(source).toContain('data-testid="public-qr-lead-submit"');
     expect(source).not.toContain("Numero do bot nao configurado");
   });
+
+  it("shows a fallback lead form even when WhatsApp is available", () => {
+    expect(source).toContain("WhatsApp nao abriu");
+    expect(source).toContain("Deixe seu contato");
+    expect(source).toContain('targetLink ? "whatsapp" : "form"');
+  });
 });
