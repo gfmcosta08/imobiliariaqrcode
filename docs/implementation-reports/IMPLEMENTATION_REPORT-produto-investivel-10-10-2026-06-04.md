@@ -16,6 +16,10 @@ Final commit: 0f331b906f6e57addb34e2ec5dd3afbaa9431b7e
 | pnpm --filter web run lint | PASS | |
 | pnpm --filter web run build | PASS | Next.js 15.2.8 |
 | pnpm format:check | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
+| vercel alias set farollimoveis-8c9ajvb7a.vercel.app farollimoveis-staging.vercel.app | PASS | Alias fixo oficial de staging atualizado |
+| Invoke-WebRequest https://farollimoveis-staging.vercel.app | PASS | HTTP 200; home contem promessa central |
+| pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS | 6/6 contra URL fixa oficial |
+| pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts | SKIPPED | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1` |
 
 ## Changed Files
 
@@ -29,7 +33,9 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 ## Environment
 
 - Branch local: `codex/produto-investivel-10-10-staging`
-- Alvo: staging/preview Vercel + Supabase staging
+- Alvo oficial de teste: `https://farollimoveis-staging.vercel.app`
+- Deployment preview apontado pelo alias fixo: `https://farollimoveis-8c9ajvb7a.vercel.app`
+- Supabase staging: projeto `imobiliariaqrcode-staging`
 - Sem `vercel --prod`, sem `supabase db push` em producao
 
 ## Phase Evidence
@@ -57,7 +63,8 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 ### Phase 3 — Bot / QR
 
 - `apps/web/src/guardrails/bot-no-regression.test.ts` PASS.
-- E2E staging: `BLOCKED_EXTERNAL_CREDENTIALS` (sem `STAGING_BASE_URL` / `E2E_*` nesta sessao).
+- E2E staging full-flow: `BLOCKED_EXTERNAL_CREDENTIALS` no alias fixo oficial (sem `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1` nesta sessao).
+- E2E staging smoke: PASS 6/6 no alias fixo oficial `https://farollimoveis-staging.vercel.app`.
 - E2E local homepage: `BLOCKED_EXTERNAL` (servidor `127.0.0.1:3000` nao estava em execucao).
 
 ### Phase 4–8 — Produto
@@ -84,7 +91,8 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 - Codigo: pagina `/q/[token]` com `public_id`; lead publico `upsert_lead_from_qr_event`.
 - Quando nao houver link de WhatsApp/bot, `/q/[token]` exibe formulario de interesse e grava via `/api/public/lead`.
-- E2E automatizado em staging: pendente credenciais (`E2E_STAGING_WRITE=1`, `STAGING_BASE_URL`, admin/corretor). A validacao obrigatoria de staging nao exige numero real de bot/WhatsApp.
+- E2E automatizado full-flow em staging: pendente credenciais (`E2E_STAGING_WRITE=1`, admin/corretor). A validacao obrigatoria de staging nao exige numero real de bot/WhatsApp.
+- Smoke Playwright no staging fixo oficial: PASS 6/6.
 
 ## Screenshots / Playwright artifacts
 
@@ -94,13 +102,14 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 ## Supabase staging
 
-- Project ID: usar o projeto ja vinculado ao preview (nao expor ref/URL com secrets neste relatorio).
+- Project ID: `imobiliariaqrcode-staging` (sem expor secrets neste relatorio).
 - Aplicar migration `20260604090000_activation_events.sql` apenas em staging.
+- Observacao: CLI local estava originalmente linkado ao projeto de producao; foi relinkado para staging antes de qualquer tentativa. `db push --dry-run` bloqueou por historico remoto de migrations ausentes no repositorio local; nenhuma migration foi aplicada.
 
 ## Known Limitations
 
 - Validacao Stripe end-to-end (checkout + webhook + portal) requer preview deploy e `STRIPE_STARTER_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` de teste no ambiente.
-- E2E Playwright staging bloqueado sem variaveis de ambiente nesta execucao.
+- E2E Playwright full-flow bloqueado sem variaveis admin/write nesta execucao.
 - `pnpm format:check` global falha por arquivos fora do escopo (worktrees Claude); nao impede build/lint/test do `web`.
 - Admin legado ainda aceita `solo` / `solo_active` para compatibilidade manual.
 
