@@ -47,22 +47,42 @@ export async function POST() {
   }
 
   const accountId = profile.account_id as string;
+  const customerEmail = user.email?.trim() || undefined;
   const { data: account } = await admin
     .from("accounts")
     .select("stripe_customer_id")
     .eq("id", accountId)
     .maybeSingle();
 
-  let customerId = (account?.stripe_customer_id as string | null) ?? null;
-  if (!customerId) {
+  async function createCustomer() {
     const customer = await stripe.customers.create({
+      email: customerEmail,
       metadata: { account_id: accountId },
     });
-    customerId = customer.id;
     await admin
       .from("accounts")
-      .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
+      .update({ stripe_customer_id: customer.id, updated_at: new Date().toISOString() })
       .eq("id", accountId);
+    return customer.id;
+  }
+
+  let customerId = (account?.stripe_customer_id as string | null) ?? null;
+  if (!customerId) {
+    customerId = await createCustomer();
+  } else if (customerEmail) {
+    try {
+      await stripe.customers.update(customerId, {
+        email: customerEmail,
+        metadata: { account_id: accountId },
+      });
+    } catch (err) {
+      console.warn("stripe customer email repair failed; creating replacement customer", {
+        accountId,
+        customerId,
+        error: err instanceof Error ? err.message : "unknown_error",
+      });
+      customerId = await createCustomer();
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://farollimoveis-staging.vercel.app";

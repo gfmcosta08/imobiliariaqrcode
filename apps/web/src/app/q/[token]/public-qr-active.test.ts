@@ -20,4 +20,10 @@ describe("PublicQrActive", () => {
     expect(source).toContain("Deixe seu contato");
     expect(source).toContain('targetLink ? "whatsapp" : "form"');
   });
+
+  it("does not navigate away automatically before the fallback lead form can be used", () => {
+    expect(source).not.toContain("window.location.href = targetLink");
+    expect(source).not.toContain("setTimeout");
+    expect(source).toContain('data-testid="public-qr-whatsapp-link"');
+  });
 });

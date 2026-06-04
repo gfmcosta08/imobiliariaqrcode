@@ -225,7 +225,7 @@ export async function POST(request: Request) {
         account_id: broker.account_id,
         broker_id: broker.id,
         origin_plan_code: subscription.plan_code,
-        listing_status: "draft",
+        listing_status: "published",
         property_type: input.property_type || "Residencial",
         property_subtype: "Apartamento",
         purpose,
@@ -284,7 +284,7 @@ export async function POST(request: Request) {
       property_id: property.id,
       public_id: property.public_id,
       qr_token: qrToken,
-      listing_status: "draft",
+      listing_status: "published",
       next_url: `/properties/${property.id}`,
     });
   } catch (e) {

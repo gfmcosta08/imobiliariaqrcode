@@ -45,8 +45,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "invitation_completed" }, { status: 409 });
     }
 
+    if (invitation.status === "canceled") {
+      return NextResponse.json({ ok: false, error: "invitation_canceled" }, { status: 410 });
+    }
+
+    if (invitation.status === "expired") {
+      return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 410 });
+    }
+
     if (invitation.status !== "pending") {
-      return NextResponse.json({ ok: false, error: "invitation_already_used" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "invitation_unavailable" }, { status: 409 });
     }
 
     const now = new Date();

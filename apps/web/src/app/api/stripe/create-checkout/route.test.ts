@@ -34,4 +34,18 @@ describe("create-checkout route", () => {
     expect(source).toContain("STRIPE_STARTER_PRICE_ID");
     expect(source).toContain("STRIPE_PRICE_STARTER");
   });
+
+  it("prefills and repairs the Stripe customer email before checkout", () => {
+    expect(source).toContain("const customerEmail = user.email?.trim() || undefined");
+    expect(source).toContain("email: customerEmail");
+    expect(source).toContain("stripe.customers.update");
+
+    const customerIndex = source.indexOf("stripe.customers.create");
+    const repairIndex = source.indexOf("stripe.customers.update");
+    const checkoutIndex = source.indexOf("stripe.checkout.sessions.create");
+
+    expect(customerIndex).toBeGreaterThan(-1);
+    expect(repairIndex).toBeGreaterThan(customerIndex);
+    expect(checkoutIndex).toBeGreaterThan(repairIndex);
+  });
 });

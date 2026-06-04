@@ -1,7 +1,7 @@
 "use client";
 
 import type { QrResolveActive } from "@imobiliariaqrcode/shared-types";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 function formatPrice(value: number | null): string | null {
   if (value == null || Number.isNaN(value)) return null;
@@ -21,7 +21,6 @@ type Props = {
 };
 
 export function PublicQrActive({ token, body }: Props) {
-  const [autoStatus, setAutoStatus] = useState<"pending" | "done" | "failed">("pending");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [observation, setObservation] = useState("");
@@ -35,20 +34,6 @@ export function PublicQrActive({ token, body }: Props) {
 
   const targetLink = useMemo(() => whatsappLink ?? null, [whatsappLink]);
   const leadPathLabel = targetLink ? "whatsapp" : "form";
-
-  useEffect(() => {
-    if (!targetLink) return;
-    setAutoStatus("pending");
-    const t = window.setTimeout(() => {
-      try {
-        window.location.href = targetLink;
-        setAutoStatus("done");
-      } catch {
-        setAutoStatus("failed");
-      }
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [targetLink]);
 
   async function handleLeadSubmit(e: FormEvent) {
     e.preventDefault();
@@ -110,11 +95,12 @@ export function PublicQrActive({ token, body }: Props) {
 
         {targetLink ? (
           <>
-            <p className="text-sm text-gray-600">Abrindo o atendimento via WhatsApp...</p>
+            <p className="text-sm text-gray-600">Atendimento via WhatsApp disponivel.</p>
             <a
               href={targetLink}
               target="_blank"
               rel="noopener noreferrer"
+              data-testid="public-qr-whatsapp-link"
               className="mt-5 flex w-full items-center justify-center bg-black px-4 py-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
               Abrir WhatsApp
@@ -198,17 +184,6 @@ export function PublicQrActive({ token, body }: Props) {
             </p>
           ) : null}
         </form>
-
-        {targetLink && autoStatus === "pending" ? (
-          <p className="mt-3 text-center text-xs text-gray-400">
-            Se nao abrir automaticamente, toque no botao acima.
-          </p>
-        ) : null}
-        {targetLink && autoStatus === "failed" ? (
-          <p className="mt-3 text-center text-xs text-red-500">
-            Nao foi possivel abrir automaticamente neste navegador.
-          </p>
-        ) : null}
 
         <p className="mt-10 text-center text-xs text-gray-400">Ref. {publicId}</p>
       </div>

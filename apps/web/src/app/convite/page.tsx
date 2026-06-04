@@ -37,9 +37,9 @@ export default function ConvitePage() {
             "Este convite ja foi ativado. Entre com o e-mail e a senha criados no cadastro.",
           invitation_completed:
             "Este convite ja foi concluido. Entre com o e-mail e a senha criados no cadastro.",
-          invitation_already_used:
-            "Este convite ja foi utilizado. Entre com o e-mail e a senha criados no cadastro.",
+          invitation_canceled: "Este convite foi cancelado. Peca um novo convite ao administrador.",
           invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
+          invitation_unavailable: "Este convite nao esta mais disponivel.",
         };
         setError(msgs[data.error ?? ""] ?? "Erro inesperado. Tente novamente.");
         return;
