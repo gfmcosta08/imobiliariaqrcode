@@ -130,6 +130,22 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 - Verificacao local atualizada: `pnpm --filter web run typecheck` PASS, `pnpm --filter web run lint` PASS, `pnpm --filter web run test` PASS (123), `pnpm --filter web run build` PASS.
 - Smoke staging Playwright no alias fixo oficial: `staging-security-smoke.spec.ts` + `homepage-mobile.spec.ts` PASS (6/6).
 
+## Rodada Stripe staging 2026-06-04
+
+- Escopo: somente ambiente de teste/staging (`Preview` da branch `codex/produto-investivel-10-10-staging`), sem deploy de producao.
+- Stripe em modo teste confirmado no Dashboard antes de usar chaves (`sk_test_` / `price_` / `whsec_`).
+- Vercel Preview configurado para a branch staging com `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER` e `STRIPE_STARTER_PRICE_ID`.
+- Price Starter configurado: `price_1TdzMMDLux2wr4a970gsPdll` (`ImobQR Starter (teste)`, BRL 150, recorrencia mensal).
+- Webhook Stripe staging recriado para `https://farollimoveis-staging.vercel.app/api/webhooks/stripe`; endpoint anterior do mesmo URL foi desativado para evitar assinatura antiga em paralelo.
+- Endpoint ativo: `we_1TegqODLux2wr4a9e8Hickl3`.
+- Billing Portal test ajustado para cancelamento imediato (`subscription_cancel.mode=immediately`) para homologar fluxo completo de cancelamento no staging.
+- Deploy com envs aplicado e alias fixo atualizado: `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-9ceztbwsk.vercel.app` (`dpl_6jreq64e9wuoFUmktXXqeUV71sCb`, target preview, Ready).
+- Checkout sandbox validado no navegador com cartao `4242`: conta `stripe.qa.20260604192540@maildrop.cc` retornou para `/dashboard?checkout=success` e ficou `starter_active`.
+- Webhook de ativacao validado no banco: `checkout.session.completed` e `invoice.payment_succeeded` processados.
+- Portal do Cliente validado no navegador: abre `billing.stripe.com` em modo teste, mostra assinatura, invoice paga e cartao `4242`.
+- Cancelamento imediato validado com conta `stripe.cancel.qa.20260604193100@maildrop.cc`: evento `customer.subscription.deleted` processado e assinatura marcada como `canceled` com `canceled_at`.
+- Arquivos temporarios locais usados para transportar segredos foram removidos ao final da configuracao.
+
 ## Supabase staging
 
 - Project ID: `imobiliariaqrcode-staging` (sem expor secrets neste relatorio).
