@@ -4,7 +4,8 @@ Status: COMPLETE
 Production modified: no
 Branch: codex/produto-investivel-10-10-staging
 Base commit: a75cbc60b166ca80f0fe09435abe90de55273911
-Final commit: 0f331b906f6e57addb34e2ec5dd3afbaa9431b7e
+Final implementation commit: 14c2004
+Official staging deployment: dpl_6dXy1wXPfkxdxsoKLWJTscCjEszx
 
 ## Commands
 
@@ -16,10 +17,12 @@ Final commit: 0f331b906f6e57addb34e2ec5dd3afbaa9431b7e
 | pnpm --filter web run lint                                                                                                                      | PASS             |                                                                                                                                        |
 | pnpm --filter web run build                                                                                                                     | PASS             | Next.js 15.2.8                                                                                                                         |
 | pnpm format:check                                                                                                                               | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
-| vercel deploy --yes                                                                                                                             | PASS             | Deployment preview `farollimoveis-k624vyycd.vercel.app` READY                                                                          |
-| vercel alias set farollimoveis-k624vyycd.vercel.app farollimoveis-staging.vercel.app                                                            | PASS             | Alias fixo oficial de staging atualizado                                                                                               |
+| vercel deploy --yes                                                                                                                             | PASS             | Deployment preview `farollimoveis-db14xtgcs.vercel.app` READY                                                                          |
+| vercel alias set farollimoveis-db14xtgcs.vercel.app farollimoveis-staging.vercel.app                                                            | PASS             | Alias fixo oficial de staging atualizado                                                                                               |
 | Invoke-WebRequest https://farollimoveis-staging.vercel.app                                                                                      | PASS             | HTTP 200; home contem promessa central                                                                                                 |
 | pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS             | 6/6 contra URL fixa oficial                                                                                                            |
+| curl.exe -X POST https://farollimoveis-staging.vercel.app/api/stripe/create-checkout                                                            | PASS             | HTTP 401 `unauthenticated` antes de validar configuracao Stripe                                                                        |
+| Playwright CTA/legal smoke contra https://farollimoveis-staging.vercel.app                                                                      | PASS             | `STAGING_CTA_AND_LEGAL_SMOKE_PASS`                                                                                                     |
 | pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts                                        | SKIPPED          | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1`                                                  |
 
 ## Changed Files
@@ -35,7 +38,7 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 - Branch local: `codex/produto-investivel-10-10-staging`
 - Alvo oficial de teste: `https://farollimoveis-staging.vercel.app`
-- Deployment preview apontado pelo alias fixo: `https://farollimoveis-k624vyycd.vercel.app`
+- Deployment preview apontado pelo alias fixo: `https://farollimoveis-db14xtgcs.vercel.app`
 - Supabase staging: projeto `imobiliariaqrcode-staging`
 - Sem `vercel --prod`, sem `supabase db push` em producao
 
@@ -111,6 +114,8 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 - Home mantem listagens publicas como secao secundaria e envia `Criar meu primeiro QR` para `/teste-gratis`; `Ver como funciona` abre `/como-funciona`.
 - Novas paginas publicas: `/teste-gratis` explica conta teste gratuita antes do cadastro; `/como-funciona` explica o fluxo QR -> interessado -> WhatsApp/formulario -> lead no painel com imagens.
 - Smoke local Playwright: `CTA_AND_LEGAL_SMOKE_PASS` em `http://127.0.0.1:3000`.
+- Smoke staging Playwright: `STAGING_CTA_AND_LEGAL_SMOKE_PASS` em
+  `https://farollimoveis-staging.vercel.app`.
 - Screenshots locais gerados em `output/playwright/home.png`, `output/playwright/teste-gratis.png`, `output/playwright/como-funciona.png`, `output/playwright/login-signup.png`.
 - Verificacao local: `pnpm test` PASS (web 117 + importer 47), `pnpm --filter web run typecheck` PASS, `pnpm --filter web run lint` PASS, `pnpm --filter web run build` PASS, Prettier dos arquivos tocados PASS.
 
