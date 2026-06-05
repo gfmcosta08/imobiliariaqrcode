@@ -13,4 +13,10 @@ describe("ConvitePage", () => {
     expect(source).toContain("Este convite foi cancelado");
     expect(source).not.toContain("invitation_already_used:");
   });
+
+  it("prefills the login code when the invite link redirects with query params", () => {
+    expect(source).toContain("useSearchParams");
+    expect(source).toContain("sanitizeInviteCode");
+    expect(source).toContain('searchParams.get("login_code")');
+  });
 });

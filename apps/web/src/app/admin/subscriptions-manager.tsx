@@ -17,9 +17,9 @@ type Subscription = {
   accounts: Account | null;
 };
 
-const STATUSES = ["free", "solo_active", "pro_active", "canceled"];
+const STATUSES = ["free", "starter_active", "pro_active", "past_due", "canceled"];
 
-const PLANS = ["free", "solo", "pro"];
+const PLANS = ["free", "starter", "pro"];
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";

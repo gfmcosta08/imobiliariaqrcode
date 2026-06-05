@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ConvitePage() {
+function sanitizeInviteCode(value: string | null): string {
+  return (value ?? "").replace(/\D/g, "").slice(0, 6);
+}
+
+function ConvitePageContent() {
   const router = useRouter();
-  const [loginCode, setLoginCode] = useState("");
+  const searchParams = useSearchParams();
+  const [loginCode, setLoginCode] = useState(sanitizeInviteCode(searchParams.get("login_code")));
   const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,5 +133,13 @@ export default function ConvitePage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ConvitePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <ConvitePageContent />
+    </Suspense>
   );
 }

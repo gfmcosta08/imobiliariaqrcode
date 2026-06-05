@@ -21,6 +21,7 @@ export async function PATCH(
     "starter_active",
     "solo_active",
     "pro_active",
+    "past_due",
     "canceled",
   ]);
   const allowedPlans = new Set(["free", "starter", "solo", "pro"]);
@@ -62,6 +63,7 @@ export async function PATCH(
     starter_active: ["starter"],
     solo_active: ["solo"],
     pro_active: ["pro"],
+    past_due: ["starter", "solo", "pro"],
     canceled: ["free", "starter", "solo", "pro"],
   };
   if (targetStatus && targetPlan && !(combos[targetStatus] ?? []).includes(targetPlan)) {

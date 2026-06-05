@@ -1,0 +1,18 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+const dir = dirname(fileURLToPath(import.meta.url));
+const source = readFileSync(resolve(dir, "subscriptions-manager.tsx"), "utf8");
+
+describe("SubscriptionsManager", () => {
+  it("offers current SaaS Starter subscription values in the admin UI", () => {
+    expect(source).toContain('"starter_active"');
+    expect(source).toContain('"starter"');
+    expect(source).toContain('"past_due"');
+    expect(source).not.toContain('"solo_active"');
+    expect(source).not.toContain('"solo"');
+  });
+});
