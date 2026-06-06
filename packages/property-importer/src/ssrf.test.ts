@@ -102,7 +102,9 @@ describe("inferImportMode", () => {
     const logosPhp = new URL(
       "https://www.logos-to.com.br/detalhes-imovel.php?imovel=1746&finalidade=1",
     );
-    const imperioListing = new URL("https://www.imperionegociosimob.com.br/imoveis/a-venda/palmas-to");
+    const imperioListing = new URL(
+      "https://www.imperionegociosimob.com.br/imoveis/a-venda/palmas-to",
+    );
     expect(inferImportMode(logosPhp)).toBe("single");
     expect(inferImportMode(imperioListing)).toBe("listing");
   });

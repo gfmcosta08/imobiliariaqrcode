@@ -35,8 +35,7 @@ export const CURATED_LISTING_URLS: Partial<Record<RequiredImportSite, string>> =
     "https://www.estiloimobiliaria.com/imovel/apartamento-a-venda-graciosa-orla-14-palmas-to/5900",
   "imobiliariasonhar.com.br":
     "https://imobiliariasonhar.com.br/imovel/apartamento-palmas-2-quartos-65-m/AP0029-SOOR",
-  "logos-to.com.br":
-    "https://www.logos-to.com.br/detalhes-imovel.php?imovel=1746&finalidade=1",
+  "logos-to.com.br": "https://www.logos-to.com.br/detalhes-imovel.php?imovel=1746&finalidade=1",
   "niloimoveis.com.br":
     "https://niloimoveis.com.br/imovel/apartamento-1-dormitorio-nossa-senhora-de-fatima_santa-maria_rs-santa-maria_rs-72307/",
   "casa63araguaina.com.br":

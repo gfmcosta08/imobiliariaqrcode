@@ -5,25 +5,27 @@ Production modified: no
 Branch: codex/produto-investivel-10-10-staging
 Base commit: a75cbc60b166ca80f0fe09435abe90de55273911
 Final implementation commit: 14c2004
-Official staging deployment: dpl_6dXy1wXPfkxdxsoKLWJTscCjEszx
+Official staging deployment: dpl_J3H2qZSWh1JttLKs2eRhMJFVtb2H
 
 ## Commands
 
-| Command                                                                                                                                         | Result           | Notes                                                                                                                                  |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| pnpm --filter web run test                                                                                                                      | PASS             | 102 testes                                                                                                                             |
-| pnpm --filter @imobiliariaqrcode/property-importer run test                                                                                     | PASS             | 47 testes                                                                                                                              |
-| pnpm --filter web run typecheck                                                                                                                 | PASS             |                                                                                                                                        |
-| pnpm --filter web run lint                                                                                                                      | PASS             |                                                                                                                                        |
-| pnpm --filter web run build                                                                                                                     | PASS             | Next.js 15.2.8                                                                                                                         |
-| pnpm format:check                                                                                                                               | FAIL (repo-wide) | Excecao documentada: drift em `.claude/worktrees/` e arquivos fora do escopo desta entrega; arquivos alterados formatados com Prettier |
-| vercel deploy --yes                                                                                                                             | PASS             | Deployment preview `farollimoveis-db14xtgcs.vercel.app` READY                                                                          |
-| vercel alias set farollimoveis-db14xtgcs.vercel.app farollimoveis-staging.vercel.app                                                            | PASS             | Alias fixo oficial de staging atualizado                                                                                               |
-| Invoke-WebRequest https://farollimoveis-staging.vercel.app                                                                                      | PASS             | HTTP 200; home contem promessa central                                                                                                 |
-| pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS             | 6/6 contra URL fixa oficial                                                                                                            |
-| curl.exe -X POST https://farollimoveis-staging.vercel.app/api/stripe/create-checkout                                                            | PASS             | HTTP 401 `unauthenticated` antes de validar configuracao Stripe                                                                        |
-| Playwright CTA/legal smoke contra https://farollimoveis-staging.vercel.app                                                                      | PASS             | `STAGING_CTA_AND_LEGAL_SMOKE_PASS`                                                                                                     |
-| pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts                                        | SKIPPED          | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1`                                                  |
+| Command                                                                                                                                         | Result  | Notes                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------- |
+| pnpm --filter web run test                                                                                                                      | PASS    | 134 testes em 2026-06-06                                                              |
+| pnpm --filter @imobiliariaqrcode/property-importer run test                                                                                     | PASS    | 47 testes                                                                             |
+| pnpm --filter web run typecheck                                                                                                                 | PASS    |                                                                                       |
+| pnpm --filter web run lint                                                                                                                      | PASS    |                                                                                       |
+| pnpm --filter web run build                                                                                                                     | PASS    | Next.js 15.2.8; build local e Vercel Preview                                          |
+| pnpm format:check                                                                                                                               | PASS    | Normalizado em 2026-06-06; `.claude/`, `output/` e artefatos QA ignorados             |
+| vercel deploy --yes                                                                                                                             | PASS    | Deployment preview `farollimoveis-db14xtgcs.vercel.app` READY                         |
+| vercel alias set farollimoveis-db14xtgcs.vercel.app farollimoveis-staging.vercel.app                                                            | PASS    | Alias fixo oficial de staging atualizado                                              |
+| Invoke-WebRequest https://farollimoveis-staging.vercel.app                                                                                      | PASS    | HTTP 200; home contem promessa central                                                |
+| pnpm --filter web exec playwright test tests/e2e/staging-security-smoke.spec.ts tests/e2e/homepage-mobile.spec.ts --config=playwright.config.ts | PASS    | 6/6 contra URL fixa oficial                                                           |
+| curl.exe -X POST https://farollimoveis-staging.vercel.app/api/stripe/create-checkout                                                            | PASS    | HTTP 401 `unauthenticated` antes de validar configuracao Stripe                       |
+| Playwright CTA/legal smoke contra https://farollimoveis-staging.vercel.app                                                                      | PASS    | `STAGING_CTA_AND_LEGAL_SMOKE_PASS`                                                    |
+| pnpm --filter web exec playwright test tests/e2e/staging-full-flow.spec.ts --config=playwright.config.ts                                        | SKIPPED | 6 skipped por falta de `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_STAGING_WRITE=1` |
+| pnpm --filter web exec playwright test tests/e2e/staging-self-service-flow.spec.ts --config=playwright.config.ts                                | PASS    | 1/1 com `E2E_STAGING_WRITE=1` contra staging fixo oficial                             |
+| pnpm --filter web exec playwright test tests/e2e/staging-stripe-self-service.spec.ts --config=playwright.config.ts                              | PASS    | 1/1 com `E2E_STAGING_WRITE=1` e `E2E_STRIPE_CHECKOUT=1`; checkout sandbox completo    |
 
 ## Changed Files
 
@@ -38,7 +40,7 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 - Branch local: `codex/produto-investivel-10-10-staging`
 - Alvo oficial de teste: `https://farollimoveis-staging.vercel.app`
-- Deployment preview apontado pelo alias fixo: `https://farollimoveis-db14xtgcs.vercel.app`
+- Deployment preview apontado pelo alias fixo: `https://farollimoveis-dbv23n8dz.vercel.app`
 - Supabase staging: projeto `imobiliariaqrcode-staging`
 - Sem `vercel --prod`, sem `supabase db push` em producao
 
@@ -146,6 +148,30 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 - Cancelamento imediato validado com conta `stripe.cancel.qa.20260604193100@maildrop.cc`: evento `customer.subscription.deleted` processado e assinatura marcada como `canceled` com `canceled_at`.
 - Arquivos temporarios locais usados para transportar segredos foram removidos ao final da configuracao.
 
+## Rodada normalizacao 2026-06-06
+
+- `pnpm format:check` normalizado e PASS repo-wide.
+- `.prettierignore`, `.gitignore` e `.vercelignore` atualizados para excluir `.claude/`, `output/` e artefatos locais de QA/Playwright.
+- Preview staging redeployado sem producao:
+  - `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-q2bgpm7pt.vercel.app` (`dpl_GA1DKJJftWWTmi533z4AWJNgyDxc`, Ready) para aplicar `CRON_SECRET`.
+  - `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-dbv23n8dz.vercel.app` (`dpl_J3H2qZSWh1JttLKs2eRhMJFVtb2H`, Ready) para telemetry Stripe sem segredo.
+- `CRON_SECRET` configurado no Vercel Preview da branch `codex/produto-investivel-10-10-staging` com valor novo de staging. O primeiro valor gerado foi rotacionado imediatamente antes de uso por falha da API RNG do PowerShell local.
+- Validacao segura de cron, sem acionar execucao autorizada:
+  - `GET /api/cron/whatsapp-dispatch` sem bearer: `401 {"error":"unauthorized"}`.
+  - `GET /api/cron/whatsapp-dispatch` bearer errado: `401 {"error":"unauthorized"}`.
+  - `GET /api/cron/bot-health-monitor` sem bearer: `401 {"error":"unauthorized"}`.
+  - `GET /api/cron/bot-health-monitor` bearer errado: `401 {"error":"unauthorized"}`.
+- Novo E2E write-gated autossuficiente: `apps/web/tests/e2e/staging-self-service-flow.spec.ts`.
+  - Cobre signup, primeiro QR, QR publico, lead publico, lista de leads e dashboard.
+  - Resultado: PASS 1/1 em `https://farollimoveis-staging.vercel.app`.
+- Novo E2E Stripe self-service: `apps/web/tests/e2e/staging-stripe-self-service.spec.ts`.
+  - Cobre signup, login explicito, checkout Starter sandbox Stripe e retorno ao dashboard.
+  - Resultado: PASS 1/1 em `https://farollimoveis-staging.vercel.app`.
+  - Checkout session: `cs_test_a1u9o99dW1EgIJvml2dCkYnH1S5h8Cky9o3dyBHked6Vgv8bTVu3V6MNuC`.
+  - Stripe event IDs reais registrados nos logs Vercel do webhook:
+    - `evt_1TfLKBDLux2wr4a9nn3AjWsk` (`checkout.session.completed`, processed).
+    - `evt_1TfLKCDLux2wr4a9lgqJ4IJw` (`invoice.payment_succeeded`, processed).
+
 ## Supabase staging
 
 - Project ID: `imobiliariaqrcode-staging` (sem expor secrets neste relatorio).
@@ -154,9 +180,7 @@ Ver `git diff --name-only main` apos commit (lista extensa: seguranca, Stripe St
 
 ## Known Limitations
 
-- Validacao Stripe end-to-end (checkout + webhook + portal) requer preview deploy e `STRIPE_STARTER_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` de teste no ambiente.
-- E2E Playwright full-flow bloqueado sem variaveis admin/write nesta execucao.
-- `pnpm format:check` global falha por arquivos fora do escopo (worktrees Claude); nao impede build/lint/test do `web`.
+- E2E Playwright admin/convite full-flow permanece dependente de `E2E_ADMIN_EMAIL` e `E2E_ADMIN_PASSWORD`; o fluxo self-service QR -> lead -> painel foi validado com write gate em 2026-06-06.
 - Admin legado ainda aceita `solo` / `solo_active` para compatibilidade manual.
 
 ## Assertions

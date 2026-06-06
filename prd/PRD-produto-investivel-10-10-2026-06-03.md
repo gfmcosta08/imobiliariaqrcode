@@ -55,14 +55,14 @@ Transformar o produto em um SaaS com:
 
 ## 4. Score Atual e Score Alvo
 
-| Dimensao | Score atual | Score alvo | Como chegar a 10/10 |
-|---|---:|---:|---|
-| Tese | 7/10 | 10/10 | Focar em QR fisico/digital que gera lead rastreavel no WhatsApp |
-| Produto | 5/10 | 10/10 | Onboarding curto, dashboard de dinheiro e experiencia premium |
-| Engenharia | 6/10 | 10/10 | Main verde, CI verde, staging alinhado e sem codigo critico untracked |
-| Seguranca | 3/10 | 10/10 | Cron fechado, payload limitado, webhooks assinados, segredo rotacionado |
-| Monetizacao | 2/10 | 10/10 | Stripe completo de ponta a ponta com testes e runbook |
-| GTM/venda | 3/10 | 10/10 | ICP claro, pilotos reais, metricas de ativacao, valor e retencao |
+| Dimensao    | Score atual | Score alvo | Como chegar a 10/10                                                     |
+| ----------- | ----------: | ---------: | ----------------------------------------------------------------------- |
+| Tese        |        7/10 |      10/10 | Focar em QR fisico/digital que gera lead rastreavel no WhatsApp         |
+| Produto     |        5/10 |      10/10 | Onboarding curto, dashboard de dinheiro e experiencia premium           |
+| Engenharia  |        6/10 |      10/10 | Main verde, CI verde, staging alinhado e sem codigo critico untracked   |
+| Seguranca   |        3/10 |      10/10 | Cron fechado, payload limitado, webhooks assinados, segredo rotacionado |
+| Monetizacao |        2/10 |      10/10 | Stripe completo de ponta a ponta com testes e runbook                   |
+| GTM/venda   |        3/10 |      10/10 | ICP claro, pilotos reais, metricas de ativacao, valor e retencao        |
 
 ## 5. Tese Primaria do Produto
 

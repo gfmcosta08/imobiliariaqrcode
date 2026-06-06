@@ -24,4 +24,10 @@ describe("webhook Stripe", () => {
     expect(routeSource).toContain("invoice.payment_failed");
     expect(routeSource).toContain("past_due");
   });
+
+  it("registra telemetry sem segredo com id real do evento Stripe", () => {
+    expect(routeSource).toContain("[stripe-webhook]");
+    expect(routeSource).toContain("event.id");
+    expect(routeSource).not.toContain("webhookSecret,");
+  });
 });

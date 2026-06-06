@@ -30,6 +30,7 @@ Thumbs.db
 .idea
 .vscode/*
 !.vscode/extensions.json
+.claude/
 
 # Supabase
 supabase/.branches
@@ -53,6 +54,7 @@ coverage
 apps/web/playwright-report/
 apps/web/test-results/
 apps/web/qa-output/
+output/
 QA_STAGING_REPORT.md
 QA_REPORT_STAGING_*.md
 RELATORIO_COBERTURA_IMPORTACAO_*.md

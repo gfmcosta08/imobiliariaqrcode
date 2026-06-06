@@ -60,7 +60,10 @@ export function isDecorativeImportImageUrl(raw: string): boolean {
   if (/\/flags?\//i.test(lower)) return true;
   if (/\/cms\/files\//i.test(lower)) return true;
   if (/icon-|favicon|sprite|logo-link|\/logo[./-]/i.test(lower)) return true;
-  if (/whatsapp|facebook|instagram|youtube|linkedin|twitter/i.test(lower) && /icon|logo|svg/i.test(lower)) {
+  if (
+    /whatsapp|facebook|instagram|youtube|linkedin|twitter/i.test(lower) &&
+    /icon|logo|svg/i.test(lower)
+  ) {
     return true;
   }
   return false;

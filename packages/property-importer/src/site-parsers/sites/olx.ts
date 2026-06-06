@@ -63,7 +63,9 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   // OLX also encodes images in JSON state
   $("script").each((_i, el) => {
     const content = $(el).html() ?? "";
-    const matches = content.matchAll(/"url"\s*:\s*"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi);
+    const matches = content.matchAll(
+      /"url"\s*:\s*"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi,
+    );
     for (const m of matches) {
       images.push({ url: m[1] });
     }
@@ -84,7 +86,11 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
     "[class*='address']",
   ]);
 
-  const bedText = firstText($, ["[class*='bedroom']", "[class*='quarto']", "[aria-label*='Quarto']"]);
+  const bedText = firstText($, [
+    "[class*='bedroom']",
+    "[class*='quarto']",
+    "[aria-label*='Quarto']",
+  ]);
   const areaText = firstText($, ["[class*='area']", "[class*='m2']", "[aria-label*='rea']"]);
 
   return {

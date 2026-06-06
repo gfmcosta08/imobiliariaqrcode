@@ -13,10 +13,7 @@ describe("parsePropertyLinksFromHtml", () => {
       </body></html>
     `;
     const urls = parsePropertyLinksFromHtml(base, html, 10);
-    expect(urls).toEqual([
-      "https://vivanci.com/imovel/0808",
-      "https://vivanci.com/imovel/0534",
-    ]);
+    expect(urls).toEqual(["https://vivanci.com/imovel/0808", "https://vivanci.com/imovel/0534"]);
   });
 
   it("extrai detalhes-imovel.php (Logos)", () => {
@@ -101,10 +98,10 @@ describe("discoverPropertyUrls SPA fallback", () => {
       vi.fn(async (input: RequestInfo) => {
         const url = String(input);
         if (url.includes("/v1/discover")) {
-          return new Response(
-            JSON.stringify({ ok: true, url, html: renderedHtml }),
-            { status: 200, headers: { "content-type": "application/json" } },
-          );
+          return new Response(JSON.stringify({ ok: true, url, html: renderedHtml }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
         }
         throw new Error(`unexpected fetch: ${url}`);
       }),

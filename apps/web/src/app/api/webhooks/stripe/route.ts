@@ -99,10 +99,19 @@ export async function POST(req: NextRequest) {
 
   if (insertError) {
     if (insertError.code === "23505") {
+      console.info("[stripe-webhook] duplicate", {
+        eventId: event.id,
+        eventType: event.type,
+      });
       return NextResponse.json({ received: true, duplicate: true });
     }
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
+
+  console.info("[stripe-webhook] received", {
+    eventId: event.id,
+    eventType: event.type,
+  });
 
   try {
     switch (event.type) {
@@ -212,8 +221,18 @@ export async function POST(req: NextRequest) {
     }
 
     await markWebhookProcessed(admin, event.id, "processed");
+    console.info("[stripe-webhook] processed", {
+      eventId: event.id,
+      eventType: event.type,
+      processingStatus: "processed",
+    });
   } catch (handlerError) {
     await markWebhookProcessed(admin, event.id, "failed");
+    console.info("[stripe-webhook] processed", {
+      eventId: event.id,
+      eventType: event.type,
+      processingStatus: "failed",
+    });
     const message = handlerError instanceof Error ? handlerError.message : "handler_failed";
     return NextResponse.json({ received: false, error: message }, { status: 500 });
   }

@@ -501,11 +501,7 @@ async function resolveRecommendedProperty(
   shownIds: string[] = [],
 ): Promise<Record<string, unknown> | null> {
   const candidateIds = Array.from(
-    new Set(
-      [...recommendedIds, ...shownIds]
-        .map((id) => String(id ?? "").trim())
-        .filter(Boolean),
-    ),
+    new Set([...recommendedIds, ...shownIds].map((id) => String(id ?? "").trim()).filter(Boolean)),
   );
   if (!candidateIds.length) return null;
 
@@ -1438,19 +1434,17 @@ async function doRegisterVisit(
     .eq("id", sessionId);
 }
 
-async function handlePostSimilarPropertyId(
-  input: {
-    supabase: ReturnType<typeof createClient>;
-    session: Record<string, unknown>;
-    property: Record<string, unknown>;
-    lead: LeadSnapshot | null;
-    leadPhone: string;
-    brokerPhone: string | null;
-    firstName: string;
-    profileName: string | null;
-    text: string;
-  },
-): Promise<Response> {
+async function handlePostSimilarPropertyId(input: {
+  supabase: ReturnType<typeof createClient>;
+  session: Record<string, unknown>;
+  property: Record<string, unknown>;
+  lead: LeadSnapshot | null;
+  leadPhone: string;
+  brokerPhone: string | null;
+  firstName: string;
+  profileName: string | null;
+  text: string;
+}): Promise<Response> {
   const {
     supabase,
     session,

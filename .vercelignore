@@ -1,0 +1,8 @@
+.claude/
+output/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/qa-output/
+QA_STAGING_REPORT.md
+QA_REPORT_STAGING_*.md
+RELATORIO_COBERTURA_IMPORTACAO_*.md

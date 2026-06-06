@@ -6,13 +6,13 @@
 
 ## Publicação no Staging (sem produção)
 
-1) Fazer deploy **Preview** (nunca `--prod`):
+1. Fazer deploy **Preview** (nunca `--prod`):
 
 ```bash
 vercel deploy --yes
 ```
 
-2) Apontar a URL fixa para o último deploy Preview:
+2. Apontar a URL fixa para o último deploy Preview:
 
 ```bash
 vercel alias set <deployment-url>.vercel.app farollimoveis-staging.vercel.app
@@ -29,12 +29,12 @@ Disponível apenas quando `VERCEL_ENV` **não** é `production` (Preview/dev). E
 
 ### Variáveis Preview (Vercel)
 
-| Variável | Obrigatória | Descrição |
-| -------- | ----------- | --------- |
-| `PROPERTY_EXTRACTOR_URL` | Sim | Base URL do serviço [extratordeanuncios](https://github.com/gfmcosta08/extratordeanuncios) (ex.: `https://seu-extrator.onrender.com`) |
-| `PROPERTY_IMPORT_MODE` | Não | `open` (default) aceita qualquer site HTTPS público; `pilot` só Sonhar; `allowlist` usa `PROPERTY_IMPORT_ALLOWED_HOSTS` |
-| `PROPERTY_IMPORT_ALLOWED_HOSTS` | Não | Domínios permitidos separados por vírgula (modo `allowlist`) |
-| `ENABLE_PROPERTY_IMPORT` | Não | `1` força ligado em Preview; `0` força desligado |
+| Variável                        | Obrigatória | Descrição                                                                                                                             |
+| ------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROPERTY_EXTRACTOR_URL`        | Sim         | Base URL do serviço [extratordeanuncios](https://github.com/gfmcosta08/extratordeanuncios) (ex.: `https://seu-extrator.onrender.com`) |
+| `PROPERTY_IMPORT_MODE`          | Não         | `open` (default) aceita qualquer site HTTPS público; `pilot` só Sonhar; `allowlist` usa `PROPERTY_IMPORT_ALLOWED_HOSTS`               |
+| `PROPERTY_IMPORT_ALLOWED_HOSTS` | Não         | Domínios permitidos separados por vírgula (modo `allowlist`)                                                                          |
+| `ENABLE_PROPERTY_IMPORT`        | Não         | `1` força ligado em Preview; `0` força desligado                                                                                      |
 
 ### Migration (Staging primeiro)
 
@@ -59,4 +59,3 @@ vercel alias set <deployment-url>.vercel.app farollimoveis-staging.vercel.app
 3. URL de qualquer site imobiliário (imóvel, listagem ou home) — ex.: Sonhar, casa63.com.br
 4. Confirmar imóveis em **Rascunho** sem mapa; publicar só após `location_map_url` válido
 5. Não promover para Production até homologar e aplicar migration em Production (feature permanece desligada em prod até decisão explícita)
-

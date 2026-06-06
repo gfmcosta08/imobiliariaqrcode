@@ -1,6 +1,10 @@
 import * as cheerio from "cheerio";
 
-import { looksLikeSingleListingUrl, LISTING_FALLBACK_PATHS, MAX_PROPERTIES_PER_IMPORT } from "./constants";
+import {
+  looksLikeSingleListingUrl,
+  LISTING_FALLBACK_PATHS,
+  MAX_PROPERTIES_PER_IMPORT,
+} from "./constants";
 import { fetchRenderedHtmlFromExtrator } from "./extrator-client";
 import { isPropertyDetailUrl, validateImportUrl } from "./ssrf";
 
@@ -151,7 +155,10 @@ export async function discoverPropertyUrls(
     if (/^fetch_failed_\d+$/.test(message) && extratorBaseUrl) {
       const renderedUrls = await discoverWithExtratorFallbacks();
       if (renderedUrls.length > 0) {
-        return { urls: renderedUrls.filter((u) => !isHomepageUrl(u)), mode: inferDiscoverMode(base) };
+        return {
+          urls: renderedUrls.filter((u) => !isHomepageUrl(u)),
+          mode: inferDiscoverMode(base),
+        };
       }
     }
     throw e;

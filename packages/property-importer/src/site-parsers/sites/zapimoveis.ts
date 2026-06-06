@@ -12,12 +12,7 @@ import type { SiteParser } from "../types";
 function parse(html: string, url: string): Partial<ExtratorListing> {
   const $ = cheerio.load(html);
 
-  const title = firstText($, [
-    "h1[class*='title']",
-    "h1[class*='Title']",
-    ".listing-title",
-    "h1",
-  ]);
+  const title = firstText($, ["h1[class*='title']", "h1[class*='Title']", ".listing-title", "h1"]);
 
   const descRaw = firstText($, [
     "[class*='description'] p",
@@ -59,7 +54,7 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
       const json = JSON.parse($(el).html() ?? "");
       const imgs = json?.image ?? json?.photo ?? [];
       for (const img of Array.isArray(imgs) ? imgs : [imgs]) {
-        const u = typeof img === "string" ? img : img?.url ?? img?.contentUrl;
+        const u = typeof img === "string" ? img : (img?.url ?? img?.contentUrl);
         if (u && typeof u === "string" && u.startsWith("http")) images.push({ url: u });
       }
     } catch {

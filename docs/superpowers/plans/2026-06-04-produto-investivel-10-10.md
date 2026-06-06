@@ -91,6 +91,7 @@ The report must include:
 ### Task 0.1: Create an isolated implementation branch
 
 **Files:**
+
 - Read: all repository files as needed
 - Modify: none
 
@@ -190,6 +191,7 @@ Expected:
 ### Task 0.2: Baseline verification
 
 **Files:**
+
 - Read: `package.json`
 - Read: `apps/web/package.json`
 - Read: `.github/workflows/ci.yml`
@@ -264,6 +266,7 @@ Expected:
 ### Task 0.3: Prevent accidental artifact commits
 
 **Files:**
+
 - Modify: `.gitignore`
 
 - [ ] **Step 1: Inspect artifact directories**
@@ -332,6 +335,7 @@ Expected:
 ### Task 1.1: Add fail-closed cron authorization helper
 
 **Files:**
+
 - Create: `apps/web/src/lib/security/cron-auth.ts`
 - Create: `apps/web/src/lib/security/cron-auth.test.ts`
 - Modify: `apps/web/src/app/api/cron/whatsapp-dispatch/route.ts`
@@ -439,7 +443,10 @@ In `apps/web/src/app/api/cron/bot-health-monitor/route.ts`:
 Expected shape:
 
 ```ts
-const auth = validateCronAuthorization(request.headers.get("authorization"), process.env.CRON_SECRET);
+const auth = validateCronAuthorization(
+  request.headers.get("authorization"),
+  process.env.CRON_SECRET,
+);
 if (!auth.ok) {
   return NextResponse.json({ error: auth.error }, { status: auth.status });
 }
@@ -486,6 +493,7 @@ Expected:
 ### Task 1.2: Harden public lead endpoint payload parsing
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/public/lead/route.ts`
 - Create: `apps/web/src/app/api/public/lead/route.test.ts`
 - Existing helper: `apps/web/src/lib/security/json-body.ts`
@@ -560,7 +568,10 @@ const unknown = rejectUnknownKeys(parsed.value, [
   "intent",
 ]);
 if (unknown) {
-  return NextResponse.json({ ok: false, error: "unexpected_field", field: unknown }, { status: 400 });
+  return NextResponse.json(
+    { ok: false, error: "unexpected_field", field: unknown },
+    { status: 400 },
+  );
 }
 
 const qr_token = clampString(parsed.value.qr_token, { maxLength: 256, trim: true });
@@ -612,6 +623,7 @@ Expected:
 ### Task 1.3: Secure service-role Supabase functions exposed with verify_jwt false
 
 **Files:**
+
 - Modify: `supabase/functions/lead-notify-broker/index.ts`
 - Review: `supabase/functions/billing-stripe-webhook/index.ts`
 - Review: `supabase/functions/billing-mercadopago-webhook/index.ts`
@@ -689,6 +701,7 @@ Expected:
 ### Task 1.4: Secret hygiene and report redaction
 
 **Files:**
+
 - Modify: tracked or untracked docs only if they contain exposed test credentials
 - Create or update: `docs/compliance/evidencias/SECRET_HYGIENE_2026-06-04.md`
 
@@ -772,6 +785,7 @@ Expected:
 ### Task 2.1: Normalize plan vocabulary to Free + Starter
 
 **Files:**
+
 - Modify: `apps/web/src/lib/plans.ts`
 - Modify: `apps/web/src/app/plans/page.tsx`
 - Modify: `apps/web/src/app/dashboard/page.tsx`
@@ -800,7 +814,7 @@ Expected:
 Replace active status lists so they include:
 
 ```ts
-["free", "starter_active", "pro_pending_activation", "pro_active"]
+["free", "starter_active", "pro_pending_activation", "pro_active"];
 ```
 
 Remove `solo_active` from runtime code unless it is inside migration compatibility comments or one-time migration SQL.
@@ -864,6 +878,7 @@ Expected:
 ### Task 2.2: Implement Stripe checkout in staging/test
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/stripe/create-checkout/route.ts`
 - Modify: `apps/web/src/app/plans/checkout-button.tsx`
 - Modify: `apps/web/src/app/plans/page.tsx`
@@ -972,6 +987,7 @@ Expected:
 ### Task 2.3: Implement Stripe webhook idempotency and Starter activation
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/webhooks/stripe/route.ts`
 - Modify: `apps/web/src/app/api/webhooks/stripe/webhook-idempotency.test.ts`
 - Review: `supabase/migrations/20250416030000_partners_leads_ops.sql`
@@ -1114,6 +1130,7 @@ Expected:
 ### Task 2.4: Enable customer portal in staging/test
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/stripe/customer-portal/route.ts`
 - Modify: `apps/web/src/app/dashboard/manage-subscription-button.tsx`
 - Modify: `apps/web/src/app/dashboard/page.tsx`
@@ -1147,7 +1164,10 @@ Keep production guard unless explicit production rollout is approved later:
 
 ```ts
 if (process.env.VERCEL_ENV === "production") {
-  return NextResponse.json({ ok: false, error: "portal_not_enabled_in_production" }, { status: 503 });
+  return NextResponse.json(
+    { ok: false, error: "portal_not_enabled_in_production" },
+    { status: 503 },
+  );
 }
 ```
 
@@ -1204,6 +1224,7 @@ Expected:
 ### Task 3.1: Add bot no-regression source contract
 
 **Files:**
+
 - Create: `apps/web/src/guardrails/bot-no-regression.test.ts`
 - Review: `supabase/functions/whatsapp-webhook-inbound/index.ts`
 - Review: `supabase/functions/conversation-handle/index.ts`
@@ -1250,6 +1271,7 @@ Expected:
 ### Task 3.2: Create QR full-flow staging E2E spec
 
 **Files:**
+
 - Modify or create: `apps/web/tests/e2e/staging-full-flow.spec.ts`
 - Review: `apps/web/tests/e2e/staging-qa-compliance-e2e.spec.ts`
 - Review: `apps/web/playwright.config.ts`
@@ -1333,6 +1355,7 @@ Expected:
 ### Task 4.1: Replace marketplace-first home with QR lead proposition
 
 **Files:**
+
 - Modify: `apps/web/src/app/page.tsx`
 - Review: `prd/PRD-identidade-visual-imoveisqr-2026-05-14.md`
 - Test: `apps/web/tests/e2e/homepage-mobile.spec.ts`
@@ -1413,6 +1436,7 @@ Expected:
 ### Task 4.2: Brand consistency pass
 
 **Files:**
+
 - Modify: `apps/web/src/components/app-header.tsx`
 - Modify: relevant visible UI files with old names
 - Review: `brand/`
@@ -1482,6 +1506,7 @@ Expected:
 ### Task 5.1: Add quick-start onboarding route
 
 **Files:**
+
 - Create: `apps/web/src/app/onboarding/primeiro-qr/page.tsx`
 - Create: `apps/web/src/app/onboarding/primeiro-qr/quick-property-form.tsx`
 - Modify: `apps/web/src/app/api/properties/quick-create/route.ts`
@@ -1589,6 +1614,7 @@ Expected:
 ### Task 5.2: QR action checklist on property detail
 
 **Files:**
+
 - Modify: `apps/web/src/app/properties/[id]/page.tsx`
 - Modify: `apps/web/src/app/properties/[id]/qr-print-card.tsx`
 - Review: `apps/web/src/app/q/[token]/page.tsx`
@@ -1654,6 +1680,7 @@ Expected:
 ### Task 6.1: Create dashboard metrics service
 
 **Files:**
+
 - Create: `apps/web/src/lib/dashboard/metrics.ts`
 - Create: `apps/web/src/lib/dashboard/metrics.test.ts`
 - Modify: `apps/web/src/app/dashboard/page.tsx`
@@ -1750,6 +1777,7 @@ Expected:
 ### Task 6.2: Improve leads page for action
 
 **Files:**
+
 - Modify: `apps/web/src/app/leads/page.tsx`
 - Modify: `apps/web/src/app/leads/[id]/page.tsx`
 - Modify: `apps/web/src/app/leads/[id]/lead-editor-form.tsx`
@@ -1832,6 +1860,7 @@ Expected:
 ### Task 7.1: Add paste-text import fallback
 
 **Files:**
+
 - Modify: `apps/web/src/app/properties/import-listings-button.tsx`
 - Modify: `apps/web/src/app/api/properties/import/route.ts`
 - Create: `apps/web/src/lib/property-import/pasted-listing.ts`
@@ -1937,6 +1966,7 @@ Expected:
 ### Task 7.2: Humanize importer errors and ensure manual path never blocks QR
 
 **Files:**
+
 - Modify: `apps/web/src/app/properties/import-listings-button.tsx`
 - Modify: `apps/web/src/app/properties/new/page.tsx`
 - Modify: `apps/web/src/app/properties/new/property-form.tsx` if needed
@@ -2007,6 +2037,7 @@ Expected:
 ### Task 8.1: Add activation event model
 
 **Files:**
+
 - Create: `supabase/migrations/20260604090000_activation_events.sql`
 - Create: `apps/web/src/lib/analytics/activation-events.ts`
 - Create: `apps/web/src/lib/analytics/activation-events.test.ts`
@@ -2106,6 +2137,7 @@ Expected:
 ### Task 8.2: Add admin/internal activation summary
 
 **Files:**
+
 - Modify: `apps/web/src/app/admin/page.tsx`
 - Create: `apps/web/src/app/admin/activation-summary.tsx`
 
@@ -2165,6 +2197,7 @@ Expected:
 ### Task 9.1: Run complete local verification
 
 **Files:**
+
 - Modify: `docs/implementation-reports/IMPLEMENTATION_REPORT-produto-investivel-10-10-2026-06-04.md`
 
 - [ ] **Step 1: Run web tests**
@@ -2243,6 +2276,7 @@ Expected:
 ### Task 9.2: Run staging verification
 
 **Files:**
+
 - Modify: `docs/implementation-reports/IMPLEMENTATION_REPORT-produto-investivel-10-10-2026-06-04.md`
 
 - [ ] **Step 1: Deploy to staging/preview only**
@@ -2313,6 +2347,7 @@ Validate:
 ### Task 9.3: Create final handoff report
 
 **Files:**
+
 - Modify: `docs/implementation-reports/IMPLEMENTATION_REPORT-produto-investivel-10-10-2026-06-04.md`
 
 - [ ] **Step 1: Fill report status**
@@ -2331,14 +2366,14 @@ Only set `COMPLETE` if every phase gate passed.
 Add table:
 
 ```markdown
-| Command | Result | Notes |
-|---|---|---|
-| pnpm --filter web run test | PASS | |
-| pnpm --filter @imobiliariaqrcode/property-importer run test | PASS | |
-| pnpm --filter web run typecheck | PASS | |
-| pnpm --filter web run lint | PASS | |
-| pnpm --filter web run build | PASS | |
-| pnpm format:check | PASS | |
+| Command                                                     | Result | Notes |
+| ----------------------------------------------------------- | ------ | ----- |
+| pnpm --filter web run test                                  | PASS   |       |
+| pnpm --filter @imobiliariaqrcode/property-importer run test | PASS   |       |
+| pnpm --filter web run typecheck                             | PASS   |       |
+| pnpm --filter web run lint                                  | PASS   |       |
+| pnpm --filter web run build                                 | PASS   |       |
+| pnpm format:check                                           | PASS   |       |
 ```
 
 - [ ] **Step 3: Include changed files**
@@ -2382,6 +2417,7 @@ Expected:
 ### Task 9.4: Final no-production assertion
 
 **Files:**
+
 - Modify: `docs/implementation-reports/IMPLEMENTATION_REPORT-produto-investivel-10-10-2026-06-04.md` if needed
 
 - [ ] **Step 1: Confirm no production deploy command was used**

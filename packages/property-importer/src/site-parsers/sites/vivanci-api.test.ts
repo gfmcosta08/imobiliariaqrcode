@@ -32,8 +32,7 @@ const bundleRoutes: FetchRoute[] = [
   },
   {
     match: (url) => url.endsWith("/assets/index-abc123.js"),
-    response: () =>
-      new Response('"assets/client-xyz789.js"', { status: 200 }),
+    response: () => new Response('"assets/client-xyz789.js"', { status: 200 }),
   },
   {
     match: (url) => url === "https://vivanci.com/" || url === "https://vivanci.com",
@@ -144,10 +143,10 @@ describe("fetchVivanciListingFromApi", () => {
         {
           match: (url) => url.includes("imoveis_internos_fotos"),
           response: () =>
-            new Response(
-              JSON.stringify([{ url: arboUrl, principal: true, ordem: 0 }]),
-              { status: 200, headers: { "content-type": "application/json" } },
-            ),
+            new Response(JSON.stringify([{ url: arboUrl, principal: true, ordem: 0 }]), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
         },
         {
           match: (url) => url.includes("imoveis_internos?"),

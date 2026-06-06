@@ -185,7 +185,10 @@ test("01 importa imovel de URL direta e valida fotos", async ({ page }) => {
   await closeImportDialog(page);
 });
 
-test("02 matriz por site (21 portais, lotes 1..N URLs diretas)", async ({ page, context }, testInfo) => {
+test("02 matriz por site (21 portais, lotes 1..N URLs diretas)", async ({
+  page,
+  context,
+}, testInfo) => {
   skipUnlessStaging();
   test.setTimeout(4 * 60 * 60_000);
   await login(page, adminEmail, adminPassword);
@@ -270,7 +273,9 @@ test("02 matriz por site (21 portais, lotes 1..N URLs diretas)", async ({ page, 
       batches,
       status,
       photosImported: totalPhotos,
-      notes: notes || (directUrls.length < 10 ? `Lotes 1..${directUrls.length} (URLs distintas limitadas)` : ""),
+      notes:
+        notes ||
+        (directUrls.length < 10 ? `Lotes 1..${directUrls.length} (URLs distintas limitadas)` : ""),
     });
   }
 
