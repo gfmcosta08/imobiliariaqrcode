@@ -15,4 +15,9 @@ describe("admin invitations route", () => {
     expect(source).toContain("expires_at");
     expect(source).toContain("expiration_days_configured");
   });
+
+  it("syncs invitation property count with courtesy subscription override", () => {
+    expect(source).toContain("max_active_properties_override: propertyCount");
+    expect(source).toContain('.eq("status", "free")');
+  });
 });

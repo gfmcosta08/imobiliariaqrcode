@@ -82,7 +82,7 @@ async function openPropertyFromList(page: Page, title: string) {
 
 test("01 homepage publica carrega busca e filtros", async ({ page }) => {
   requireStaging();
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByText(/Cole esse QR no imovel/i)).toBeVisible();
   await page.getByTestId("home-hero-search").fill("Salvador");
   await page.getByTestId("home-hero-search-submit").click();

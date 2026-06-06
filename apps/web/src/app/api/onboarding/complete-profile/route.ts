@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { error: invitationError } = await admin
+  const { data: claimedInvitation, error: invitationError } = await admin
     .from("broker_invitations")
     .update({
       status: "claimed",
@@ -131,10 +131,30 @@ export async function POST(req: NextRequest) {
       claimed_by_profile_id: user.id,
     })
     .eq("temp_auth_user_id", user.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("property_count")
+    .maybeSingle();
 
   if (invitationError) {
     return NextResponse.json({ error: invitationError.message }, { status: 500 });
+  }
+
+  if (claimedInvitation?.property_count) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.account_id) {
+      await admin
+        .from("subscriptions")
+        .update({
+          max_active_properties_override: Number(claimedInvitation.property_count),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("account_id", profile.account_id)
+        .eq("status", "free");
+    }
   }
 
   return NextResponse.json({ ok: true });

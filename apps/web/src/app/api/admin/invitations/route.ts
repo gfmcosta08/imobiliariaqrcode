@@ -240,6 +240,7 @@ export async function POST(req: Request) {
       current_period_start: now.toISOString(),
       current_period_end: freePeriodEnd.toISOString(),
       canceled_at: null,
+      max_active_properties_override: propertyCount,
       updated_at: now.toISOString(),
     },
     { onConflict: "account_id" },
@@ -494,6 +495,16 @@ export async function PATCH(req: Request) {
     await supabase
       .from("subscriptions")
       .update({ current_period_end: expiresAtIso, updated_at: new Date().toISOString() })
+      .eq("account_id", broker.account_id)
+      .eq("status", "free");
+  }
+  if (broker && propertyCount !== undefined) {
+    await supabase
+      .from("subscriptions")
+      .update({
+        max_active_properties_override: propertyCount,
+        updated_at: new Date().toISOString(),
+      })
       .eq("account_id", broker.account_id)
       .eq("status", "free");
   }
