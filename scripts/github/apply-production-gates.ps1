@@ -50,23 +50,21 @@ Write-Host "Repository: $($repo.full_name); default branch: $($repo.default_bran
 $environments = @(
   @{
     name                      = "staging"
-    protected_branches        = $false
-    custom_branch_policies    = $true
+    deployment_branch_policy  = $null
   },
   @{
     name                      = "Production"
-    protected_branches        = $true
-    custom_branch_policies    = $false
+    deployment_branch_policy  = @{
+      protected_branches     = $true
+      custom_branch_policies = $false
+    }
   }
 )
 
 foreach ($environment in $environments) {
   $body = @{
     can_admins_bypass        = $true
-    deployment_branch_policy = @{
-      protected_branches     = $environment.protected_branches
-      custom_branch_policies = $environment.custom_branch_policies
-    }
+    deployment_branch_policy = $environment.deployment_branch_policy
   }
 
   try {
@@ -75,14 +73,6 @@ foreach ($environment in $environments) {
   } catch {
     Write-Warning "Could not update environment $($environment.name): $($_.Exception.Message)"
   }
-}
-
-try {
-  $policy = @{ name = "*" }
-  Invoke-GitHubJson -Method Post -Uri "https://api.github.com/repos/$Repository/environments/staging/deployment-branch-policies" -Body $policy | Out-Null
-  Write-Host "Staging deployment branch policy created."
-} catch {
-  Write-Warning "Could not create staging deployment branch policy, possibly already exists or plan does not support it: $($_.Exception.Message)"
 }
 
 $protectionBody = @{
