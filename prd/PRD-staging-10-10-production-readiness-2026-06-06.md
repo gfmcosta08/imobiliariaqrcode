@@ -324,7 +324,7 @@ Este score e o ponto de partida que gerou o plano. A nota final so deve ser atua
 
 **Prioridade:** P0
 
-**Status atual:** parcial alto. Gates principais existem e agora usam `environment: staging`/`production`, validacao anti-producao e bypass de Vercel Authentication para Playwright. Ainda falta verificar/aplicar branch protection e environments reais no painel/API do GitHub.
+**Status atual:** parcial alto. Gates principais existem e agora usam `environment: staging`/`production`, validacao anti-producao e bypass de Vercel Authentication para Playwright. A branch foi publicada em PR draft (`https://github.com/gfmcosta08/imobiliariaqrcode/pull/2`). A tentativa real via API do GitHub em 2026-06-09 confirmou que a credencial local consegue ler o repo/criar PR, mas nao tem permissao admin para aplicar branch protection (`403` em `main`/`master`) nem alterar environments (`422`). Ainda falta dono/admin do repo aplicar ou liberar token admin para fechar a etapa sem ressalva.
 
 **Problema:** O CI atual valida o basico, mas nao barra regressao de build, E2E, migration drift, isolamento RLS, secret leak ou vulnerabilidade obvia.
 
@@ -351,8 +351,8 @@ Este score e o ponto de partida que gerou o plano. A nota final so deve ser atua
 - [x] Adicionar suporte a `VERCEL_AUTOMATION_BYPASS_SECRET` para Playwright em deployment protegido.
 - [x] Criar workflow manual `Production Promotion Gate` sem deploy, exigindo evidencia de staging readiness.
 - [x] Remover deploy automatico de Edge Functions em push para main/master; deploy de functions agora e manual, staging-only e exige confirmacao.
-- [ ] Validar/criar environments reais `staging` e `production` no GitHub com secrets e aprovacao de production.
-- [ ] Tornar staging readiness obrigatorio no rito de promocao ou branch protection antes de producao.
+- [ ] Validar/criar environments reais `staging` e `production` no GitHub com secrets e aprovacao de production. Tentativa API 2026-06-09: bloqueada por permissao/payload no GitHub (`422`).
+- [ ] Tornar staging readiness obrigatorio no rito de promocao ou branch protection antes de producao. Tentativa API 2026-06-09: branch protection bloqueada por permissao admin insuficiente (`403`).
 
 **Criterios de aceite:**
 
@@ -648,7 +648,7 @@ Este score e o ponto de partida que gerou o plano. A nota final so deve ser atua
 - [x] Etapa 1 concluida: convite blindado.
 - [x] Etapa 2 concluida: signup publico endurecido.
 - [x] Etapa 3 concluida: RLS hostil provado para tabelas criticas, RPCs `security definer` por `account_id` endurecidas e Storage policy validada por path/account.
-- [x] Etapa 4 concluida parcialmente alta: CI/CD tem gates principais, workflows usam environments separados, staging alias foi corrigido e documentado; falta validar/aplicar branch protection e environments reais no GitHub.
+- [x] Etapa 4 concluida parcialmente alta: CI/CD tem gates principais, workflows usam environments separados, staging alias foi corrigido, branch/PR draft publicados e tentativa real via GitHub API registrada; falta permissao admin para aplicar branch protection e environments reais no GitHub.
 - [x] Etapa 5 concluida: Supabase Functions criticas endurecidas; CORS/README validados em staging.
 - [x] Etapa 6A concluida: telefone WhatsApp do corretor e revalidado no dispatcher antes de envio `to_broker`; hotfix aplicado em staging e production.
 - [x] Etapa 6 concluida: headers baseline fechados.

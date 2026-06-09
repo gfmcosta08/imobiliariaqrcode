@@ -61,7 +61,7 @@ foreach ($environment in @("staging", "production")) {
     $result = Invoke-GitHubJson -Method Put -Uri "https://api.github.com/repos/$Repository/environments/$environment" -Body $body
     Write-Host "Environment updated: $environment (id $($result.id))"
   } catch {
-    Write-Warning "Could not update environment $environment: $($_.Exception.Message)"
+    Write-Warning "Could not update environment ${environment}: $($_.Exception.Message)"
   }
 }
 
@@ -102,11 +102,11 @@ foreach ($branch in $Branches) {
     $protection = Invoke-GitHubJson -Method Put -Uri "https://api.github.com/repos/$Repository/branches/$branch/protection" -Body $protectionBody
     Write-Host "Branch protection updated: $branch; required contexts: $($protection.required_status_checks.contexts -join ', ')"
   } catch {
-    Write-Warning "Could not update branch protection for $branch: $($_.Exception.Message)"
+    Write-Warning "Could not update branch protection for ${branch}: $($_.Exception.Message)"
   }
 }
 
-foreach ($branch in $Branches) {
+$summary = foreach ($branch in $Branches) {
   try {
     $protection = Invoke-GitHubJson -Method Get -Uri "https://api.github.com/repos/$Repository/branches/$branch/protection"
     [pscustomobject]@{
@@ -126,4 +126,6 @@ foreach ($branch in $Branches) {
       error  = $_.Exception.Message
     }
   }
-} | Format-Table -AutoSize
+}
+
+$summary | Format-Table -AutoSize

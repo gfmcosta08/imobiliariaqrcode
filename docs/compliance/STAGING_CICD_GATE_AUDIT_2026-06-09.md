@@ -15,7 +15,17 @@ Etapa 4 avancou de "gates existem, mas sao opcionais" para um modelo mais duro:
 - o job exige `VERCEL_AUTOMATION_BYPASS_SECRET`, necessario porque staging esta protegido por Vercel Authentication;
 - o workflow de promocao para producao agora existe como `Production Promotion Gate` e usa environment `production`.
 
-A parte que ainda precisa de evidencia externa e a configuracao real de branch protection/GitHub environments no painel do GitHub. O `gh` local nao esta autenticado nesta maquina, entao nao foi possivel aplicar/verificar branch protection por API nesta rodada.
+A branch foi publicada em PR draft:
+
+- PR: `https://github.com/gfmcosta08/imobiliariaqrcode/pull/2`
+- branch: `codex/produto-investivel-10-10-staging`
+- ultimo commit local publicado: `0e7d8b8 chore(staging): close readiness gates`
+
+A parte que ainda precisa de evidencia externa e a configuracao real de branch protection/GitHub environments no painel do GitHub. O `gh` local nao esta autenticado nesta maquina. A credencial local do Git conseguiu consultar o repo privado e criar o PR, mas a tentativa de aplicar os gates via API ficou bloqueada:
+
+- `main` branch protection: `403 Forbidden`
+- `master` branch protection: `403 Forbidden`
+- `staging`/`production` environments: `422 Unprocessable Entity`
 
 ## Achado P0 Corrigido
 
@@ -137,3 +147,11 @@ Para fechar Etapa 4 sem ressalva, aplicar no GitHub:
    - `Staging readiness gate`;
    - revisao humana antes do merge.
 4. Definir que deploy de production so pode ocorrer depois de `Production Promotion Gate` verde.
+
+Tentativa automatizada registrada:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\github\apply-production-gates.ps1
+```
+
+Resultado: script executou com a credencial local, mas GitHub negou branch protection por falta de permissao admin (`403`). A etapa permanece como bloqueio externo ate haver token/login com administracao do repositorio.
