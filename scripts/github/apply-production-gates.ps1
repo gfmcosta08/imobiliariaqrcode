@@ -78,7 +78,7 @@ foreach ($environment in $environments) {
 }
 
 try {
-  $policy = @{ name = "codex/produto-investivel-10-10-staging" }
+  $policy = @{ name = "*" }
   Invoke-GitHubJson -Method Post -Uri "https://api.github.com/repos/$Repository/environments/staging/deployment-branch-policies" -Body $policy | Out-Null
   Write-Host "Staging deployment branch policy created."
 } catch {
