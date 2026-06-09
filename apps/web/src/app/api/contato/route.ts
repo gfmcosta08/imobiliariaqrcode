@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BRIDGE_URL = process.env.CONTATO_BRIDGE_URL || 'http://193.203.174.173:5002/api/contato';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,16 +16,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Send to the VPS bridge endpoint
-    const response = await fetch(
-      'https://193.203.174.173:5002/api/contato',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, nome, email, mensagem, assunto }),
-        // Allow self-signed cert (VPS uses HTTP, not HTTPS)
-        signal: AbortSignal.timeout(10000),
-      }
-    );
+    const response = await fetch(BRIDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, nome, email, mensagem, assunto }),
+      signal: AbortSignal.timeout(10000),
+      cache: 'no-store',
+    });
 
     if (!response.ok) {
       const text = await response.text();
