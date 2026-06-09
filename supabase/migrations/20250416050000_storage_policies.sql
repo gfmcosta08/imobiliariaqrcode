@@ -9,7 +9,6 @@ using (
   and split_part(name, '/', 1) = 'account'
   and split_part(name, '/', 2) = (select account_id::text from public.profiles where id = auth.uid())
 );
-
 create policy "storage_property_media_insert_own"
 on storage.objects
 for insert
@@ -19,7 +18,6 @@ with check (
   and split_part(name, '/', 1) = 'account'
   and split_part(name, '/', 2) = (select account_id::text from public.profiles where id = auth.uid())
 );
-
 create policy "storage_property_media_update_own"
 on storage.objects
 for update
@@ -34,7 +32,6 @@ with check (
   and split_part(name, '/', 1) = 'account'
   and split_part(name, '/', 2) = (select account_id::text from public.profiles where id = auth.uid())
 );
-
 create policy "storage_property_media_delete_own"
 on storage.objects
 for delete

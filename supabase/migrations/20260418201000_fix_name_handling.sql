@@ -15,7 +15,6 @@ begin
   return split_part(cleaned, ' ', 1);
 end;
 $$;
-
 -- 2. Fix upsert_lead_from_qr_event:
 --    - New lead: use '' instead of 'Cliente XXXX' as fallback
 --    - Existing lead: update nome_completo from profileName when current name is generic
@@ -164,7 +163,6 @@ begin
   return v_lead_id;
 end;
 $$;
-
 -- 3. Backfill: zerar nome genérico para leads não validados
 --    Na próxima interação o SQL acima atualiza com o profileName do WhatsApp
 update public.leads
@@ -178,7 +176,6 @@ where
     lower(nome_completo) like 'cliente%'
     or nome_completo = ''
   );
-
 -- 4. Expandir o check constraint de conversation_sessions.state
 --    para incluir os novos estados de confirmação de nome
 do $$
@@ -198,7 +195,6 @@ begin
   end if;
 end;
 $$;
-
 alter table public.conversation_sessions
   add constraint conversation_sessions_state_check check (state in (
     'started',

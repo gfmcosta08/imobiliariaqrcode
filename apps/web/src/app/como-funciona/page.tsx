@@ -59,8 +59,8 @@ export default function ComoFuncionaPage() {
               Da placa no imovel ao lead rastreavel no painel.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/80">
-              O Farol Imoveis transforma curiosidade anonima em contato registrado. O corretor para
-              de depender de memoria, print solto e pergunta perdida no WhatsApp.
+              O ImoveisQR transforma curiosidade anonima em contato registrado. O corretor para de
+              depender de memoria, print solto e pergunta perdida no WhatsApp.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link

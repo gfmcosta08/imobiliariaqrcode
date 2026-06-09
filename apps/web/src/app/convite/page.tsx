@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function sanitizeInviteCode(value: string | null): string {
-  return (value ?? "").replace(/\D/g, "").slice(0, 6);
+  return (value ?? "").replace(/\D/g, "").slice(0, 8);
 }
 
 function ConvitePageContent() {
@@ -44,6 +44,7 @@ function ConvitePageContent() {
             "Este convite ja foi concluido. Entre com o e-mail e a senha criados no cadastro.",
           invitation_canceled: "Este convite foi cancelado. Peca um novo convite ao administrador.",
           invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
+          too_many_attempts: "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
           invitation_unavailable: "Este convite nao esta mais disponivel.",
         };
         setError(msgs[data.error ?? ""] ?? "Erro inesperado. Tente novamente.");
@@ -85,12 +86,12 @@ function ConvitePageContent() {
               inputMode="numeric"
               autoComplete="one-time-code"
               data-testid="invite-login-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
+              pattern="[0-9]{6,8}"
+              maxLength={8}
               required
               value={loginCode}
-              onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
+              onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              placeholder="00000000"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -106,12 +107,12 @@ function ConvitePageContent() {
               inputMode="numeric"
               autoComplete="one-time-code"
               data-testid="invite-access-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
+              pattern="[0-9]{6,8}"
+              maxLength={8}
               required
               value={accessCode}
-              onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
+              onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              placeholder="00000000"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -120,7 +121,7 @@ function ConvitePageContent() {
 
           <button
             type="submit"
-            disabled={loading || loginCode.length !== 6 || accessCode.length !== 6}
+            disabled={loading || !/^\d{6,8}$/.test(loginCode) || !/^\d{6,8}$/.test(accessCode)}
             data-testid="invite-submit"
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors"
           >

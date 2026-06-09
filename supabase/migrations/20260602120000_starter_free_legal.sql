@@ -63,6 +63,8 @@ alter table public.subscriptions
 alter table public.subscriptions
   add constraint subscriptions_status_check check (status in (
     'free',
+    'trial_active',
+    'solo_active',
     'starter_active',
     'pro_pending_activation',
     'pro_active',

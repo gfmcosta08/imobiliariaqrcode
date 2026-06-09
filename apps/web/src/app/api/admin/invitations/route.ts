@@ -1,4 +1,5 @@
 import { getAdminContext } from "@/lib/admin-auth";
+import { secureNumericCode } from "@/lib/security/request-guards";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { NextResponse } from "next/server";
 
@@ -19,15 +20,11 @@ type PendingInvitationRow = {
   expiration_days_configured: number | null;
 };
 
-function randomSixDigits(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
 async function generateUniqueLoginCode(
   supabase: ReturnType<typeof createServiceRoleClient>,
 ): Promise<string> {
   for (let attempt = 0; attempt < 10; attempt++) {
-    const code = randomSixDigits();
+    const code = secureNumericCode(8);
     const { data } = await supabase
       .from("broker_invitations")
       .select("id")
@@ -198,7 +195,7 @@ export async function POST(req: Request) {
   }
 
   const loginCode = await generateUniqueLoginCode(supabase);
-  const accessCode = randomSixDigits();
+  const accessCode = secureNumericCode(8);
   const tempEmail = `tmp-${loginCode}-${Date.now()}@opencode.internal`;
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({

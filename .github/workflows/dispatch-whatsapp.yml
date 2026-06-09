@@ -11,9 +11,13 @@ jobs:
     steps:
       - name: Trigger whatsapp-dispatch
         run: |
+          CORRELATION_ID="gh-dispatch-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "x-correlation-id: $CORRELATION_ID" \
             "${{ secrets.SUPABASE_URL }}/functions/v1/whatsapp-dispatch")
           echo "dispatch status: $STATUS"
           [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ] && exit 0 || exit 1
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

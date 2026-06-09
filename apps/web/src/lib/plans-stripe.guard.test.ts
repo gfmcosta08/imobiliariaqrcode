@@ -1,6 +1,15 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import { ACTIVE_PLAN_CODES, CHECKOUT_PLAN_CODE, STARTER_MONTHLY_BRL } from "@/lib/plans";
+import {
+  ACTIVE_PLAN_CODES,
+  CHECKOUT_PLAN_CODE,
+  FREE_ACTIVE_PROPERTY_LIMIT,
+  PLAN_IMAGES_PER_PROPERTY_LIMIT,
+  STARTER_ACTIVE_PROPERTY_LIMIT,
+  STARTER_IMPORT_BATCHES_PER_MONTH,
+  STARTER_INCLUDED_USERS,
+  STARTER_MONTHLY_BRL,
+} from "@/lib/plans";
 import { assertStripeTestModeAllowed, redactStripeKeyForLogs } from "@/lib/stripe-guard";
 import { LEGAL_VERSION, LEGAL_ROUTES } from "@/lib/legal";
 
@@ -9,6 +18,11 @@ describe("planos Free + Starter", () => {
     expect(ACTIVE_PLAN_CODES).toEqual(["free", "starter"]);
     expect(CHECKOUT_PLAN_CODE).toBe("starter");
     expect(STARTER_MONTHLY_BRL).toBe(150);
+    expect(FREE_ACTIVE_PROPERTY_LIMIT).toBe(1);
+    expect(STARTER_ACTIVE_PROPERTY_LIMIT).toBe(10);
+    expect(PLAN_IMAGES_PER_PROPERTY_LIMIT).toBe(10);
+    expect(STARTER_IMPORT_BATCHES_PER_MONTH).toBe(3);
+    expect(STARTER_INCLUDED_USERS).toBe(1);
   });
 
   it("rotas legais estao definidas", () => {

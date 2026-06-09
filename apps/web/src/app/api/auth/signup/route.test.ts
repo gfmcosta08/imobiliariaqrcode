@@ -8,6 +8,19 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(dir, "route.ts"), "utf8");
 
 describe("signup API legal gate", () => {
+  it("uses bounded JSON parsing and a public signup rate limit", () => {
+    expect(source).toContain("parseJsonObjectWithLimit");
+    expect(source).toContain("rejectUnknownKeys");
+    expect(source).toContain("checkSecurityRateLimit");
+    expect(source).toContain("rate_limited");
+  });
+
+  it("prepares anti-bot verification for production without blocking unconfigured staging", () => {
+    expect(source).toContain("SIGNUP_TURNSTILE_SECRET");
+    expect(source).toContain("verifySignupTurnstile");
+    expect(source).toContain("signup_antibot_not_configured");
+  });
+
   it("rejects account creation when legal terms were not accepted", () => {
     expect(source).toContain("acceptedLegal");
     expect(source).toContain("legal_acceptance_required");

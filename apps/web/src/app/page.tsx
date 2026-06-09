@@ -425,7 +425,7 @@ export default async function Home({ searchParams }: PageProps) {
         </div>
         <div className="mt-12 border-t border-white/10 pt-8">
           <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} ImobQR. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} ImoveisQR. Todos os direitos reservados.
           </p>
         </div>
       </footer>

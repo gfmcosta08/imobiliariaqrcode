@@ -11,8 +11,10 @@ export {
   extractListingsFromUrls,
   fetchRenderedHtmlFromExtrator,
   listingFromResult,
+  normalizeExtratorFetchError,
+  probeExtratorConnectivity,
 } from "./extrator-client";
-export type { ExtractOptions } from "./extrator-client";
+export type { ExtractOptions, ExtratorProbeResult } from "./extrator-client";
 export type {
   ExtratorExtractResponse,
   ExtratorExtractResult,

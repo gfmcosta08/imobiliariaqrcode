@@ -11,11 +11,9 @@ ON CONFLICT (code) DO UPDATE
   SET name = 'Solo',
       expiration_days = 120,
       has_auto_expiration = true;
-
 UPDATE public.plans
 SET expiration_days = 120
 WHERE code = 'free';
-
 -- ============================================================
 -- 2. Trigger: usar expiration_days do plano (dinâmico)
 -- ============================================================
@@ -83,7 +81,6 @@ BEGIN
   RETURN new;
 END;
 $$;
-
 -- ============================================================
 -- 3. Função: notificar corretores com anúncios próximos de vencer
 --    Chame com p_days_ahead = 7 ou 1.
@@ -163,5 +160,4 @@ BEGIN
   RETURN COALESCE(affected, 0);
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.notify_expiring_properties(integer) TO service_role;

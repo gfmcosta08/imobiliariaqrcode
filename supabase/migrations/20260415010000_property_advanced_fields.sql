@@ -16,7 +16,6 @@ alter table public.properties
   alter column bathrooms drop default,
   alter column parking_spaces drop not null,
   alter column parking_spaces drop default;
-
 alter table public.properties
   add column if not exists internal_code text,
   add column if not exists full_description text,
@@ -64,7 +63,6 @@ alter table public.properties
   add column if not exists nearby_points text[],
   add column if not exists distance_to_center_km numeric(8, 2),
   add column if not exists city_region text;
-
 create or replace function public.recommend_similar_properties(
   origin_property_id uuid,
   limit_count integer default 5

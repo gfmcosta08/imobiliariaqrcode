@@ -52,6 +52,13 @@ function humanizeImportError(message: string): string {
   if (message === "all_listings_empty_or_unavailable") {
     return "Encontramos links na página, mas nenhum anúncio pôde ser lido. Tente a URL direta de um imóvel (/imovel/...) ou outro portal.";
   }
+  if (
+    message === "fetch failed" ||
+    message === "extrator_unreachable" ||
+    message === "extrator_timeout"
+  ) {
+    return "Serviço de extração inacessível do servidor de homologação. Verifique se o extrator está online e acessível externamente.";
+  }
   if (message.startsWith("extrator_http_502") || message.startsWith("extrator_http_503")) {
     return "Serviço de extração indisponível no momento (502/503). Tente novamente em alguns minutos.";
   }
@@ -91,6 +98,23 @@ function badgeLabelForTier(tier: ImportSiteResolve["tier"]): string {
   if (tier === "supported") return "Parser disponível";
   if (tier === "experimental") return "Experimental";
   return "Não homologado";
+}
+
+function mapMissingUrlDetail(detail?: string): string {
+  if (
+    detail === "no_url_fields" ||
+    detail === "urls_array_empty" ||
+    detail === "url_field_empty"
+  ) {
+    return "Nenhuma URL válida chegou ao servidor. Tente novamente.";
+  }
+  if (detail === "urls_items_invalid") {
+    return "Formato de URLs inválido no pedido.";
+  }
+  if (detail === "all_urls_duplicate") {
+    return "Todas as URLs enviadas são duplicadas.";
+  }
+  return "Nenhuma URL válida para importação.";
 }
 
 function emptyUrlFields(): string[] {
@@ -239,11 +263,15 @@ export function ImportListingsButton({ enabled }: Props) {
             ? "Importação disponível apenas no ambiente de homologação."
             : data.error === "extrator_not_configured"
               ? (data.detail ?? "Serviço de extração não configurado no staging.")
-              : data.error === "host_not_allowed"
-                ? "URL inválida ou não permitida para importação."
-                : data.error === "too_many_urls"
-                  ? `Máximo de ${MAX_URL_FIELDS} URLs por importação.`
-                  : (data.error ?? "Não foi possível iniciar a importação.");
+              : data.error === "missing_url"
+                ? mapMissingUrlDetail(data.detail)
+                : data.error === "host_not_allowed"
+                  ? "URL inválida ou não permitida para importação."
+                  : data.error === "too_many_urls"
+                    ? `Máximo de ${MAX_URL_FIELDS} URLs por importação.`
+                    : data.detail
+                      ? `${data.error ?? "erro"}: ${data.detail}`
+                      : (data.error ?? "Não foi possível iniciar a importação.");
         setError(msg);
         setLoading(false);
         return;

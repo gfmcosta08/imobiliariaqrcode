@@ -44,4 +44,27 @@ describe("Property import staging guardrails", () => {
     expect(importRoute).toContain("feature_disabled");
     expect(importRoute).toContain("validateImportUrl");
   });
+
+  it("missing_url retorna detail granular para diagnóstico", () => {
+    const importRoute = read(
+      path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
+    );
+    expect(importRoute).toContain('error: "missing_url"');
+    expect(importRoute).toContain("detail:");
+    expect(importRoute).toContain("all_urls_duplicate");
+    expect(importRoute).toContain("resolveImportUrlFields");
+  });
+
+  it("run-job trata erro de extrator por item sem derrubar o job inteiro", () => {
+    const runJob = read(path.join(repoRoot, "apps/web/src/lib/property-import/run-job.ts"));
+    expect(runJob).toContain("normalizeExtratorFetchError");
+    expect(runJob).toContain("item_extract_failed");
+    expect(runJob).toContain("extrator_unreachable");
+  });
+
+  it("health deep=2 faz probe do extrator em preview", () => {
+    const healthRoute = read(path.join(repoRoot, "apps/web/src/app/api/health/route.ts"));
+    expect(healthRoute).toContain('deep === "2"');
+    expect(healthRoute).toContain("probeExtratorConnectivity");
+  });
 });

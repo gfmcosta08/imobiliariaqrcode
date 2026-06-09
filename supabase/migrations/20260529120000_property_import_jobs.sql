@@ -18,18 +18,14 @@ create table if not exists public.property_import_jobs (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists property_import_jobs_account_id_idx
   on public.property_import_jobs (account_id, created_at desc);
-
 alter table public.property_import_jobs enable row level security;
-
 create policy "property_import_jobs_select_own"
   on public.property_import_jobs
   for select
   to authenticated
   using (account_id = public.current_account_id());
-
 create policy "property_import_jobs_insert_own"
   on public.property_import_jobs
   for insert

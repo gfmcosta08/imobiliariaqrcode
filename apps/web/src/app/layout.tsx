@@ -19,7 +19,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "ImobQR — Imóveis com QR Code",
+  title: "ImoveisQR - Imoveis com QR Code",
   description: "Plataforma imobiliária com QR Code, leads automáticos e WhatsApp.",
 };
 

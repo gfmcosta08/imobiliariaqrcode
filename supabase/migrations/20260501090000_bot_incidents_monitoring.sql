@@ -28,31 +28,24 @@ create table if not exists public.bot_incidents (
   created_at                      timestamptz not null default now(),
   updated_at                      timestamptz not null default now()
 );
-
 drop trigger if exists trg_bot_incidents_updated_at on public.bot_incidents;
 create trigger trg_bot_incidents_updated_at
 before update on public.bot_incidents
 for each row execute function public.set_updated_at();
-
 create unique index if not exists idx_bot_incidents_open_interaction_type
   on public.bot_incidents (interaction_id, incident_type)
   where status = 'open' and interaction_id is not null;
-
 create unique index if not exists idx_bot_incidents_open_step_type
   on public.bot_incidents (source_step_id, incident_type)
   where status = 'open' and source_step_id is not null;
-
 create unique index if not exists idx_bot_incidents_open_message_type
   on public.bot_incidents (source_message_id, incident_type)
   where status = 'open' and source_message_id is not null;
-
 create index if not exists idx_bot_incidents_open_detected
   on public.bot_incidents (detected_at desc)
   where status = 'open';
-
 create index if not exists idx_bot_incidents_lead_phone
   on public.bot_incidents (lead_phone, detected_at desc);
-
 create unique index if not exists idx_bot_incidents_open_global_type
   on public.bot_incidents (incident_type)
   where status = 'open'
@@ -61,7 +54,6 @@ create unique index if not exists idx_bot_incidents_open_global_type
     and source_message_id is null
     and source_webhook_event_id is null
     and lead_phone is null;
-
 create or replace view public.v_bot_open_incidents as
 select
   bi.id,
@@ -86,10 +78,8 @@ left join public.properties p on p.id = bi.property_id
 left join public.brokers b on b.id = bi.broker_id
 where bi.status = 'open'
 order by bi.detected_at desc;
-
 grant all on public.bot_incidents to service_role;
 grant select on public.v_bot_open_incidents to service_role;
-
 -- ============================================================
 -- ROLLBACK (se necessario):
 -- drop view if exists public.v_bot_open_incidents;
@@ -101,4 +91,4 @@ grant select on public.v_bot_open_incidents to service_role;
 -- drop index if exists idx_bot_incidents_open_interaction_type;
 -- drop trigger if exists trg_bot_incidents_updated_at on public.bot_incidents;
 -- drop table if exists public.bot_incidents;
--- ============================================================
+-- ============================================================;

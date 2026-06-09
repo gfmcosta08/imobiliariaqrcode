@@ -349,6 +349,22 @@ O bot ideal neste momento e previsivel, rastreavel e chato de tao confiavel.
 - Nao substituir o corretor.
 - Nao criar fluxos longos que atrasem o contato humano.
 
+### 10.5 Integridade do destinatario WhatsApp
+
+Regra P0 adicionada apos incidente de producao em 2026-06-09:
+
+- `broker_phone` em fila e apenas snapshot operacional, nunca fonte autoritativa.
+- Toda mensagem `to_broker=true` deve revalidar o telefone canonico do corretor antes do envio.
+- A fonte canonica de telefone deve priorizar `profiles.whatsapp_number`, com fallback documentado para `brokers.whatsapp_number`.
+- Payloads de notificacao ao corretor devem carregar `broker_id` quando o alvo for conhecido.
+- Regressoes precisam ser bloqueadas por guardrail automatizado.
+
+Criterio de aceite:
+
+- Trocar/remover/restaurar o WhatsApp do corretor nao pode fazer o bot enviar mensagem para telefone antigo.
+- O dispatcher precisa atualizar ou ignorar snapshot obsoleto antes de chamar o provedor WhatsApp.
+- Evidencia operacional deve omitir telefone completo e usar apenas sufixo/mascara.
+
 ## 11. Monetizacao 10/10
 
 ### 11.1 Objetivo

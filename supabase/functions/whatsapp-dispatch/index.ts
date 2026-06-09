@@ -3,6 +3,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_BATCH = 12;
 const MAX_CYCLES = 20;
+const OPS_PROVIDER = "ops";
+const CRON_HEARTBEAT_EVENT = "cron_heartbeat";
 
 type QueueRow = {
   id: string;
@@ -10,9 +12,44 @@ type QueueRow = {
   payload: Record<string, unknown>;
   lead_phone: string | null;
   broker_phone: string | null;
+  account_id: string | null;
+  property_id: string | null;
   scheduled_for: string | null;
   created_at: string;
 };
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+async function recordCronHeartbeat(
+  supabase: SupabaseClient,
+  cronName: string,
+  correlationId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("webhook_events").upsert(
+    {
+      provider: OPS_PROVIDER,
+      event_name: CRON_HEARTBEAT_EVENT,
+      external_event_id: cronName,
+      payload: {
+        cron_name: cronName,
+        correlation_id: correlationId,
+      },
+      received_at: now,
+      processed_at: now,
+      processing_status: "processed",
+    },
+    { onConflict: "provider,external_event_id" },
+  );
+
+  if (error) {
+    console.error("[dispatch] cron heartbeat failed", {
+      correlation_id: correlationId,
+      cron_name: cronName,
+      error: error.message,
+    });
+  }
+}
 
 function normalizePhone(v: string): string {
   return v.replace(/\D/g, "");
@@ -197,6 +234,173 @@ function resolveTargetPhone(row: QueueRow): { to: string | null; toBroker: boole
   const to = normalizePhone(String(toRaw));
   if (!to) return { to: null, toBroker };
   return { to, toBroker };
+}
+
+function normalizeOptionalPhone(value: unknown): string | null {
+  if (value == null) return null;
+  const phone = normalizePhone(String(value));
+  return phone || null;
+}
+
+function payloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function profileWhatsappFrom(row: unknown): string | null {
+  const broker = row as { profiles?: unknown } | null;
+  const profiles = broker?.profiles;
+  const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+  return normalizeOptionalPhone((profile as { whatsapp_number?: unknown } | null)?.whatsapp_number);
+}
+
+function canonicalBrokerPhone(row: unknown): string | null {
+  const broker = row as { whatsapp_number?: unknown } | null;
+  return profileWhatsappFrom(row) ?? normalizeOptionalPhone(broker?.whatsapp_number);
+}
+
+async function loadBrokerPhoneById(
+  supabase: SupabaseClient,
+  brokerId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("brokers")
+    .select("whatsapp_number, profiles(whatsapp_number)")
+    .eq("id", brokerId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[dispatch] broker phone refresh by id failed", {
+      brokerId,
+      error: error.message,
+    });
+    return null;
+  }
+
+  return canonicalBrokerPhone(data);
+}
+
+async function loadSingleBrokerPhoneByAccount(
+  supabase: SupabaseClient,
+  accountId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("brokers")
+    .select("id, whatsapp_number, profiles(whatsapp_number)")
+    .eq("account_id", accountId)
+    .eq("status", "active")
+    .limit(2);
+
+  if (error) {
+    console.error("[dispatch] broker phone refresh by account failed", {
+      accountId,
+      error: error.message,
+    });
+    return null;
+  }
+
+  if (!data?.length) return null;
+  if (data.length > 1) {
+    console.warn("[dispatch] broker phone refresh skipped for ambiguous account", { accountId });
+    return null;
+  }
+
+  return canonicalBrokerPhone(data[0]);
+}
+
+async function loadBrokerPhoneByProperty(
+  supabase: SupabaseClient,
+  propertyId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("properties")
+    .select("broker_id")
+    .eq("id", propertyId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[dispatch] broker phone refresh by property failed", {
+      propertyId,
+      error: error.message,
+    });
+    return null;
+  }
+
+  const brokerId = typeof data?.broker_id === "string" ? data.broker_id : null;
+  return brokerId ? loadBrokerPhoneById(supabase, brokerId) : null;
+}
+
+async function resolveFreshBrokerPhone(
+  supabase: SupabaseClient,
+  row: QueueRow,
+): Promise<string | null> {
+  if (row.payload?.to_broker !== true) return normalizeOptionalPhone(row.broker_phone);
+
+  const payloadBrokerId =
+    payloadString(row.payload, "broker_id") ??
+    payloadString(row.payload, "target_broker_id") ??
+    payloadString(row.payload, "origin_broker_id") ??
+    payloadString(row.payload, "captador_broker_id");
+
+  if (payloadBrokerId) {
+    return (
+      (await loadBrokerPhoneById(supabase, payloadBrokerId)) ??
+      normalizeOptionalPhone(row.broker_phone)
+    );
+  }
+
+  if (row.account_id) {
+    return (
+      (await loadSingleBrokerPhoneByAccount(supabase, row.account_id)) ??
+      normalizeOptionalPhone(row.broker_phone)
+    );
+  }
+
+  if (row.property_id) {
+    return (
+      (await loadBrokerPhoneByProperty(supabase, row.property_id)) ??
+      normalizeOptionalPhone(row.broker_phone)
+    );
+  }
+
+  return normalizeOptionalPhone(row.broker_phone);
+}
+
+async function refreshBrokerPhoneBeforeSend(
+  supabase: SupabaseClient,
+  row: QueueRow,
+): Promise<QueueRow> {
+  if (row.payload?.to_broker !== true) return row;
+
+  const freshPhone = await resolveFreshBrokerPhone(supabase, row);
+  if (!freshPhone) return row;
+
+  const currentPhone = normalizeOptionalPhone(row.broker_phone);
+  if (freshPhone === currentPhone) return row;
+
+  const payload = {
+    ...(row.payload ?? {}),
+    broker_phone_refreshed_at: new Date().toISOString(),
+    broker_phone_refresh_source: "canonical_profile",
+  };
+
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .update({ broker_phone: freshPhone, payload })
+    .eq("id", row.id);
+
+  if (error) {
+    console.error("[dispatch] broker phone refresh update failed", {
+      id: row.id,
+      error: error.message,
+    });
+  } else {
+    console.warn("[dispatch] broker phone refreshed before send", { id: row.id });
+  }
+
+  return { ...row, broker_phone: freshPhone, payload };
 }
 
 function getPayloadDelayMs(row: QueueRow): number | null {
@@ -388,18 +592,17 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const correlationId = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const authHeader = req.headers.get("authorization") ?? "";
   const authToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
 
   const validByCron = cronSecret.length > 0 && authToken === cronSecret;
-  const validByServiceKey = serviceRoleKey.length > 0 && authToken === serviceRoleKey;
 
-  if (!validByCron && !validByServiceKey) {
+  if (!validByCron) {
     console.error("[dispatch] unauthorized – token mismatch", {
+      correlation_id: correlationId,
       hasCronSecret: cronSecret.length > 0,
-      hasServiceKey: serviceRoleKey.length > 0,
       tokenPrefix: authToken.slice(0, 12) || "(empty)",
     });
     return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
@@ -425,6 +628,7 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+  await recordCronHeartbeat(supabase, "whatsapp-dispatch", correlationId);
   const typingEndpoint = Deno.env.get("UAZAPI_TYPING_ENDPOINT");
   const typingHeartbeatMs = toInt(Deno.env.get("UAZAPI_TYPING_HEARTBEAT_MS"), 3500);
   const defaultDelayMinMs = Math.max(0, toInt(Deno.env.get("UAZAPI_REPLY_DELAY_MIN_MS"), 2000));
@@ -494,7 +698,9 @@ Deno.serve(async (req) => {
 
     const { data: rows, error } = await supabase
       .from("whatsapp_messages")
-      .select("id, message_type, payload, lead_phone, broker_phone, scheduled_for, created_at")
+      .select(
+        "id, message_type, payload, lead_phone, broker_phone, account_id, property_id, scheduled_for, created_at",
+      )
       .eq("direction", "outbound")
       .eq("status", "queued")
       .order("created_at", { ascending: true })
@@ -553,9 +759,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const { toBroker } = resolveTargetPhone(row);
-        const waitMs = toBroker ? 0 : getWaitMs(row, defaultDelayMinMs, defaultDelayMaxMs);
-        await waitWithTyping(row, waitMs, {
+        rowToSend = await refreshBrokerPhoneBeforeSend(supabase, rowToSend);
+
+        const { toBroker } = resolveTargetPhone(rowToSend);
+        const waitMs = toBroker ? 0 : getWaitMs(rowToSend, defaultDelayMinMs, defaultDelayMaxMs);
+        await waitWithTyping(rowToSend, waitMs, {
           baseUrl,
           token: apiToken,
           typingEndpoint,

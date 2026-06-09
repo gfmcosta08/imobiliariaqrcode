@@ -3,7 +3,6 @@
 
 alter table public.broker_invitations
   drop constraint if exists broker_invitations_status_check;
-
 alter table public.broker_invitations
   add constraint broker_invitations_status_check
   check (status in ('pending', 'claimed', 'expired', 'canceled'));

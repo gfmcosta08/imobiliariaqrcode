@@ -50,11 +50,14 @@ describe("Bot health monitor guardrails", () => {
     expect(sql).toContain("create or replace function public.fn_log_dispatch_step_for_phone");
   });
 
-  it("mantem monitor protegido por CRON_SECRET ou service role", () => {
+  it("mantem monitor protegido somente por CRON_SECRET na entrada publica", () => {
     const src = read(monitorPath);
     expect(src).toContain("function authOk");
     expect(src).toContain('Deno.env.get("CRON_SECRET")');
-    expect(src).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
+    expect(src).not.toContain("authToken === serviceRoleKey");
+    expect(src).not.toContain(
+      'Deno.env.get("CRON_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")',
+    );
     expect(src).toContain('error: "unauthorized"');
   });
 
@@ -100,6 +103,28 @@ describe("Bot health monitor guardrails", () => {
     expect(src).toContain('"hourly_success_rate_drop"');
   });
 
+  it("mantem alertas operacionais para Stripe, fila WhatsApp, cron e correlation id", () => {
+    const src = read(monitorPath);
+    const workflow = read(githubMonitorWorkflowPath);
+    const dispatch = read(path.join(repoRoot, "supabase/functions/whatsapp-dispatch/index.ts"));
+
+    expect(src).toContain('"stripe_webhook_failed"');
+    expect(src).toContain('provider", "stripe"');
+    expect(src).toContain('processing_status", "failed"');
+    expect(src).toContain('"cron_heartbeat_stale"');
+    expect(src).toContain("recordCronHeartbeat");
+    expect(src).toContain("critical_open_incidents");
+    expect(src).toContain("correlation_id");
+    expect(src).toContain('req.headers.get("x-correlation-id")');
+
+    expect(dispatch).toContain("recordCronHeartbeat");
+    expect(dispatch).toContain('"whatsapp-dispatch"');
+
+    expect(workflow).toContain("monitor-response.json");
+    expect(workflow).toContain("critical_open_incidents");
+    expect(workflow).toContain("x-correlation-id");
+  });
+
   it("mantem monitor gravando incidentes somente em bot_interactions", () => {
     const src = read(monitorPath);
     expect(src).toContain('.from("bot_interactions")');
@@ -129,5 +154,6 @@ describe("Bot health monitor guardrails", () => {
     expect(workflow).toContain('cron: "*/5 * * * *"');
     expect(workflow).toContain("$SUPABASE_URL/functions/v1/bot-health-monitor");
     expect(workflow).toContain("CRON_SECRET");
+    expect(workflow).not.toContain("continue-on-error: true");
   });
 });

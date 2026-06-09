@@ -39,6 +39,8 @@ supabase/.temp
 # Vercel
 .vercel
 .env.vercel.*
+.env.vercel-*
+.vercel-deploy-inspect.json
 
 # Binaries
 *.exe

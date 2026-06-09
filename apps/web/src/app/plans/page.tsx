@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import {
+  FREE_ACTIVE_PROPERTY_LIMIT,
+  PLAN_IMAGES_PER_PROPERTY_LIMIT,
+  STARTER_ACTIVE_PROPERTY_LIMIT,
+  STARTER_IMPORT_BATCHES_PER_MONTH,
+} from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 
 import { CheckoutButton } from "./checkout-button";
 
-type PlanCode = "free" | "starter" | "pro";
+type PlanCode = "free" | "starter";
 
 type PlanDisplay = {
   plan_code: PlanCode;
@@ -25,14 +31,14 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 0",
     display_suffix: " sem recorrencia",
     display_note: "Plano legado ativo",
-    display_description: "Plano de entrada para manter 1 anuncio ativo.",
+    display_description: `Plano de entrada para manter ${FREE_ACTIVE_PROPERTY_LIMIT} anuncio ativo com QR.`,
     display_label: "Checkout indisponivel",
     display_featured: false,
     features: [
-      "1 anuncio ativo",
-      "1 placa QR Code inclusa",
-      "Bot WhatsApp automatico",
-      "Captura de leads",
+      `${FREE_ACTIVE_PROPERTY_LIMIT} anuncio ativo`,
+      `${PLAN_IMAGES_PER_PROPERTY_LIMIT} imagens no anuncio`,
+      "QR Code e formulario de lead",
+      "Sem renovacao automatica",
     ],
   },
   {
@@ -41,34 +47,20 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 150",
     display_suffix: "/mes",
     display_note: "Renovacao mensal automatica",
-    display_description: "Plano mensal para manter anuncios ativos com QR Code e captura de leads.",
+    display_description: `Plano mensal para corretor solo: ate ${STARTER_ACTIVE_PROPERTY_LIMIT} anuncios ativos, QR por anuncio e captura de leads.`,
     display_label: "Contratar Starter",
     display_featured: true,
     features: [
-      "Anuncios ativos com QR",
-      "Bot WhatsApp automatico",
-      "Captura de leads",
+      `Ate ${STARTER_ACTIVE_PROPERTY_LIMIT} anuncios ativos`,
+      `${PLAN_IMAGES_PER_PROPERTY_LIMIT} imagens por anuncio`,
+      "QR Code por anuncio ativo",
+      `Ate ${STARTER_IMPORT_BATCHES_PER_MONTH} importacoes assistidas por mes no piloto`,
       "Painel de oportunidades",
-    ],
-  },
-  {
-    plan_code: "pro",
-    display_name: "Pro",
-    display_price: "R$ 500",
-    display_suffix: "/mes",
-    display_note: "Renovacao mensal automatica",
-    display_description: "Plano mensal para operar varios imoveis com leads ilimitados.",
-    display_label: "Checkout indisponivel",
-    display_featured: false,
-    features: [
-      "Multiplos imoveis",
-      "Kit inicial: 10 placas QR Code",
-      "Bot WhatsApp + leads ilimitados",
     ],
   },
 ];
 
-const PLAN_ORDER: PlanCode[] = ["free", "starter", "pro"];
+const PLAN_ORDER: PlanCode[] = ["free", "starter"];
 
 function cardClass(featured = false) {
   return featured ? "border-2 border-black p-8" : "border border-gray-200 p-8";
@@ -169,7 +161,8 @@ export default async function PlansPage() {
         </div>
 
         <p className="mt-10 text-xs text-gray-400">
-          Checkout Stripe em modo teste no staging. Pro permanece sob consulta comercial.
+          Checkout Stripe em modo teste no staging. Planos para equipes ficam em piloto fechado
+          depois de prova de uso do Starter.
         </p>
       </main>
     </div>

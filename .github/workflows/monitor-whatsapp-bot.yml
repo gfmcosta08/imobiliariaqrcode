@@ -16,11 +16,27 @@ jobs:
           node-version: "20"
 
       - name: Run monitor (read-only)
-        continue-on-error: true
         run: |
+          CORRELATION_ID="gh-monitor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           curl -fsS -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
+            -H "x-correlation-id: $CORRELATION_ID" \
+            -o monitor-response.json \
             "$SUPABASE_URL/functions/v1/bot-health-monitor"
+
+          python3 - <<'PY'
+          import json
+          import sys
+
+          with open("monitor-response.json", encoding="utf-8") as fh:
+              payload = json.load(fh)
+
+          critical = int(payload.get("critical_open_incidents") or 0)
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          if critical > 0:
+              print(f"critical_open_incidents={critical}", file=sys.stderr)
+              sys.exit(1)
+          PY
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}

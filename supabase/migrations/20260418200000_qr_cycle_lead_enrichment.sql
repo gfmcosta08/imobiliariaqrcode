@@ -3,7 +3,6 @@
 alter table public.property_qrcodes
   add column if not exists expired_at timestamptz,
   add column if not exists invalidation_reason text;
-
 create table if not exists public.qr_access_events (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -15,14 +14,11 @@ create table if not exists public.qr_access_events (
   source text not null default 'qr_scan',
   created_at timestamptz not null default now()
 );
-
 create index if not exists idx_qr_access_events_property_created
   on public.qr_access_events (property_id, created_at desc);
 create index if not exists idx_qr_access_events_token_created
   on public.qr_access_events (qr_token, created_at desc);
-
 alter table public.qr_access_events enable row level security;
-
 -- Permite que o corretor veja leituras apenas dos próprios imóveis.
 drop policy if exists "qr_access_events_select_own_property" on public.qr_access_events;
 create policy "qr_access_events_select_own_property"
@@ -37,7 +33,6 @@ using (
       and p.account_id = public.current_account_id()
   )
 );
-
 alter table public.leads
   add column if not exists nome_completo text,
   add column if not exists primeiro_nome text,
@@ -46,7 +41,6 @@ alter table public.leads
   add column if not exists interesses text[] not null default '{}'::text[],
   add column if not exists origem text not null default 'qr_code_anuncio',
   add column if not exists nome_validado boolean not null default false;
-
 -- Backfill inicial para não deixar registros legados sem identificação mínima.
 update public.leads
 set
@@ -58,29 +52,23 @@ set
   ),
   origem = coalesce(nullif(origem, ''), 'qr_code_anuncio')
 where true;
-
 update public.leads
 set nome_completo = 'Cliente'
 where nome_completo is null or btrim(nome_completo) = '';
-
 update public.leads
 set primeiro_nome = split_part(nome_completo, ' ', 1)
 where primeiro_nome is null or btrim(primeiro_nome) = '';
-
 update public.leads
 set telefone = client_phone
 where (telefone is null or btrim(telefone) = '')
   and client_phone is not null
   and btrim(client_phone) <> '';
-
 update public.leads
 set telefone = '000' || right(replace(id::text, '-', ''), 10)
 where telefone is null or btrim(telefone) = '';
-
 update public.leads
 set client_phone = telefone
 where client_phone is null or btrim(client_phone) = '';
-
 alter table public.leads
   alter column nome_completo set not null,
   alter column primeiro_nome set not null,
@@ -89,7 +77,6 @@ alter table public.leads
   alter column interesses set not null,
   alter column origem set not null,
   alter column nome_validado set not null;
-
 -- Dedupe hard por (property_id, telefone) para impedir recriação de leads.
 with ranked as (
   select
@@ -104,16 +91,12 @@ delete from public.leads l
 using ranked r
 where l.id = r.id
   and r.rn > 1;
-
 create unique index if not exists idx_leads_property_phone_unique
   on public.leads (property_id, telefone);
-
 create index if not exists idx_leads_phone
   on public.leads (telefone);
-
 create index if not exists idx_lead_interactions_lead_created
   on public.lead_interactions (lead_id, created_at desc);
-
 drop policy if exists "leads_update_own_broker" on public.leads;
 create policy "leads_update_own_broker"
 on public.leads
@@ -131,7 +114,6 @@ with check (
     where b.account_id = public.current_account_id()
   )
 );
-
 create or replace function public.extract_first_name(p_full_name text)
 returns text
 language plpgsql
@@ -147,7 +129,6 @@ begin
   return split_part(cleaned, ' ', 1);
 end;
 $$;
-
 create or replace function public.append_unique_text(base_arr text[], incoming_arr text[])
 returns text[]
 language plpgsql
@@ -173,7 +154,6 @@ begin
   return result_arr;
 end;
 $$;
-
 create or replace function public.infer_lead_interests(p_text text, p_existing text[] default '{}'::text[])
 returns text[]
 language plpgsql
@@ -202,7 +182,6 @@ begin
   return inferred;
 end;
 $$;
-
 create or replace function public.upsert_lead_from_qr_event(
   p_property_id uuid,
   p_broker_id uuid,
@@ -345,7 +324,6 @@ begin
   return v_lead_id;
 end;
 $$;
-
 create or replace function public.create_lead_from_visit_interest(
   p_property_id uuid,
   p_broker_id uuid,
@@ -376,7 +354,6 @@ begin
   return v_lead_id;
 end;
 $$;
-
 create or replace function public.register_qr_access(
   p_qr_token text,
   p_user_agent text default null,
@@ -506,7 +483,6 @@ begin
   );
 end;
 $$;
-
 create or replace function public.before_property_lifecycle_cycle()
 returns trigger
 language plpgsql
@@ -572,12 +548,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_properties_lifecycle_cycle on public.properties;
 create trigger trg_properties_lifecycle_cycle
 before insert or update on public.properties
 for each row execute function public.before_property_lifecycle_cycle();
-
 create or replace function public.expire_free_properties()
 returns integer
 language plpgsql
@@ -647,7 +621,6 @@ begin
   return coalesce(affected, 0);
 end;
 $$;
-
 grant execute on function public.upsert_lead_from_qr_event(uuid, uuid, text, text, text, text, text, text, text, boolean) to service_role;
 grant execute on function public.register_qr_access(text, text, text, text) to service_role;
 grant execute on function public.create_lead_from_visit_interest(uuid, uuid, text, text) to service_role;

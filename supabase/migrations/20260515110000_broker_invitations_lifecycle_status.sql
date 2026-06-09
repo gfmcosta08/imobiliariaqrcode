@@ -6,14 +6,11 @@
 
 alter table public.broker_invitations
   add column if not exists completed_at timestamptz;
-
 alter table public.broker_invitations
   drop constraint if exists broker_invitations_status_check;
-
 alter table public.broker_invitations
   add constraint broker_invitations_status_check
   check (status in ('pending', 'claimed', 'completed', 'expired', 'canceled'));
-
 create or replace function public.get_my_invitation_property()
 returns uuid
 language sql
@@ -28,5 +25,4 @@ as $$
   order by generated_at desc
   limit 1;
 $$;
-
 grant execute on function public.get_my_invitation_property() to authenticated;

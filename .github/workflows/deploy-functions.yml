@@ -1,15 +1,18 @@
-name: Deploy Edge Functions
+name: Deploy Edge Functions Staging
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - "supabase/functions/**"
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type DEPLOY_STAGING_FUNCTIONS to deploy all Supabase Edge Functions to staging"
+        required: true
+        type: string
 
 jobs:
   deploy:
+    name: Deploy staging Edge Functions
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -32,19 +35,32 @@ jobs:
         run: pnpm --filter web run test
 
       - name: Prettier gate
-        run: pnpm exec prettier --check supabase/functions/conversation-handle/index.ts supabase/functions/whatsapp-dispatch/index.ts supabase/functions/whatsapp-webhook-inbound/index.ts supabase/functions/bot-health-monitor/index.ts
+        run: pnpm exec prettier --check "supabase/functions/**/*.ts" "supabase/functions/**/*.md"
 
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Deploy Edge Functions
+      - name: Assert staging deploy target
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+        shell: bash
         run: |
-          supabase functions deploy whatsapp-webhook-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
-          supabase functions deploy conversation-handle --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
-          supabase functions deploy whatsapp-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
-          supabase functions deploy bot-health-monitor --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
-          supabase functions deploy lead-notify-broker --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
-          supabase functions deploy qr-resolve --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --use-api
+          set -euo pipefail
+
+          if [[ "$CONFIRMATION" != "DEPLOY_STAGING_FUNCTIONS" ]]; then
+            echo "Refusing to deploy functions without DEPLOY_STAGING_FUNCTIONS confirmation."
+            exit 1
+          fi
+
+          if [[ "$SUPABASE_PROJECT_REF" != "coeuoyeydqoslhvbbojx" ]]; then
+            echo "Refusing to deploy functions outside Supabase staging."
+            exit 1
+          fi
+
+      - name: Deploy Edge Functions
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api --jobs 2
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}

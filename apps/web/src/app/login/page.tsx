@@ -142,11 +142,11 @@ function LoginPageContent() {
 
       // login: aceita e-mail normal ou credenciais numéricas de cortesia
       const loginInput = email.trim();
-      const isInviteCode = /^\d{6}$/.test(loginInput);
+      const isInviteCode = /^\d{6,8}$/.test(loginInput);
 
       if (isInviteCode) {
-        if (!/^\d{6}$/.test(password.trim())) {
-          setError("Para convite cortesia, a senha deve ter 6 numeros.");
+        if (!/^\d{6,8}$/.test(password.trim())) {
+          setError("Para convite cortesia, a senha deve ter entre 6 e 8 numeros.");
           return;
         }
 
@@ -170,6 +170,7 @@ function LoginPageContent() {
             invitation_already_used:
               "Este convite ja foi utilizado. Entre com o e-mail e a senha criados no cadastro.",
             invitation_expired: "Este convite expirou. Entre em contato com o suporte.",
+            too_many_attempts: "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
           };
           setError(msgs[claimData.error ?? ""] ?? "Erro ao validar convite cortesia.");
           return;
@@ -185,7 +186,7 @@ function LoginPageContent() {
       }
 
       if (!loginInput.includes("@")) {
-        setError("No login, informe um e-mail valido ou um codigo de convite com 6 numeros.");
+        setError("No login, informe um e-mail valido ou um codigo de convite numerico.");
         return;
       }
 

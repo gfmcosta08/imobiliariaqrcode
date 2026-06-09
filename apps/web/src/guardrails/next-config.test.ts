@@ -16,3 +16,16 @@ describe("next redirects", () => {
     expect(source).toContain("permanent: true");
   });
 });
+
+describe("next security headers", () => {
+  it("keeps the minimum SaaS browser hardening baseline", () => {
+    expect(source).toContain("Content-Security-Policy");
+    expect(source).toContain("frame-ancestors 'none'");
+    expect(source).toContain("X-Frame-Options");
+    expect(source).toContain("DENY");
+    expect(source).toContain("X-Content-Type-Options");
+    expect(source).toContain("nosniff");
+    expect(source).toContain("Referrer-Policy");
+    expect(source).toContain("Permissions-Policy");
+  });
+});

@@ -8,6 +8,12 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(dir, "route.ts"), "utf8");
 
 describe("admin invitations route", () => {
+  it("generates stronger invite codes without Math.random", () => {
+    expect(source).toContain("secureNumericCode(8)");
+    expect(source).not.toContain("Math.random");
+    expect(source).not.toContain("randomSixDigits");
+  });
+
   it("supports editing only pending invitations", () => {
     expect(source).toContain("export async function PATCH");
     expect(source).toContain("invitation_not_pending");
