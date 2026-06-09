@@ -105,14 +105,85 @@ jobs:
             exit 1
           fi
 
-      - name: Supabase migration drift dry-run
+      - name: Supabase migration drift check
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
           SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
         run: |
-          pnpm dlx supabase@latest link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          pnpm dlx supabase@latest db push --dry-run
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          async function main() {
+            const projectRef = process.env.SUPABASE_PROJECT_REF;
+            const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+
+            if (!projectRef) {
+              throw new Error("SUPABASE_PROJECT_REF is required.");
+            }
+
+            if (!accessToken) {
+              throw new Error("SUPABASE_ACCESS_TOKEN is required.");
+            }
+
+            const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
+            const localVersions = fs
+              .readdirSync(migrationsDir)
+              .map((fileName) => fileName.match(/^(\d{14})_.*\.sql$/)?.[1])
+              .filter(Boolean)
+              .sort();
+
+            const response = await fetch(
+              `https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  query:
+                    "select version from supabase_migrations.schema_migrations order by version;",
+                }),
+              },
+            );
+
+            if (!response.ok) {
+              throw new Error(
+                `Supabase migration query failed: ${response.status} ${await response.text()}`,
+              );
+            }
+
+            const rows = await response.json();
+            const remoteVersions = rows.map((row) => String(row.version)).sort();
+            const missingRemote = localVersions.filter(
+              (version) => !remoteVersions.includes(version),
+            );
+            const missingLocal = remoteVersions.filter(
+              (version) => !localVersions.includes(version),
+            );
+
+            if (missingRemote.length || missingLocal.length) {
+              console.error("Migration drift detected.");
+              console.error(
+                "Local migrations not applied remotely:",
+                missingRemote.join(", ") || "none",
+              );
+              console.error(
+                "Remote migrations missing locally:",
+                missingLocal.join(", ") || "none",
+              );
+              process.exit(1);
+            }
+
+            console.log(`Migration history matches staging (${localVersions.length} migrations).`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
 
       - name: Staging smoke and RLS isolation
         env:

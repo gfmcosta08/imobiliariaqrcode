@@ -84,10 +84,12 @@ No GitHub Actions, environment `staging`, os nomes usados pelo workflow sao:
 - `STAGING_SUPABASE_URL`
 - `STAGING_SUPABASE_ANON_KEY`
 - `STAGING_SUPABASE_SERVICE_ROLE_KEY`
-- `STAGING_SUPABASE_DB_PASSWORD`
 - `SUPABASE_ACCESS_TOKEN`
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
 - `E2E_STAGING_WRITE`
+
+O gate de drift de migrations usa a Supabase Management API em modo read-only com
+`SUPABASE_ACCESS_TOKEN`; nao exige senha direta do banco.
 
 ## GitHub Environments
 

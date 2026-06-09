@@ -85,7 +85,7 @@ O staging nao vira producao sem estes cinco cortes:
 - `20260606180000_security_rate_limits_invite_hardening.sql` aplicada em staging.
 - `20260607004942_harden_public_definer_rpc_privileges.sql` aplicada em staging.
 - `supabase migration fetch --linked` usado para recuperar migrations remotas faltantes do historico de staging.
-- `supabase db push --linked --dry-run`: PASS, remote database up to date.
+- Drift de migrations em Supabase staging: PASS, remote database up to date. Historicamente validado por `supabase db push --linked --dry-run`; no CI atual validado por Supabase Management API read-only contra `supabase_migrations.schema_migrations`.
 - Verificado em staging: colunas `invalid_attempt_count`, `last_failed_at`, `locked_until`, `claimed_ip_hash`.
 - Verificado em staging: tabela `security_rate_limits` e RPC `check_security_rate_limit(text,integer,integer,integer)`.
 - Verificado em staging: helpers `account_property_limit`, `get_active_plan_code` e `can_create_property` sem `anon` e com guard `private.assert_rpc_account_scope`.
@@ -339,7 +339,7 @@ Este score e o ponto de partida que gerou o plano. A nota final so deve ser atua
 - [x] Adicionar `pnpm --filter web run build` ao CI.
 - [x] Adicionar testes do pacote `@imobiliariaqrcode/property-importer`.
 - [x] Adicionar smoke Playwright de staging em workflow separado e seguro.
-- [x] Adicionar gate de migration drift/dry-run para Supabase staging.
+- [x] Adicionar gate de migration drift para Supabase staging.
 - [x] Adicionar secret scan com ferramenta dedicada.
 - [x] Adicionar dependency audit ou SCA minimo.
 - [x] Adicionar suite RLS hostil como gate de staging readiness.

@@ -77,6 +77,7 @@ Validacao pos-correcao:
 - `Staging readiness gate` roda em `pull_request` e `workflow_dispatch`.
 - `Staging readiness gate` usa `environment: staging`.
 - Foi removido fallback perigoso de `STAGING_SUPABASE_PROJECT_REF` para `SUPABASE_PROJECT_ID`.
+- O drift de migrations agora consulta `supabase_migrations.schema_migrations` via Supabase Management API read-only, sem senha direta do banco.
 - Foi adicionado passo `Assert staging environment guardrails`.
 - Playwright recebe `VERCEL_AUTOMATION_BYPASS_SECRET`.
 - Artefatos de falha incluem `playwright-report` e `test-results`.
@@ -130,22 +131,21 @@ Arquivos temporarios removidos do workspace:
 - `.env.vercel-check.tmp`
 - `.vercel-deploy-inspect.json`
 
-## Checks Ainda Externos
+## Gate GitHub Aplicado
 
-Para fechar Etapa 4 sem ressalva, aplicar no GitHub:
+Etapa 4 foi aplicada no GitHub depois da autenticacao correta e da publicacao do repo:
 
-1. Criar/validar environment `staging` com secrets:
+1. Environment `staging` validado com secrets:
    - `STAGING_BASE_URL`
    - `STAGING_SUPABASE_PROJECT_REF`
    - `STAGING_SUPABASE_URL`
    - `STAGING_SUPABASE_ANON_KEY`
    - `STAGING_SUPABASE_SERVICE_ROLE_KEY`
-   - `STAGING_SUPABASE_DB_PASSWORD`
    - `SUPABASE_ACCESS_TOKEN`
    - `VERCEL_AUTOMATION_BYPASS_SECRET`
    - `E2E_STAGING_WRITE`
-2. Criar/validar environment `production` com aprovacao manual obrigatoria.
-3. Ativar branch protection no branch principal exigindo:
+2. Environment `Production` validado para branches protegidos.
+3. Branch protection aplicada no branch principal exigindo:
    - `CI gate`;
    - `Staging readiness gate`;
    - revisao humana antes do merge.
