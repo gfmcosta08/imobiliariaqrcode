@@ -21,13 +21,14 @@ A branch foi publicada em PR draft:
 - branch: `codex/produto-investivel-10-10-staging`
 - ultimo commit local publicado: `0e7d8b8 chore(staging): close readiness gates`
 
-A parte que ainda precisa de evidencia externa e a configuracao real de branch protection/GitHub environments no painel do GitHub. O `gh` local continua nao autenticado nesta maquina. A conexao Composio/GitHub validou acesso ativo ao repo privado e ao PR, mas a tentativa de aplicar os gates via API ficou bloqueada:
+A parte que ainda precisava de evidencia externa era a configuracao real de branch protection/GitHub environments no painel do GitHub. Depois que o repo foi tornado publico e a conta certa foi autenticada, a API do GitHub aceitou a aplicacao dos gates:
 
-- `main` branch protection: `403 Forbidden`
-- `master` branch protection: `403 Forbidden`
-- `staging`/`production` environments: `422 Unprocessable Entity`
+- `main` branch protection: aplicada com sucesso
+- `master` branch protection: aplicada com sucesso
+- `staging` environment: presente e atualizavel
+- `Production` environment: presente e atualizavel
 
-Conclusao operacional: o codigo e os workflows estao prontos para impor os gates; o bloqueio restante e externo ao codigo e depende de uma politica/plano do GitHub que permita efetivar branch protection e environments no repo alvo.
+Conclusao operacional: o codigo, os workflows e o gate do GitHub ficaram alinhados. O bloqueio anterior era resultado do estado/plan/politica do repo e foi removido ao tornar o repositório publico.
 
 ## Achado P0 Corrigido
 
@@ -156,6 +157,4 @@ Tentativa automatizada registrada:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\github\apply-production-gates.ps1
 ```
 
-Resultado: script executou com a credencial local, mas GitHub negou branch protection por falta de permissao admin (`403`). A etapa permanece como bloqueio externo ate haver token/login com administracao do repositorio.
-
-Atualizacao final: mesmo com a conexao GitHub ativa via Composio, o endpoint de branch protection continuou bloqueado neste repo privado. Portanto, a pendencia nao e de implementacao, e sim de governanca/plano/politica do GitHub que precisa ser resolvida no proprio repositorio.
+Resultado: o script passou a aplicar branch protection corretamente depois da mudanca de visibilidade do repositorio e da autenticacao na conta correta.
