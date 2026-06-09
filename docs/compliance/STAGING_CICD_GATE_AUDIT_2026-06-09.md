@@ -21,11 +21,13 @@ A branch foi publicada em PR draft:
 - branch: `codex/produto-investivel-10-10-staging`
 - ultimo commit local publicado: `0e7d8b8 chore(staging): close readiness gates`
 
-A parte que ainda precisa de evidencia externa e a configuracao real de branch protection/GitHub environments no painel do GitHub. O `gh` local nao esta autenticado nesta maquina. A credencial local do Git conseguiu consultar o repo privado e criar o PR, mas a tentativa de aplicar os gates via API ficou bloqueada:
+A parte que ainda precisa de evidencia externa e a configuracao real de branch protection/GitHub environments no painel do GitHub. O `gh` local continua nao autenticado nesta maquina. A conexao Composio/GitHub validou acesso ativo ao repo privado e ao PR, mas a tentativa de aplicar os gates via API ficou bloqueada:
 
 - `main` branch protection: `403 Forbidden`
 - `master` branch protection: `403 Forbidden`
 - `staging`/`production` environments: `422 Unprocessable Entity`
+
+Conclusao operacional: o codigo e os workflows estao prontos para impor os gates; o bloqueio restante e externo ao codigo e depende de uma politica/plano do GitHub que permita efetivar branch protection e environments no repo alvo.
 
 ## Achado P0 Corrigido
 
@@ -155,3 +157,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\github\apply-product
 ```
 
 Resultado: script executou com a credencial local, mas GitHub negou branch protection por falta de permissao admin (`403`). A etapa permanece como bloqueio externo ate haver token/login com administracao do repositorio.
+
+Atualizacao final: mesmo com a conexao GitHub ativa via Composio, o endpoint de branch protection continuou bloqueado neste repo privado. Portanto, a pendencia nao e de implementacao, e sim de governanca/plano/politica do GitHub que precisa ser resolvida no proprio repositorio.
