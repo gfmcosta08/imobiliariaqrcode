@@ -429,6 +429,15 @@ Antes de qualquer escala, corrigir:
 
 ## 13. Engenharia e Release 10/10
 
+### 13.0 Invariantes de ambientes canonicos
+
+- Staging/teste tem um unico endereco oficial: `https://farollimoveis-staging.vercel.app`.
+- Production tem um unico endereco oficial: `https://imoveisqr.com`.
+- O projeto Vercel canonico para web e `farollimoveis`, com `Root Directory=apps/web`.
+- Links temporarios de deployment `*.vercel.app` podem existir apenas como artefato operacional; eles nao sao endereco de QA, venda, suporte, integracao, webhook ou documentacao final.
+- Qualquer projeto Vercel duplicado conectado ao repositorio `gfmcosta08/imobiliariaqrcode` deve ser removido ou desligado, para nao gerar check falso, drift de alias ou teste contra ambiente errado.
+- Toda evidencia de QA deve citar o alias canonico, commit, data e, quando aplicavel, deployment id.
+
 ### 13.1 Main sagrada
 
 A branch `main` deve sempre representar o estado confiavel do produto.

@@ -5,6 +5,7 @@ Data de revisao: 2026-06-09
 ## URL Canonica
 
 - Staging fixo: `https://farollimoveis-staging.vercel.app`
+- Production fixo: `https://imoveisqr.com`
 - Projeto Vercel canonico para este workspace: `farollimoveis`
 - Root Directory no Vercel: `apps/web`
 - Supabase staging: `coeuoyeydqoslhvbbojx`
@@ -36,13 +37,36 @@ Correcao aplicada:
 vercel alias set farollimoveis-hmby88qw2.vercel.app farollimoveis-staging.vercel.app
 ```
 
+Fechamento canonico em 2026-06-09:
+
+- Projeto Vercel duplicado `imobiliariaqrcode` removido.
+- Verificacao pos-remocao: `vercel project inspect imobiliariaqrcode` retorna `There is no project for "imobiliariaqrcode"`.
+- Aliases restantes relevantes: `farollimoveis-staging.vercel.app` e `imoveisqr.com`, ambos apontando para deployments do projeto canonico `farollimoveis`.
+
 Estado validado:
 
 - alias: `farollimoveis-staging.vercel.app`
-- deployment: `farollimoveis-hmby88qw2.vercel.app`
-- deployment id: `dpl_B48QaLCgPEGXuwZVXGLjMunEKf2F`
+- deployment: `farollimoveis-mi3sllqee.vercel.app`
+- deployment id: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`
 - `/plans`: contem Starter, contem limite de 10 anuncios, nao contem promessa de ilimitado.
 - `/api/health?deep=1`: `{"ok":true,"service":"web","supabase":"ok"}`.
+
+## Atualizacao de Extrator Staging em 2026-06-09
+
+Escopo: apenas Vercel Preview/staging do projeto canonico `farollimoveis`.
+Production (`https://imoveisqr.com`) nao foi alterado.
+
+- Env alterada: `PROPERTY_EXTRACTOR_URL`.
+- Alvo Vercel: `Preview (codex/produto-investivel-10-10-staging)`.
+- Valor configurado: `http://193.203.174.173:3099`.
+- Deploy Preview gerado: `https://farollimoveis-mi3sllqee.vercel.app`.
+- Deployment id: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`.
+- Alias canonico atualizado: `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-mi3sllqee.vercel.app`.
+- `/api/health?deep=1`: HTTP 200, `supabase:"ok"`.
+- `/api/health?deep=2`: HTTP 200, mas `extrator:"unreachable"` por timeout.
+- Teste TCP local para `193.203.174.173:3099`: falhou. O bloqueio restante esta na VPS/porta/firewall/servico do extrator, nao na env da Vercel.
+
+Regra: nao promover essa troca para Production enquanto `https://farollimoveis-staging.vercel.app/api/health?deep=2` nao retornar `extrator:"ok"` e houver smoke logado de importacao Sonhar.
 
 ## Deploy Preview Seguro
 
@@ -75,6 +99,7 @@ No Vercel, target Preview do projeto `farollimoveis`:
 | `STRIPE_SECRET_KEY`                                 | chave Stripe test mode (`sk_test_...`)       |
 | `STRIPE_WEBHOOK_SECRET`                             | webhook secret Stripe test mode              |
 | `STRIPE_PRICE_STARTER` ou `STRIPE_STARTER_PRICE_ID` | price id Starter test mode                   |
+| `PROPERTY_EXTRACTOR_URL`                            | `http://193.203.174.173:3099`                |
 | `VERCEL_AUTOMATION_BYPASS_SECRET`                   | secret de Protection Bypass for Automation   |
 
 No GitHub Actions, environment `staging`, os nomes usados pelo workflow sao:
