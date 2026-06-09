@@ -185,6 +185,9 @@ jobs:
           });
           NODE
 
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
       - name: Staging smoke and RLS isolation
         env:
           STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
