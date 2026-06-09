@@ -18,7 +18,11 @@ export async function GET(request: Request) {
 
   if (deep === "2") {
     if (process.env.VERCEL_ENV === "production") {
-      return NextResponse.json({ ...base, extrator: "skipped", detail: "deep=2 disabled in production" });
+      return NextResponse.json({
+        ...base,
+        extrator: "skipped",
+        detail: "deep=2 disabled in production",
+      });
     }
 
     const extratorBase = getPropertyExtractorBaseUrl();

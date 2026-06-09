@@ -47,21 +47,33 @@ function Invoke-GitHubJson {
 $repo = Invoke-GitHubJson -Method Get -Uri "https://api.github.com/repos/$Repository"
 Write-Host "Repository: $($repo.full_name); default branch: $($repo.default_branch); private: $($repo.private)"
 
-foreach ($environment in @("staging", "production")) {
+$environments = @(
+  @{
+    name                      = "staging"
+    protected_branches        = $false
+    custom_branch_policies    = $true
+  },
+  @{
+    name                      = "Production"
+    protected_branches        = $true
+    custom_branch_policies    = $false
+  }
+)
+
+foreach ($environment in $environments) {
   $body = @{
-    wait_timer               = 0
-    prevent_self_review      = $environment -eq "production"
+    can_admins_bypass        = $true
     deployment_branch_policy = @{
-      protected_branches     = $environment -eq "production"
-      custom_branch_policies = $environment -eq "staging"
+      protected_branches     = $environment.protected_branches
+      custom_branch_policies = $environment.custom_branch_policies
     }
   }
 
   try {
-    $result = Invoke-GitHubJson -Method Put -Uri "https://api.github.com/repos/$Repository/environments/$environment" -Body $body
-    Write-Host "Environment updated: $environment (id $($result.id))"
+    $result = Invoke-GitHubJson -Method Put -Uri "https://api.github.com/repos/$Repository/environments/$($environment.name)" -Body $body
+    Write-Host "Environment updated: $($environment.name) (id $($result.id))"
   } catch {
-    Write-Warning "Could not update environment ${environment}: $($_.Exception.Message)"
+    Write-Warning "Could not update environment $($environment.name): $($_.Exception.Message)"
   }
 }
 
@@ -80,11 +92,10 @@ $protectionBody = @{
   }
   enforce_admins                   = $true
   required_pull_request_reviews    = @{
-    dismissal_restrictions        = @{}
-    dismiss_stale_reviews         = $true
-    require_code_owner_reviews    = $false
+    dismiss_stale_reviews           = $true
+    require_code_owner_reviews      = $false
     required_approving_review_count = 1
-    require_last_push_approval    = $false
+    require_last_push_approval      = $false
   }
   restrictions                     = $null
   required_linear_history          = $false

@@ -34,10 +34,7 @@ describe("fetchRenderedHtmlFromExtrator", () => {
   });
 
   it("retorna null quando fetch falha em rede", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("fetch failed")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 
     const html = await fetchRenderedHtmlFromExtrator(EXTRACTOR, LISTING_URL);
     expect(html).toBeNull();
@@ -50,10 +47,7 @@ describe("extractListingsFromUrls", () => {
   });
 
   it("lança extrator_unreachable quando fetch falha em rede", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("fetch failed")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 
     await expect(
       extractListingsFromUrls([LISTING_URL], { extratorBaseUrl: EXTRACTOR }),
@@ -67,10 +61,7 @@ describe("probeExtratorConnectivity", () => {
   });
 
   it("retorna ok quando /health responde", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("ok", { status: 200 })),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("ok", { status: 200 })));
 
     const result = await probeExtratorConnectivity(EXTRACTOR);
     expect(result.extrator).toBe("ok");
@@ -81,10 +72,7 @@ describe("probeExtratorConnectivity", () => {
   });
 
   it("retorna unreachable quando fetch falha", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("fetch failed")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 
     const result = await probeExtratorConnectivity(EXTRACTOR);
     expect(result).toEqual({

@@ -28,7 +28,9 @@ function normalizeUrlStrings(raw: unknown): string[] {
  * Extrai URLs do body de POST /api/properties/import com códigos detail granulares.
  * Espera body já validado por rejectUnknownKeys (somente url/urls).
  */
-export function resolveImportUrlFields(body: Record<string, unknown>): ResolveImportUrlFieldsResult {
+export function resolveImportUrlFields(
+  body: Record<string, unknown>,
+): ResolveImportUrlFieldsResult {
   const hasUrl = body.url !== undefined;
   const hasUrls = body.urls !== undefined;
 

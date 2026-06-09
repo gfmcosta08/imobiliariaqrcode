@@ -101,11 +101,7 @@ function badgeLabelForTier(tier: ImportSiteResolve["tier"]): string {
 }
 
 function mapMissingUrlDetail(detail?: string): string {
-  if (
-    detail === "no_url_fields" ||
-    detail === "urls_array_empty" ||
-    detail === "url_field_empty"
-  ) {
+  if (detail === "no_url_fields" || detail === "urls_array_empty" || detail === "url_field_empty") {
     return "Nenhuma URL válida chegou ao servidor. Tente novamente.";
   }
   if (detail === "urls_items_invalid") {

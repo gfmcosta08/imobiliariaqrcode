@@ -82,7 +82,8 @@ export async function POST(request: Request) {
       keys: Object.keys(parsed.value),
       hasUrl,
       hasUrls,
-      urlCount: hasUrls && Array.isArray(parsed.value.urls) ? parsed.value.urls.length : hasUrl ? 1 : 0,
+      urlCount:
+        hasUrls && Array.isArray(parsed.value.urls) ? parsed.value.urls.length : hasUrl ? 1 : 0,
     });
     return json(400, {
       ok: false,
