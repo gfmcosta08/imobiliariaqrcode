@@ -46,8 +46,8 @@ Fechamento canonico em 2026-06-09:
 Estado validado:
 
 - alias: `farollimoveis-staging.vercel.app`
-- deployment: `farollimoveis-mi3sllqee.vercel.app`
-- deployment id: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`
+- deployment: `farollimoveis-2uai1rmlv.vercel.app`
+- deployment id: `dpl_69zKoEoYZwKcpVVJpXXQm9cwQphh`
 - `/plans`: contem Starter, contem limite de 10 anuncios, nao contem promessa de ilimitado.
 - `/api/health?deep=1`: `{"ok":true,"service":"web","supabase":"ok"}`.
 
@@ -58,15 +58,15 @@ Production (`https://imoveisqr.com`) nao foi alterado.
 
 - Env alterada: `PROPERTY_EXTRACTOR_URL`.
 - Alvo Vercel: `Preview (codex/produto-investivel-10-10-staging)`.
-- Valor configurado: `http://193.203.174.173:3099`.
-- Deploy Preview gerado: `https://farollimoveis-mi3sllqee.vercel.app`.
-- Deployment id: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`.
-- Alias canonico atualizado: `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-mi3sllqee.vercel.app`.
+- Valor configurado: `https://extrator.gfmcosta.net`.
+- Deploy Preview gerado: `https://farollimoveis-2uai1rmlv.vercel.app`.
+- Deployment id: `dpl_69zKoEoYZwKcpVVJpXXQm9cwQphh`.
+- Alias canonico atualizado: `https://farollimoveis-staging.vercel.app` -> `https://farollimoveis-2uai1rmlv.vercel.app`.
 - `/api/health?deep=1`: HTTP 200, `supabase:"ok"`.
-- `/api/health?deep=2`: HTTP 200, mas `extrator:"unreachable"` por timeout.
-- Teste TCP local para `193.203.174.173:3099`: falhou. O bloqueio restante esta na VPS/porta/firewall/servico do extrator, nao na env da Vercel.
+- `/api/health?deep=2`: HTTP 200, `extrator:"ok"`, `httpStatus:200`, latencia ~433ms.
+- `https://extrator.gfmcosta.net/health`: HTTP 200, `service:"extrator-bridge"`.
 
-Regra: nao promover essa troca para Production enquanto `https://farollimoveis-staging.vercel.app/api/health?deep=2` nao retornar `extrator:"ok"` e houver smoke logado de importacao Sonhar.
+Regra: Production continua intocado. Qualquer troca de `PROPERTY_EXTRACTOR_URL` em `https://imoveisqr.com` exige decisao propria e nova validacao.
 
 ## Deploy Preview Seguro
 
@@ -99,7 +99,7 @@ No Vercel, target Preview do projeto `farollimoveis`:
 | `STRIPE_SECRET_KEY`                                 | chave Stripe test mode (`sk_test_...`)       |
 | `STRIPE_WEBHOOK_SECRET`                             | webhook secret Stripe test mode              |
 | `STRIPE_PRICE_STARTER` ou `STRIPE_STARTER_PRICE_ID` | price id Starter test mode                   |
-| `PROPERTY_EXTRACTOR_URL`                            | `http://193.203.174.173:3099`                |
+| `PROPERTY_EXTRACTOR_URL`                            | `https://extrator.gfmcosta.net`              |
 | `VERCEL_AUTOMATION_BYPASS_SECRET`                   | secret de Protection Bypass for Automation   |
 
 No GitHub Actions, environment `staging`, os nomes usados pelo workflow sao:

@@ -74,8 +74,8 @@ O staging nao vira producao sem estes cinco cortes:
 **Ambiente validado:**
 
 - Vercel staging alias: `https://farollimoveis-staging.vercel.app`.
-- Deployment aplicado ao alias em 2026-06-09: `https://farollimoveis-mi3sllqee.vercel.app`.
-- Deployment id: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`.
+- Deployment aplicado ao alias em 2026-06-09: `https://farollimoveis-2uai1rmlv.vercel.app`.
+- Deployment id: `dpl_69zKoEoYZwKcpVVJpXXQm9cwQphh`.
 - Supabase staging: `imobiliariaqrcode-staging`, project ref `coeuoyeydqoslhvbbojx`.
 - Production nao foi modificada durante a execucao original de readiness; excecao posterior P0 em 2026-06-09: hotfix de integridade de destinatario WhatsApp aplicado em production para corrigir incidente real.
 - URLs canonicas imutaveis: staging `https://farollimoveis-staging.vercel.app`; production `https://imoveisqr.com`; projeto Vercel canonico `farollimoveis`.
@@ -118,13 +118,13 @@ O staging nao vira producao sem estes cinco cortes:
 - Playwright staging smoke + mobile + RLS hostil: PASS, 7/7.
 - RLS hostil cobriu tentativa de leitura/update cross-tenant em tabelas criticas.
 - RLS/RPC/Storage hostil: PASS, `tests/e2e/staging-rls-isolation.spec.ts` com 1/1; cobre tabelas criticas, RPCs cross-tenant e Storage path/account.
-- Alias drift corrigido em 2026-06-09: `farollimoveis-staging.vercel.app` estava apontando para `imobiliariaqrcode-8mpq3zkcx.vercel.app` e retornava `NOT_FOUND`; foi restaurado para `farollimoveis-hmby88qw2.vercel.app` e depois atualizado para `farollimoveis-mi3sllqee.vercel.app`.
+- Alias drift corrigido em 2026-06-09: `farollimoveis-staging.vercel.app` estava apontando para `imobiliariaqrcode-8mpq3zkcx.vercel.app` e retornava `NOT_FOUND`; foi restaurado para `farollimoveis-hmby88qw2.vercel.app` e depois atualizado para `farollimoveis-2uai1rmlv.vercel.app`.
 - Projeto Vercel duplicado `imobiliariaqrcode` removido em 2026-06-09; `vercel project inspect imobiliariaqrcode` retorna inexistente e `vercel alias ls` mostra apenas os aliases canonicos `farollimoveis-staging.vercel.app` e `imoveisqr.com` para este produto.
-- `vercel inspect farollimoveis-staging.vercel.app`: project `farollimoveis`, target `preview`, status Ready, deployment `dpl_3t828awsSNoHWq411V5U1XPG9Peg`.
+- `vercel inspect farollimoveis-staging.vercel.app`: project `farollimoveis`, target `preview`, status Ready, deployment `dpl_69zKoEoYZwKcpVVJpXXQm9cwQphh`.
 - `vercel curl /plans`: contem Starter, contem limite de 10 anuncios, nao contem `ilimitad`.
 - `vercel curl /api/health?deep=1`: `{"ok":true,"service":"web","supabase":"ok"}`.
-- `PROPERTY_EXTRACTOR_URL` em Preview/staging foi atualizado para `http://193.203.174.173:3099` no branch `codex/produto-investivel-10-10-staging`; Production nao foi tocado.
-- `GET /api/health?deep=2`: endpoint do web respondeu HTTP 200, mas o probe retornou `extrator:"unreachable"` por timeout; teste TCP local para `193.203.174.173:3099` tambem falhou. Pendencia operacional: liberar/subir a VPS antes de considerar importacao staging 10/10.
+- `PROPERTY_EXTRACTOR_URL` em Preview/staging foi atualizado para `https://extrator.gfmcosta.net` no branch `codex/produto-investivel-10-10-staging`; Production nao foi tocado.
+- `GET /api/health?deep=2`: endpoint do web respondeu HTTP 200 com `extrator:"ok"`, `httpStatus:200`, latencia ~433ms; `https://extrator.gfmcosta.net/health` tambem respondeu HTTP 200.
 - Convite live lockout: PASS; 6 tentativas invalidas geraram `429 too_many_attempts`, `invalid_attempt_count=6`, `locked_until` gravado.
 - Signup live anti-abuso: PASS; `unexpected_field` retornou 400 e payload grande retornou 413.
 - Headers HTTP staging: PASS; CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy` e `Permissions-Policy` presentes.
@@ -142,7 +142,7 @@ O staging nao vira producao sem estes cinco cortes:
 - `apps/web/src/app/plans/page.test.ts` guarda a pagina publica contra retorno de Pro/ilimitado.
 - `supabase/migrations/20260607000144_pricing_limits_unit_economics.sql` aplicada no Supabase staging por Management API SQL; migration history remoto registra `20260607000144`.
 - `docs/compliance/UNIT_ECONOMICS_AND_PMF_PILOT_2026-06-06.md` criado com pricing, guardrails de margem, KPI principal e template de piloto.
-- Vercel staging redeployado/estado atual: `dpl_3t828awsSNoHWq411V5U1XPG9Peg`, preview `https://farollimoveis-mi3sllqee.vercel.app`, alias `https://farollimoveis-staging.vercel.app`.
+- Vercel staging redeployado/estado atual: `dpl_69zKoEoYZwKcpVVJpXXQm9cwQphh`, preview `https://farollimoveis-2uai1rmlv.vercel.app`, alias `https://farollimoveis-staging.vercel.app`.
 - Validacao HTTP de `/plans`: 200, contem `Ate 10 anuncios ativos`, contem `Ate 3 importacoes assistidas por mes no piloto`, nao contem radical `ilimitad`.
 - Evidencia visual: `output/playwright/staging-plans-pricing-2026-06-06.png`.
 - Teste SQL staging de limite Starter: 10 ativos permitidos, `can_create_after_10=false`, 11o insert bloqueado com `Seu plano atual permite apenas 10 imovel(is) ativo(s).`.
