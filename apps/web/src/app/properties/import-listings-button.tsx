@@ -334,7 +334,7 @@ export function ImportListingsButton({ enabled }: Props) {
           aria-modal="true"
           aria-labelledby="import-dialog-title"
         >
-          <div className="w-full max-w-lg bg-white p-6 shadow-lg">
+          <div className="w-full max-w-lg max-h-[calc(100vh-8rem)] overflow-y-auto bg-white p-6 shadow-lg">
             <h2 id="import-dialog-title" className="text-lg font-semibold text-gray-900">
               Importar anúncios (homologação)
             </h2>
