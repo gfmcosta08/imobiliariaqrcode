@@ -8,11 +8,14 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(dir, "page.tsx"), "utf8");
 
 describe("ComoFuncionaPage", () => {
-  it("explains the QR to lead flow with a sales-oriented step-by-step", () => {
-    expect(source).toContain("Cole o QR no imovel");
-    expect(source).toContain("Visitante aponta a camera");
-    expect(source).toContain("Lead aparece no painel");
+  it("explains the QR flow as WhatsApp-first without public lead form fallback", () => {
+    expect(source).toContain("Crie o anuncio e gere o QR");
+    expect(source).toContain("Use o QR onde quiser");
+    expect(source).toContain("Visitante escaneia e abre o WhatsApp");
+    expect(source).toContain("Lead e interesse ficam visiveis para o corretor");
     expect(source).toContain("/teste-gratis");
     expect(source).toContain("images.unsplash.com");
+    expect(source).not.toContain("WhatsApp ou formulario");
+    expect(source).not.toContain("formulario registra o lead como backup");
   });
 });

@@ -1,7 +1,6 @@
 "use client";
 
 import type { QrResolveActive } from "@imobiliariaqrcode/shared-types";
-import { useMemo, useState, type FormEvent } from "react";
 
 function formatPrice(value: number | null): string | null {
   if (value == null || Number.isNaN(value)) return null;
@@ -21,59 +20,12 @@ type Props = {
 };
 
 export function PublicQrActive({ token, body }: Props) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [observation, setObservation] = useState("");
-  const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "success" | "error">(
-    "idle",
-  );
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const { listing, whatsapp_link: whatsappLink, public_id: publicId } = body;
   const priceStr = formatPrice(listing.price);
   const headline = listing.title?.trim() || publicId;
 
-  const targetLink = useMemo(() => whatsappLink ?? null, [whatsappLink]);
-  const leadPathLabel = targetLink ? "whatsapp" : "form";
-
-  async function handleLeadSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (submitStatus === "submitting") return;
-    setSubmitStatus("submitting");
-    setSubmitError(null);
-
-    try {
-      const res = await fetch("/api/public/lead", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          qr_token: token,
-          client_phone: phone,
-          nome: name,
-          observation,
-          intent: "visit_interest",
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || data.ok !== true) {
-        const message =
-          data.error === "invalid_phone"
-            ? "Informe um WhatsApp valido para o corretor retornar."
-            : data.error === "missing_token" || data.error === "qr_unavailable"
-              ? "Este QR nao esta disponivel para registrar interesse."
-              : "Nao foi possivel registrar seu interesse agora.";
-        setSubmitError(message);
-        setSubmitStatus("error");
-        return;
-      }
-      setSubmitStatus("success");
-    } catch {
-      setSubmitError("Erro de conexao.");
-      setSubmitStatus("error");
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white" data-qr-token={token}>
       <header className="border-b border-gray-200 bg-white px-6 py-4">
         <span className="text-xs font-bold uppercase tracking-widest text-gray-900">ImoveisQR</span>
       </header>
@@ -93,11 +45,11 @@ export function PublicQrActive({ token, body }: Props) {
 
         <div className="my-6 border-t border-gray-200" />
 
-        {targetLink ? (
+        {whatsappLink ? (
           <>
             <p className="text-sm text-gray-600">Atendimento via WhatsApp disponivel.</p>
             <a
-              href={targetLink}
+              href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="public-qr-whatsapp-link"
@@ -105,85 +57,18 @@ export function PublicQrActive({ token, body }: Props) {
             >
               Abrir WhatsApp
             </a>
-            <p className="mt-4 text-sm font-medium text-gray-900">
-              WhatsApp nao abriu? Deixe seu contato no formulario abaixo.
+            <p className="mt-4 text-sm text-gray-600">
+              O corretor recebe o contexto do imovel e pode continuar o atendimento dali.
             </p>
           </>
         ) : (
-          <p className="text-sm font-medium text-gray-900">
-            Deixe seu contato para o corretor retornar.
+          <p
+            className="text-sm font-medium text-gray-900"
+            data-testid="public-qr-whatsapp-unavailable"
+          >
+            Atendimento via WhatsApp indisponivel no momento.
           </p>
         )}
-
-        <form
-          onSubmit={handleLeadSubmit}
-          className="mt-5 space-y-4"
-          data-testid="public-qr-lead-form"
-          data-lead-path={leadPathLabel}
-        >
-          <div>
-            <label htmlFor="public-qr-name" className="text-xs font-medium text-gray-500">
-              Nome
-            </label>
-            <input
-              id="public-qr-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={120}
-              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-              placeholder="Seu nome"
-              data-testid="public-qr-lead-name"
-            />
-          </div>
-          <div>
-            <label htmlFor="public-qr-phone" className="text-xs font-medium text-gray-500">
-              WhatsApp
-            </label>
-            <input
-              id="public-qr-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              maxLength={32}
-              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-              placeholder="(11) 99999-9999"
-              required
-              data-testid="public-qr-lead-phone"
-            />
-          </div>
-          <div>
-            <label htmlFor="public-qr-observation" className="text-xs font-medium text-gray-500">
-              Mensagem
-            </label>
-            <textarea
-              id="public-qr-observation"
-              value={observation}
-              onChange={(e) => setObservation(e.target.value)}
-              maxLength={500}
-              rows={3}
-              className="mt-1 w-full border border-gray-300 px-3 py-3 text-sm"
-              placeholder="Quero mais informacoes sobre este imovel."
-              data-testid="public-qr-lead-observation"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitStatus === "submitting" || submitStatus === "success"}
-            className="flex w-full items-center justify-center bg-black px-4 py-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
-            data-testid="public-qr-lead-submit"
-          >
-            {submitStatus === "submitting" ? "Enviando..." : "Tenho interesse"}
-          </button>
-          {submitStatus === "success" ? (
-            <p className="text-sm text-green-700" role="status">
-              Interesse registrado. O corretor podera ver seu contato.
-            </p>
-          ) : null}
-          {submitError ? (
-            <p className="text-sm text-red-600" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-        </form>
 
         <p className="mt-10 text-center text-xs text-gray-400">Ref. {publicId}</p>
       </div>

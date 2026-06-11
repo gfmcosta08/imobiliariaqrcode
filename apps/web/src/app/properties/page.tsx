@@ -1,7 +1,9 @@
 import Link from "next/link";
+
 import { AppHeader } from "@/components/app-header";
 import { isPropertyImportEnabled } from "@/lib/property-import/enabled";
 import { createClient } from "@/lib/supabase/server";
+
 import { ImportListingsButton } from "./import-listings-button";
 import { QuickCreateButton } from "./quick-create-button";
 
@@ -35,12 +37,6 @@ export default async function PropertiesPage() {
           <div className="flex flex-wrap gap-3">
             <QuickCreateButton />
             <ImportListingsButton enabled={importEnabled} />
-            <Link
-              href="/properties/new"
-              className="border border-gray-300 px-5 py-2.5 text-sm text-gray-700 transition hover:border-gray-500"
-            >
-              Cadastrar manualmente
-            </Link>
           </div>
         </div>
 

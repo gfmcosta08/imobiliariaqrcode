@@ -37,7 +37,7 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     features: [
       `${FREE_ACTIVE_PROPERTY_LIMIT} anuncio ativo`,
       `${PLAN_IMAGES_PER_PROPERTY_LIMIT} imagens no anuncio`,
-      "QR Code e formulario de lead",
+      "QR Code com atendimento via WhatsApp",
       "Sem renovacao automatica",
     ],
   },

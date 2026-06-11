@@ -6,7 +6,6 @@ const runId = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 const brokerEmail = `selfservice.qa.${runId}@teste.com`;
 const brokerPassword = `TesteQA123!${runId.slice(-4)}`;
 const brokerWhatsapp = `119${runId.slice(-8)}`;
-const leadPhone = `219${runId.slice(-8)}`;
 const propertyTitle = `QA Self Service ${runId}`;
 
 function requireWritableStaging() {
@@ -47,21 +46,17 @@ async function createFirstQr(page: Page) {
   return qrUrl;
 }
 
-async function createPublicLead(page: Page, qrUrl: string) {
+async function openPublicQr(page: Page, qrUrl: string) {
   await page.goto(qrUrl);
   await expect(page.getByRole("heading", { name: propertyTitle })).toBeVisible({
     timeout: 30_000,
   });
-  await page.getByTestId("public-qr-lead-name").fill("Lead QA Self Service");
-  await page.getByTestId("public-qr-lead-phone").fill(leadPhone);
-  await page.getByTestId("public-qr-lead-observation").fill("Tenho interesse neste imovel de QA.");
-  await page.getByTestId("public-qr-lead-submit").click();
-  await expect(page.getByRole("status")).toContainText("Interesse registrado", {
-    timeout: 30_000,
-  });
+  await expect(page.getByTestId("public-qr-whatsapp-link")).toBeVisible({ timeout: 30_000 });
+  const whatsappHref = await page.getByTestId("public-qr-whatsapp-link").getAttribute("href");
+  expect(whatsappHref ?? "").toContain("wa.me");
 }
 
-test("signup, primeiro QR, lead publico e painel funcionam no staging", async ({
+test("signup, primeiro QR, leitura publica e painel funcionam no staging", async ({
   page,
   context,
 }) => {
@@ -71,18 +66,16 @@ test("signup, primeiro QR, lead publico e painel funcionam no staging", async ({
   const qrUrl = await createFirstQr(page);
 
   const publicPage = await context.newPage();
-  await createPublicLead(publicPage, qrUrl);
+  await openPublicQr(publicPage, qrUrl);
   await publicPage.close();
 
   await page.goto("/leads");
-  const leadItem = page.getByTestId("lead-list-item").filter({ hasText: "Lead QA Self Service" });
-  await expect(leadItem).toBeVisible({ timeout: 45_000 });
-  await expect(leadItem).toContainText(propertyTitle);
-  await expect(leadItem).toContainText(leadPhone);
+  await expect(page.getByText("Nenhum lead ainda.")).toBeVisible({ timeout: 45_000 });
 
   await page.goto("/dashboard");
-  await expect(page.getByTestId("dashboard-metric-leads-total")).toContainText("1", {
+  await expect(page.getByTestId("dashboard-metric-leads-total")).toContainText("0", {
     timeout: 30_000,
   });
-  await expect(page.getByTestId("dashboard-metric-leads-unanswered")).toContainText("1");
+  await expect(page.getByTestId("dashboard-metric-leads-unanswered")).toContainText("0");
+  await expect(page.getByTestId("dashboard-metric-qr-scans")).toContainText("1");
 });

@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(dir, "page.tsx"), "utf8");
 
-describe("PlansPage", () => {
-  it("does not advertise a public lead form as part of the plan", () => {
-    expect(source).toContain("QR Code");
-    expect(source).not.toContain("QR Code e formulario de lead");
+describe("PropertiesPage", () => {
+  it("keeps a single primary action for manual property creation", () => {
+    expect(source).toContain("QuickCreateButton");
+    expect(source).not.toContain("Cadastrar manualmente");
   });
 });

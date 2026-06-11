@@ -147,7 +147,11 @@ export default async function DashboardPage() {
               label="Sem resposta"
               testId="dashboard-metric-leads-unanswered"
             />
-            <MetricCard value={String(metrics.qrScans)} label="Leituras de QR" />
+            <MetricCard
+              value={String(metrics.qrScans)}
+              label="Leituras de QR"
+              testId="dashboard-metric-qr-scans"
+            />
             <MetricCard
               value={metrics.topPropertyTitle ?? "—"}
               label={`Top imovel (${metrics.topPropertyLeadCount} leads)`}

@@ -14,4 +14,9 @@ describe("home page investor positioning", () => {
     expect(source).toContain("Imoveis com QR ativo");
     expect(source).toContain('id="imoveis"');
   });
+
+  it("describes capture as WhatsApp-first instead of form fallback", () => {
+    expect(source).toContain("capture o interessado pelo WhatsApp");
+    expect(source).not.toContain("WhatsApp ou formulario");
+  });
 });

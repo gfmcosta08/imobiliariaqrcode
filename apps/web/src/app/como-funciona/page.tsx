@@ -2,26 +2,26 @@ import Link from "next/link";
 
 const steps = [
   {
-    title: "Cole o QR no imovel",
-    body: "Use o QR na placa, vitrine, folder, stories ou recepcao. O interessado nao precisa baixar aplicativo.",
+    title: "Crie o anuncio e gere o QR",
+    body: "Depois de cadastrar o imovel, o sistema gera um QR exclusivo pronto para uso comercial.",
     image:
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    title: "Visitante aponta a camera",
-    body: "A pessoa chega na pagina publica do imovel com referencia, preco, localizacao e chamada para contato.",
+    title: "Use o QR onde quiser",
+    body: "Aplique na placa, vitrine, folder, story ou material de campanha. O interessado nao precisa baixar aplicativo.",
     image:
       "https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    title: "Ele escolhe WhatsApp ou formulario",
-    body: "Se o WhatsApp abrir, a conversa comeca rapido. Se nao abrir, o formulario registra o lead como backup.",
+    title: "Visitante escaneia e abre o WhatsApp",
+    body: "Ao ler o QR Code, o visitante ve os dados do imovel e pode seguir direto para o WhatsApp para pedir visita, corretor ou opcoes semelhantes.",
     image:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    title: "Lead aparece no painel",
-    body: "O corretor ve quem demonstrou interesse, em qual imovel, por qual QR e com qual mensagem.",
+    title: "Lead e interesse ficam visiveis para o corretor",
+    body: "A leitura do QR fica registrada no sistema e o corretor acompanha no painel quem avancou para atendimento e quais imoveis estao puxando demanda.",
     image:
       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
   },
@@ -59,7 +59,7 @@ export default function ComoFuncionaPage() {
               Da placa no imovel ao lead rastreavel no painel.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/80">
-              O ImoveisQR transforma curiosidade anonima em contato registrado. O corretor para de
+              O ImoveisQR transforma curiosidade anonima em contexto rastreavel. O corretor para de
               depender de memoria, print solto e pergunta perdida no WhatsApp.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -124,7 +124,7 @@ export default function ComoFuncionaPage() {
               <h2 className="text-2xl font-bold">Teste com um imovel real.</h2>
               <p className="mt-2 text-sm text-white/65">
                 Em poucos minutos voce gera o QR, abre a pagina publica e deixa o painel pronto para
-                receber o primeiro interessado.
+                acompanhar as primeiras leituras.
               </p>
             </div>
             <Link
