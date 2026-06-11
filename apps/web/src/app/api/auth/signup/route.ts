@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   const { data: createdUser, error } = await supabase.auth.admin.createUser({
     email: normalizedEmail,
     password,
-    email_confirm: process.env.VERCEL_ENV !== "production",
+    email_confirm: true,
     user_metadata: {
       full_name: normalizedName,
       whatsapp_number: triggerSafeWhatsapp,
