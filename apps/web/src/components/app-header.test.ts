@@ -12,7 +12,7 @@ describe("AppHeader", () => {
     expect(source).toContain("createClient");
     expect(source).toContain("supabase.auth.getUser");
     expect(source).toContain('.from("profiles")');
-    expect(source).toContain(".select(\"role\")");
+    expect(source).toContain('.select("role")');
     expect(source).toContain('{ href: "/admin", label: "Admin" }');
   });
 });

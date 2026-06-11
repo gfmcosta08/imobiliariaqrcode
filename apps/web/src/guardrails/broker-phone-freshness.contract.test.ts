@@ -31,6 +31,20 @@ describe("Broker WhatsApp phone freshness guardrails", () => {
     );
   });
 
+  it("falls back to the property broker when account-level broker lookup is ambiguous", () => {
+    const src = readRepo("supabase/functions/whatsapp-dispatch/index.ts");
+    const refreshBlock = src.slice(src.indexOf("async function resolveFreshBrokerPhone"));
+
+    expect(refreshBlock).toContain("const accountPhone = row.account_id");
+    expect(refreshBlock).toContain("if (accountPhone) return accountPhone");
+    expect(refreshBlock.indexOf("if (accountPhone) return accountPhone")).toBeLessThan(
+      refreshBlock.indexOf("if (row.property_id)"),
+    );
+    expect(refreshBlock.indexOf("if (row.property_id)")).toBeLessThan(
+      refreshBlock.lastIndexOf("return normalizeOptionalPhone(row.broker_phone)"),
+    );
+  });
+
   it("uses profile whatsapp_number as canonical source when queueing broker phone snapshots", () => {
     const conversation = readRepo("supabase/functions/conversation-handle/index.ts");
     const leadNotify = readRepo("supabase/functions/lead-notify-broker/index.ts");

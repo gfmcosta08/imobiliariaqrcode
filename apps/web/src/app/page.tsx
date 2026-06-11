@@ -137,8 +137,8 @@ export default async function Home({ searchParams }: PageProps) {
             Cole esse QR no imovel e nunca mais perca um interessado anonimo.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-white/90">
-            Gere um QR para cada imovel, capture o interessado pelo WhatsApp e acompanhe leituras
-            e oportunidades no painel.
+            Gere um QR para cada imovel, capture o interessado pelo WhatsApp e acompanhe leituras e
+            oportunidades no painel.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link

@@ -351,12 +351,10 @@ async function resolveFreshBrokerPhone(
     );
   }
 
-  if (row.account_id) {
-    return (
-      (await loadSingleBrokerPhoneByAccount(supabase, row.account_id)) ??
-      normalizeOptionalPhone(row.broker_phone)
-    );
-  }
+  const accountPhone = row.account_id
+    ? await loadSingleBrokerPhoneByAccount(supabase, row.account_id)
+    : null;
+  if (accountPhone) return accountPhone;
 
   if (row.property_id) {
     return (
