@@ -413,7 +413,7 @@ Deno.serve(async (req) => {
       console.log(`Triggering dispatch at: ${dispatchUrl}`);
       await fetch(dispatchUrl, {
         method: "POST",
-        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        headers: { Authorization: `Bearer ${Deno.env.get("CRON_SECRET")}` },
       }).catch((err: unknown) =>
         console.error("dispatch trigger after conversation success failed:", err),
       );
