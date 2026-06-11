@@ -15,8 +15,7 @@ const SIGNUP_RATE_LOCK_SECONDS = 30 * 60;
 
 async function verifySignupTurnstile(token: string, ip: string): Promise<boolean> {
   const secret = process.env.SIGNUP_TURNSTILE_SECRET?.trim();
-  const production = process.env.VERCEL_ENV === "production";
-  if (!secret) return !production;
+  if (!secret) return true; // Turnstile opcional: se não configurado, permite
   if (!token) return false;
 
   const body = new URLSearchParams({ secret, response: token });
