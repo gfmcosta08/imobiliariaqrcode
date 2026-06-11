@@ -22,6 +22,17 @@ describe("bot no-regression contract", () => {
     expect(dispatch).toContain("whatsapp_messages");
   });
 
+  it("dispatch function does not chain catch directly on Supabase query builders", () => {
+    const dispatch = readRepo("supabase/functions/whatsapp-dispatch/index.ts");
+    const lines = dispatch.split(/\r?\n/);
+
+    lines.forEach((line, index) => {
+      if (!line.includes(".catch(")) return;
+      const nearby = lines.slice(Math.max(0, index - 8), index + 1).join("\n");
+      expect(nearby).not.toMatch(/await\s+supabase[\s\S]*\.from\(/);
+    });
+  });
+
   it("bot health monitor still references silence/incident monitoring", () => {
     const monitor = readRepo("supabase/functions/bot-health-monitor/index.ts");
     expect(monitor).toMatch(/silence|incident|monitor/i);

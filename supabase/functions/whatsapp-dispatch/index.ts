@@ -672,22 +672,21 @@ Deno.serve(async (req) => {
 
   // Enfileirar fallback para leads que esgotaram tentativas
   for (const phone of [...new Set(exhaustedPhones)]) {
-    await supabase
-      .from("whatsapp_messages")
-      .insert({
-        direction: "outbound",
-        provider: "uazapi",
-        lead_phone: phone,
-        message_type: "text",
-        payload: {
-          kind: "error_fallback",
-          text: "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.",
-        },
-        status: "queued",
-      })
-      .catch((e: unknown) =>
-        console.error("[dispatch] fallback enqueue failed", e instanceof Error ? e.message : e),
-      );
+    const { error: fallbackError } = await supabase.from("whatsapp_messages").insert({
+      direction: "outbound",
+      provider: "uazapi",
+      lead_phone: phone,
+      message_type: "text",
+      payload: {
+        kind: "error_fallback",
+        text: "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.",
+      },
+      status: "queued",
+    });
+
+    if (fallbackError) {
+      console.error("[dispatch] fallback enqueue failed", fallbackError.message);
+    }
   }
 
   let cycles = 0;
@@ -855,18 +854,16 @@ Deno.serve(async (req) => {
 
   // Marcar bot_interactions como completed para leads que tiveram mensagens enviadas
   if (sentPhones.size > 0) {
-    await supabase
+    const { error: interactionsError } = await supabase
       .from("bot_interactions")
       .update({ current_step: "completed" })
       .in("lead_phone", [...sentPhones])
       .in("current_step", ["response_queued", "dispatch_sent"])
-      .eq("is_resolved", false)
-      .catch((e: unknown) =>
-        console.error(
-          "[dispatch] bot_interactions update failed",
-          e instanceof Error ? e.message : e,
-        ),
-      );
+      .eq("is_resolved", false);
+
+    if (interactionsError) {
+      console.error("[dispatch] bot_interactions update failed", interactionsError.message);
+    }
   }
 
   console.log("[dispatch] run complete", { sent: sent.length, failed: failed.length, cycles });
