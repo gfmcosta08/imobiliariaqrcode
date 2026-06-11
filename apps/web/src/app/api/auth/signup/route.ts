@@ -32,8 +32,9 @@ async function verifySignupTurnstile(token: string, ip: string): Promise<boolean
 }
 
 export async function POST(req: NextRequest) {
-  const parsed = await parseJsonObjectWithLimit(req, { maxBytes: 6_144 });
-  if (!parsed.ok) return parsed.response;
+  try {
+    const parsed = await parseJsonObjectWithLimit(req, { maxBytes: 6_144 });
+    if (!parsed.ok) return parsed.response;
 
   const unknown = rejectUnknownKeys(parsed.value, [
     "email",
@@ -230,4 +231,12 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal error";
+    console.error("[signup] Unhandled exception:", message);
+    return NextResponse.json(
+      { ok: false, error: "signup_internal_error" },
+      { status: 500 },
+    );
+  }
 }

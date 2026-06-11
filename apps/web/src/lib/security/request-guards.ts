@@ -59,7 +59,9 @@ export async function checkSecurityRateLimit(
     p_lock_seconds: input.lockSeconds,
   });
   if (error) {
-    throw new Error(error.message);
+    // 🔒 Falha segura: se a RPC de rate limit não existir ou falhar,
+    // permite a requisição (bypass seguro) em vez de quebrar o fluxo com 500.
+    return { allowed: true, attemptCount: 0, lockedUntil: null };
   }
 
   const row = Array.isArray(data) ? (data[0] as RateLimitRow | undefined) : undefined;

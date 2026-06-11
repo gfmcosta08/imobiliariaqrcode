@@ -120,7 +120,13 @@ function LoginPageContent() {
           }),
         });
 
-        const data = (await res.json()) as { ok?: boolean; error?: string };
+        let data: { ok?: boolean; error?: string };
+        try {
+          data = (await res.json()) as { ok?: boolean; error?: string };
+        } catch {
+          setError("Erro inesperado do servidor. Tente novamente.");
+          return;
+        }
         if (!res.ok || !data.ok) {
           setError(data.error ?? "Erro ao criar conta.");
           return;
@@ -159,7 +165,13 @@ function LoginPageContent() {
           }),
         });
 
-        const claimData = (await claimRes.json()) as InviteClaimResponse;
+        let claimData: InviteClaimResponse;
+        try {
+          claimData = (await claimRes.json()) as InviteClaimResponse;
+        } catch {
+          setError("Erro inesperado do servidor. Tente novamente.");
+          return;
+        }
         if (!claimRes.ok || !claimData.ok) {
           const msgs: Record<string, string> = {
             invalid_credentials: "Login ou senha incorretos. Verifique os dados e tente novamente.",
