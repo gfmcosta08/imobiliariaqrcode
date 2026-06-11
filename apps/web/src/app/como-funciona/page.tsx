@@ -15,7 +15,7 @@ const steps = [
   },
   {
     title: "Visitante escaneia e abre o WhatsApp",
-    body: "Ao ler o QR Code, o visitante ve os dados do imovel e pode seguir direto para o WhatsApp para pedir visita, corretor ou opcoes semelhantes.",
+    body: "Ao ler o QR Code, o visitante recebe as informacoes e imagens do imovel cadastradas pelo corretor e pode interagir com a nossa IA para agendar uma visita, solicitar imoveis semelhantes ou pedir o contato do corretor. Caso tenha interesse em algum imovel, a IA envia automaticamente ao corretor o nome, contato do cliente e o imovel desejado para agendamento da visita.",
     image:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
   },

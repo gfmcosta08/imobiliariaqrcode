@@ -12,6 +12,8 @@ describe("ComoFuncionaPage", () => {
     expect(source).toContain("Crie o anuncio e gere o QR");
     expect(source).toContain("Use o QR onde quiser");
     expect(source).toContain("Visitante escaneia e abre o WhatsApp");
+    expect(source).toContain("pode interagir com a nossa IA para agendar uma visita");
+    expect(source).toContain("a IA envia automaticamente ao corretor o nome, contato do cliente");
     expect(source).toContain("Lead e interesse ficam visiveis para o corretor");
     expect(source).toContain("/teste-gratis");
     expect(source).toContain("images.unsplash.com");
