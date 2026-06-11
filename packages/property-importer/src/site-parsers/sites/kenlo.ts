@@ -22,12 +22,7 @@ import type { SiteParser } from "../types";
 export function parseKenlo(html: string, url: string): Partial<ExtratorListing> {
   const $ = cheerio.load(html);
 
-  const title = firstText($, [
-    "h1 > span",
-    "h1",
-    ".property-title",
-    ".imovel-title",
-  ]);
+  const title = firstText($, ["h1 > span", "h1", ".property-title", ".imovel-title"]);
 
   const descRaw = firstText($, [
     ".box-description",
@@ -110,8 +105,11 @@ export function parseKenlo(html: string, url: string): Partial<ExtratorListing> 
 
   const subtype = firstText($, ["[class*='tipo']", "[class*='type']", ".property-type"]);
   const purposeRaw = (priceRaw + " " + url).toLowerCase();
-  const purpose: "" | "sale" | "rent" =
-    purposeRaw.includes("alug") ? "rent" : purposeRaw.includes("vend") ? "sale" : "";
+  const purpose: "" | "sale" | "rent" = purposeRaw.includes("alug")
+    ? "rent"
+    : purposeRaw.includes("vend")
+      ? "sale"
+      : "";
 
   const internalCode = (() => {
     // Kenlo URL pattern: /imovel/{slug}/{CODE}

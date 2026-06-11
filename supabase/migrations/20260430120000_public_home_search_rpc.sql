@@ -2,12 +2,10 @@
 
 create extension if not exists pg_trgm;
 create extension if not exists unaccent;
-
 create index if not exists idx_properties_home_public_sort
 on public.properties (created_at desc)
 where listing_status in ('published', 'printed')
   and purpose in ('sale', 'rent', 'season');
-
 create index if not exists idx_properties_home_public_filters
 on public.properties (
   purpose,
@@ -19,7 +17,6 @@ on public.properties (
 )
 where listing_status in ('published', 'printed')
   and purpose in ('sale', 'rent', 'season');
-
 create index if not exists idx_properties_home_numeric_filters
 on public.properties (
   bedrooms,
@@ -35,7 +32,6 @@ on public.properties (
 )
 where listing_status in ('published', 'printed')
   and purpose in ('sale', 'rent', 'season');
-
 create index if not exists idx_properties_home_search_trgm
 on public.properties
 using gin (
@@ -56,7 +52,6 @@ using gin (
 )
 where listing_status in ('published', 'printed')
   and purpose in ('sale', 'rent', 'season');
-
 create or replace function public.search_public_home_properties(
   p_q text default null,
   p_purpose text default null,
@@ -229,7 +224,6 @@ as $$
   limit greatest(1, least(coalesce(p_limit, 60), 100))
   offset greatest(0, coalesce(p_offset, 0));
 $$;
-
 revoke all on function public.search_public_home_properties(
   text,
   text,
@@ -262,7 +256,6 @@ revoke all on function public.search_public_home_properties(
   integer,
   integer
 ) from public;
-
 grant execute on function public.search_public_home_properties(
   text,
   text,
@@ -295,7 +288,6 @@ grant execute on function public.search_public_home_properties(
   integer,
   integer
 ) to service_role;
-
 create or replace function public.get_public_home_filter_options()
 returns table (
   property_types text[],
@@ -323,6 +315,5 @@ as $$
     array(select value from (select distinct sun_position as value from eligible where nullif(btrim(sun_position), '') is not null) s order by value),
     array(select value from (select distinct city_region as value from eligible where nullif(btrim(city_region), '') is not null) s order by value);
 $$;
-
 revoke all on function public.get_public_home_filter_options() from public;
 grant execute on function public.get_public_home_filter_options() to service_role;

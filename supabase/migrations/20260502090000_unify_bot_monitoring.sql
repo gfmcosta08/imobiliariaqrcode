@@ -25,18 +25,14 @@ alter table public.bot_interactions
   add column if not exists auto_recovery_attempted_at timestamptz,
   add column if not exists auto_recovery_result jsonb,
   add column if not exists last_failed_step text;
-
 create index if not exists idx_bot_interactions_incident_open
   on public.bot_interactions (incident_detected_at desc)
   where incident_status = 'open';
-
 create index if not exists idx_bot_interactions_incident_type
   on public.bot_interactions (incident_type, incident_status, updated_at desc);
-
 create index if not exists idx_bot_interactions_source_message
   on public.bot_interactions (incident_source_message_id)
   where incident_source_message_id is not null;
-
 do $$
 begin
   if to_regclass('public.bot_interaction_steps') is not null then
@@ -180,7 +176,6 @@ begin
       );
   end if;
 end $$;
-
 create or replace function public.fn_start_interaction_step(
   p_interaction_id uuid,
   p_step           text
@@ -207,7 +202,6 @@ begin
   return v_id;
 end;
 $$;
-
 create or replace function public.fn_complete_interaction_step(
   p_step_id    uuid,
   p_status     text,
@@ -264,7 +258,6 @@ begin
   );
 end;
 $$;
-
 create or replace function public.fn_log_dispatch_step_for_phone(
   p_phone text
 ) returns void language plpgsql as $$
@@ -286,12 +279,10 @@ begin
   perform public.fn_complete_interaction_step(v_step_id, 'complete', null);
 end;
 $$;
-
 drop view if exists public.v_bot_open_incidents;
 drop view if exists public.v_bot_pending_steps;
 drop view if exists public.v_bot_interaction_timeline;
 drop view if exists public.v_bot_interaction_log;
-
 create or replace view public.v_bot_interaction_timeline as
 select
   bi.id as interaction_id,
@@ -311,7 +302,6 @@ from public.bot_interactions bi
 cross join lateral jsonb_array_elements(coalesce(bi.steps_history, '[]'::jsonb)) step(value)
 where bi.created_at > now() - interval '24 hours'
 order by bi.created_at desc, nullif(step.value->>'started_at', '')::timestamptz asc;
-
 create or replace view public.v_bot_pending_steps as
 select
   step.value->>'id' as step_id,
@@ -326,7 +316,6 @@ cross join lateral jsonb_array_elements(coalesce(bi.steps_history, '[]'::jsonb))
 where step.value->>'status' = 'pending'
   and nullif(step.value->>'started_at', '')::timestamptz < now() - interval '5 minutes'
 order by nullif(step.value->>'started_at', '')::timestamptz asc;
-
 create or replace view public.v_bot_open_incidents as
 select
   bi.id,
@@ -351,16 +340,13 @@ left join public.properties p on p.id = bi.incident_property_id
 left join public.brokers b on b.id = bi.incident_broker_id
 where bi.incident_status = 'open'
 order by bi.incident_detected_at desc;
-
 grant select on public.v_bot_interaction_timeline to service_role;
 grant select on public.v_bot_pending_steps to service_role;
 grant select on public.v_bot_open_incidents to service_role;
-
 drop table if exists public.bot_incidents;
 drop table if exists public.bot_interaction_steps;
-
 -- ============================================================
 -- ROLLBACK (se necessario): recriar tabelas antigas pelas migrations
 -- 20260427010000_bot_interaction_steps.sql e
 -- 20260501090000_bot_incidents_monitoring.sql.
--- ============================================================
+-- ============================================================;

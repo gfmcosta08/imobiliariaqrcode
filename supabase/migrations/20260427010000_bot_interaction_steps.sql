@@ -18,16 +18,13 @@ create table if not exists public.bot_interaction_steps (
   completed_at    timestamptz,
   error_detail    text
 );
-
 -- Indice para o monitor detectar etapas pending antigas
 create index if not exists idx_bot_steps_pending
   on public.bot_interaction_steps (started_at asc)
   where status = 'pending';
-
 -- Indice para busca por interaction_id (historico da conversa)
 create index if not exists idx_bot_steps_interaction
   on public.bot_interaction_steps (interaction_id, started_at asc);
-
 -- 2. Funcoes SQL chamadas pelas Edge Functions via .rpc()
 
 -- Inicia uma etapa como pending, retorna o step_id
@@ -43,7 +40,6 @@ begin
   return v_id;
 end;
 $$;
-
 -- Marca etapa como complete ou failed
 create or replace function public.fn_complete_interaction_step(
   p_step_id    uuid,
@@ -56,7 +52,6 @@ create or replace function public.fn_complete_interaction_step(
       error_detail = p_error
   where id = p_step_id;
 $$;
-
 -- Registra dispatch_sent diretamente pelo phone
 -- (whatsapp-dispatch nao tem interaction_id disponivel)
 create or replace function public.fn_log_dispatch_step_for_phone(
@@ -80,7 +75,6 @@ begin
     (v_interaction_id, 'dispatch_sent', 'complete', now());
 end;
 $$;
-
 -- 3. Views de observabilidade
 
 -- 3.1 Linha do tempo completa de cada interacao (ultimas 24h)
@@ -100,7 +94,6 @@ from public.bot_interactions bi
 join public.bot_interaction_steps s on s.interaction_id = bi.id
 where bi.created_at > now() - interval '24 hours'
 order by bi.created_at desc, s.started_at asc;
-
 -- 3.2 Etapas pending por mais de 5 minutos (alerta imediato)
 create or replace view public.v_bot_pending_steps as
 select
@@ -115,12 +108,10 @@ join public.bot_interactions bi on bi.id = s.interaction_id
 where s.status = 'pending'
   and s.started_at < now() - interval '5 minutes'
 order by s.started_at asc;
-
 -- 4. Grants
 grant all    on public.bot_interaction_steps      to service_role;
 grant select on public.v_bot_interaction_timeline to service_role;
 grant select on public.v_bot_pending_steps        to service_role;
-
 -- ============================================================
 -- ROLLBACK (se necessario):
 -- drop view if exists public.v_bot_pending_steps;
@@ -131,4 +122,4 @@ grant select on public.v_bot_pending_steps        to service_role;
 -- drop index if exists idx_bot_steps_interaction;
 -- drop index if exists idx_bot_steps_pending;
 -- drop table if exists public.bot_interaction_steps;
--- ============================================================
+-- ============================================================;

@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
 
   const { fullName, email, whatsapp, password } = await req.json();
   const normalizedName = String(fullName ?? "").trim();
-  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const normalizedEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const normalizedWhatsapp = String(whatsapp ?? "").replace(/\D/g, "");
   const safeWhatsapp = normalizedWhatsapp || `pending-${user.id.replace(/-/g, "")}`.slice(0, 40);
 
@@ -48,7 +50,10 @@ export async function POST(req: NextRequest) {
     .neq("id", user.id)
     .maybeSingle();
   if (duplicatedEmail) {
-    return NextResponse.json({ error: "Este e-mail ja esta cadastrado em outra conta." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Este e-mail ja esta cadastrado em outra conta." },
+      { status: 400 },
+    );
   }
 
   if (normalizedWhatsapp) {
@@ -60,7 +65,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (duplicatedWhatsapp) {
       return NextResponse.json(
-        { error: "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco." },
+        {
+          error:
+            "Este WhatsApp ja esta cadastrado em outra conta. Informe outro numero ou deixe em branco.",
+        },
         { status: 400 },
       );
     }
@@ -94,7 +102,10 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id);
 
   if (profileError) {
-    return NextResponse.json({ error: friendlyDatabaseError(profileError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(profileError.message) },
+      { status: 400 },
+    );
   }
 
   const { error: brokerError } = await admin
@@ -106,10 +117,13 @@ export async function POST(req: NextRequest) {
     .eq("profile_id", user.id);
 
   if (brokerError) {
-    return NextResponse.json({ error: friendlyDatabaseError(brokerError.message) }, { status: 400 });
+    return NextResponse.json(
+      { error: friendlyDatabaseError(brokerError.message) },
+      { status: 400 },
+    );
   }
 
-  const { error: invitationError } = await admin
+  const { data: claimedInvitation, error: invitationError } = await admin
     .from("broker_invitations")
     .update({
       status: "claimed",
@@ -117,10 +131,30 @@ export async function POST(req: NextRequest) {
       claimed_by_profile_id: user.id,
     })
     .eq("temp_auth_user_id", user.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("property_count")
+    .maybeSingle();
 
   if (invitationError) {
     return NextResponse.json({ error: invitationError.message }, { status: 500 });
+  }
+
+  if (claimedInvitation?.property_count) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.account_id) {
+      await admin
+        .from("subscriptions")
+        .update({
+          max_active_properties_override: Number(claimedInvitation.property_count),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("account_id", profile.account_id)
+        .eq("status", "free");
+    }
   }
 
   return NextResponse.json({ ok: true });

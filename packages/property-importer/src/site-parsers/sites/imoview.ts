@@ -70,10 +70,12 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
   );
 
   // ImoView often puts full-size image URLs in anchor href
-  $("a[href*='cdn.imoview.com.br'], a[href*='.jpg'], a[href*='.jpeg'], a[href*='.webp']").each((_i, el) => {
-    const href = $(el).attr("href")?.trim();
-    if (href?.startsWith("http")) images.push({ url: href });
-  });
+  $("a[href*='cdn.imoview.com.br'], a[href*='.jpg'], a[href*='.jpeg'], a[href*='.webp']").each(
+    (_i, el) => {
+      const href = $(el).attr("href")?.trim();
+      if (href?.startsWith("http")) images.push({ url: href });
+    },
+  );
 
   $("meta[property='og:image']").each((_i, el) => {
     const c = $(el).attr("content")?.trim();

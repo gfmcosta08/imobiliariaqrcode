@@ -1,9 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  getGoldenFixtures,
-  IMPORT_IMAGE_CAP,
-} from "@imobiliariaqrcode/property-importer";
+import { getGoldenFixtures, IMPORT_IMAGE_CAP } from "@imobiliariaqrcode/property-importer";
 
 const baseURL = process.env.STAGING_BASE_URL ?? "";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "";
@@ -62,7 +59,10 @@ for (const fixture of getGoldenFixtures("vivanci")) {
     test.skip(!adminEmail || !adminPassword, "E2E creds required");
     test.setTimeout(8 * 60_000);
 
-    const { currentCount, fullDescription, lineText } = await loginAndImport(page, fixture.listingUrl);
+    const { currentCount, fullDescription, lineText } = await loginAndImport(
+      page,
+      fixture.listingUrl,
+    );
 
     expect(currentCount).toBeGreaterThanOrEqual(fixture.minPhotos);
     if (fixture.minPhotos >= IMPORT_IMAGE_CAP) {

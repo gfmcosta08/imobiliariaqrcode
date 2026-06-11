@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import {
+  FREE_ACTIVE_PROPERTY_LIMIT,
+  PLAN_IMAGES_PER_PROPERTY_LIMIT,
+  STARTER_ACTIVE_PROPERTY_LIMIT,
+  STARTER_IMPORT_BATCHES_PER_MONTH,
+} from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 
 import { CheckoutButton } from "./checkout-button";
 
-type PlanCode = "free" | "solo" | "pro";
+type PlanCode = "free" | "starter";
 
 type PlanDisplay = {
   plan_code: PlanCode;
@@ -25,50 +31,36 @@ const DEFAULT_PLANS: PlanDisplay[] = [
     display_price: "R$ 0",
     display_suffix: " sem recorrencia",
     display_note: "Plano legado ativo",
-    display_description: "Plano de entrada para manter 1 anuncio ativo.",
+    display_description: `Plano de entrada para manter ${FREE_ACTIVE_PROPERTY_LIMIT} anuncio ativo com QR.`,
     display_label: "Checkout indisponivel",
     display_featured: false,
     features: [
-      "1 anuncio ativo",
-      "1 placa QR Code inclusa",
-      "Bot WhatsApp automatico",
-      "Captura de leads",
+      `${FREE_ACTIVE_PROPERTY_LIMIT} anuncio ativo`,
+      `${PLAN_IMAGES_PER_PROPERTY_LIMIT} imagens no anuncio`,
+      "QR Code com atendimento via WhatsApp",
+      "Sem renovacao automatica",
     ],
   },
   {
-    plan_code: "solo",
-    display_name: "Solo",
+    plan_code: "starter",
+    display_name: "Starter",
     display_price: "R$ 150",
-    display_suffix: " trimestral",
-    display_note: "Validade: 3 meses",
-    display_description: "Plano trimestral para manter um anuncio ativo com QR Code e captura de leads.",
-    display_label: "Checkout indisponivel",
-    display_featured: false,
-    features: [
-      "1 anuncio ativo",
-      "1 placa QR Code inclusa",
-      "Bot WhatsApp automatico",
-      "Captura de leads",
-    ],
-  },
-  {
-    plan_code: "pro",
-    display_name: "Pro",
-    display_price: "R$ 500",
     display_suffix: "/mes",
     display_note: "Renovacao mensal automatica",
-    display_description: "Plano mensal para operar varios imoveis com leads ilimitados.",
-    display_label: "Checkout indisponivel",
+    display_description: `Plano mensal para corretor solo: ate ${STARTER_ACTIVE_PROPERTY_LIMIT} anuncios ativos, QR por anuncio e captura de leads.`,
+    display_label: "Contratar Starter",
     display_featured: true,
     features: [
-      "Multiplos imoveis",
-      "Kit inicial: 10 placas QR Code",
-      "Bot WhatsApp + leads ilimitados",
+      `Ate ${STARTER_ACTIVE_PROPERTY_LIMIT} anuncios ativos`,
+      `${PLAN_IMAGES_PER_PROPERTY_LIMIT} imagens por anuncio`,
+      "QR Code por anuncio ativo",
+      `Ate ${STARTER_IMPORT_BATCHES_PER_MONTH} importacoes assistidas por mes no piloto`,
+      "Painel de oportunidades",
     ],
   },
 ];
 
-const PLAN_ORDER: PlanCode[] = ["free", "solo", "pro"];
+const PLAN_ORDER: PlanCode[] = ["free", "starter"];
 
 function cardClass(featured = false) {
   return featured ? "border-2 border-black p-8" : "border border-gray-200 p-8";
@@ -102,8 +94,7 @@ async function getPlans(): Promise<PlanDisplay[]> {
       plan_code: code,
       display_description:
         (plan as Partial<PlanDisplay>).display_description ?? fallback?.display_description ?? "",
-      display_label:
-        (plan as Partial<PlanDisplay>).display_label ?? "Checkout indisponivel",
+      display_label: (plan as Partial<PlanDisplay>).display_label ?? "Checkout indisponivel",
     } as PlanDisplay);
   }
 
@@ -121,7 +112,7 @@ export default async function PlansPage() {
       <main className="mx-auto max-w-6xl px-8 py-12">
         <h1 className="text-3xl font-bold text-gray-900">Planos</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Catalogo temporario sem checkout online. Para contratacao, fale com o time comercial.
+          Escolha o plano ideal para gerar QR, capturar leads e acompanhar oportunidades.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -147,7 +138,9 @@ export default async function PlansPage() {
                 {plan.display_price}
                 <span className="text-base font-normal text-gray-400">{plan.display_suffix}</span>
               </p>
-              {plan.display_note ? <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p> : null}
+              {plan.display_note ? (
+                <p className="mt-2 text-xs text-gray-400">{plan.display_note}</p>
+              ) : null}
               {plan.display_description ? (
                 <p className="mt-4 text-sm leading-6 text-gray-600">{plan.display_description}</p>
               ) : null}
@@ -158,13 +151,18 @@ export default async function PlansPage() {
                   </li>
                 ))}
               </ul>
-              <CheckoutButton label={plan.display_label || "Checkout indisponivel"} className={buttonClass(plan.display_featured)} />
+              <CheckoutButton
+                label={plan.display_label || "Checkout indisponivel"}
+                className={buttonClass(plan.display_featured)}
+                enabled={plan.plan_code === "starter"}
+              />
             </div>
           ))}
         </div>
 
         <p className="mt-10 text-xs text-gray-400">
-          Checkout Stripe temporariamente indisponivel. Use o painel admin para operacao manual.
+          Checkout Stripe em modo teste no staging. Planos para equipes ficam em piloto fechado
+          depois de prova de uso do Starter.
         </p>
       </main>
     </div>

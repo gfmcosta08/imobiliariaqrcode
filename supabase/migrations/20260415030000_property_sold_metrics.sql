@@ -5,7 +5,6 @@ alter table public.properties
   add column if not exists sold_commission_amount numeric(14, 2),
   add column if not exists sold_confirmed_at timestamptz,
   add column if not exists sold_notes text;
-
 create or replace function public.get_global_dashboard_metrics()
 returns jsonb
 language sql
@@ -21,7 +20,6 @@ as $$
     'total_commission', (select coalesce(sum(p.sold_commission_amount), 0)::numeric from public.properties p where p.sold_at is not null)
   );
 $$;
-
 create or replace function public.get_my_dashboard_metrics()
 returns jsonb
 language plpgsql
@@ -68,6 +66,5 @@ begin
   return out_json;
 end;
 $$;
-
 grant execute on function public.get_global_dashboard_metrics() to anon, authenticated, service_role;
 grant execute on function public.get_my_dashboard_metrics() to authenticated, service_role;

@@ -155,9 +155,7 @@ export function PropertiesManager() {
         </button>
       </div>
 
-      {fetchError && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{fetchError}</p>
-      )}
+      {fetchError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2">{fetchError}</p>}
 
       {/* Resultados */}
       {results.length > 0 && (
@@ -250,7 +248,9 @@ export function PropertiesManager() {
               </label>
 
               <label className="block">
-                <span className="text-xs text-gray-500">Data de expiração (deixe vazio para sem expiração)</span>
+                <span className="text-xs text-gray-500">
+                  Data de expiração (deixe vazio para sem expiração)
+                </span>
                 <input
                   type="date"
                   data-testid="admin-properties-edit-expires-at"
@@ -262,15 +262,14 @@ export function PropertiesManager() {
             </div>
 
             <p className="mt-3 text-xs text-gray-400">
-              Mudar para published/printed → reativa QR Code. Mudar para expired/removed → desativa QR Code.
+              Mudar para published/printed → reativa QR Code. Mudar para expired/removed → desativa
+              QR Code.
             </p>
 
             {saveError && (
               <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2">{saveError}</p>
             )}
-            {saveMsg && (
-              <p className="mt-3 text-sm text-green-600">{saveMsg}</p>
-            )}
+            {saveMsg && <p className="mt-3 text-sm text-green-600">{saveMsg}</p>}
 
             <div className="mt-5 flex gap-3">
               <button

@@ -1,7 +1,6 @@
 -- Adiciona target_property_id para o fluxo de visita a imóvel recomendado
 alter table public.conversation_sessions
   add column if not exists target_property_id uuid references public.properties (id) on delete set null;
-
 -- Atualiza constraint de state para incluir novos estados
 do $$
 declare
@@ -20,7 +19,6 @@ begin
   end if;
 end;
 $$;
-
 alter table public.conversation_sessions
   add constraint conversation_sessions_state_check check (state in (
     'started',

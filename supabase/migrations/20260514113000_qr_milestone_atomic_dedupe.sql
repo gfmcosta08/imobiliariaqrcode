@@ -36,7 +36,6 @@ set
 from ranked_duplicates d
 where w.id = d.id
   and d.rn > 1;
-
 -- Idempotencia no ponto critico de enfileiramento:
 -- somente uma mensagem ativa (queued/processing) por broker + qr + milestone + kind.
 create unique index if not exists idx_whatsapp_qr_milestone_unique_active
@@ -51,7 +50,6 @@ create unique index if not exists idx_whatsapp_qr_milestone_unique_active
     and message_type = 'text'
     and status in ('queued', 'processing')
     and payload ->> 'kind' = 'qr_views_milestone';
-
 create or replace function public.register_qr_access(
   p_qr_token text,
   p_user_agent text default null,
@@ -175,5 +173,4 @@ begin
   );
 end;
 $$;
-
 grant execute on function public.register_qr_access(text, text, text, text) to service_role;

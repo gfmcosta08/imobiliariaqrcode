@@ -94,9 +94,7 @@ export async function fetchVivanciSupabaseAnonKey(): Promise<string | null> {
     indexJs.match(/["']assets\/client-[A-Za-z0-9_-]+\.js["']/);
   if (!clientMatch) return null;
 
-  const clientPath = clientMatch[0]
-    .replace(/^["']|["']$/g, "")
-    .replace(/^(?!\/)/, "/");
+  const clientPath = clientMatch[0].replace(/^["']|["']$/g, "").replace(/^(?!\/)/, "/");
 
   const key = await extractJwtFromClientBundle(clientPath);
   if (!key) return null;

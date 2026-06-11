@@ -3,7 +3,6 @@
 alter table public.conversation_sessions
   add column if not exists similar_shown_property_ids jsonb not null default '[]'::jsonb,
   add column if not exists similar_page_number integer not null default 0;
-
 create or replace function public.property_similarity_norm(p_value text)
 returns text
 language sql
@@ -11,7 +10,6 @@ immutable
 as $$
   select nullif(regexp_replace(lower(btrim(coalesce(p_value, ''))), '\s+', ' ', 'g'), '');
 $$;
-
 create or replace function public.recommend_similar_properties_for_bot(
   origin_property_id uuid,
   limit_count integer default 5,
@@ -118,5 +116,4 @@ as $$
   order by scored.source_rank asc, scored.score desc, scored.created_at asc, scored.id asc
   limit greatest(1, least(limit_count, 20));
 $$;
-
 grant execute on function public.recommend_similar_properties_for_bot(uuid, integer, uuid[]) to service_role;

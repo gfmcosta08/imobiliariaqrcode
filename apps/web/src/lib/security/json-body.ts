@@ -81,4 +81,3 @@ export function clampString(
   if (s.length > options.maxLength) return "";
   return s;
 }
-

@@ -136,7 +136,8 @@ export function mapExtratorListingToPropertyPayload(
     broker_notes: `Importado automaticamente de ${sourceUrl}\nGeolocalização pendente: informe o link do mapa antes de publicar.`,
     sale_price: salePrice,
     rent_price: rentPrice,
-    price: purpose === "sale" ? salePrice : purpose === "rent" ? rentPrice : salePrice ?? rentPrice,
+    price:
+      purpose === "sale" ? salePrice : purpose === "rent" ? rentPrice : (salePrice ?? rentPrice),
     condo_fee: parseMoney(listing.condo_fee),
     iptu_amount: parseMoney(listing.iptu_amount),
     total_area_m2: totalArea,

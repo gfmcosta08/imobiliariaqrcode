@@ -33,7 +33,6 @@ create table if not exists public.properties (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.property_features (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -41,7 +40,6 @@ create table if not exists public.property_features (
   feature_value text,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.property_media (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -57,7 +55,6 @@ create table if not exists public.property_media (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.property_qrcodes (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -66,15 +63,12 @@ create table if not exists public.property_qrcodes (
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
-
 create trigger trg_properties_updated_at
 before update on public.properties
 for each row execute function public.set_updated_at();
-
 create trigger trg_property_media_updated_at
 before update on public.property_media
 for each row execute function public.set_updated_at();
-
 create or replace function public.generate_public_property_id()
 returns text
 language plpgsql
@@ -95,14 +89,12 @@ begin
   return candidate;
 end;
 $$;
-
 create or replace function public.generate_qr_token()
 returns text
 language sql
 as $$
   select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
 $$;
-
 create or replace function public.get_active_plan_code(p_account_id uuid)
 returns text
 language sql
@@ -115,7 +107,6 @@ as $$
   from public.subscriptions s
   where s.account_id = p_account_id;
 $$;
-
 create or replace function public.properties_active_count(p_account_id uuid)
 returns integer
 language sql
@@ -126,7 +117,6 @@ as $$
   where p.account_id = p_account_id
     and p.listing_status in ('draft', 'published', 'printed');
 $$;
-
 create or replace function public.can_create_property(p_account_id uuid)
 returns boolean
 language plpgsql
@@ -146,7 +136,6 @@ begin
   return current_count < max_props;
 end;
 $$;
-
 create or replace function public.before_property_insert()
 returns trigger
 language plpgsql
@@ -194,12 +183,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_properties_before_insert on public.properties;
 create trigger trg_properties_before_insert
 before insert on public.properties
 for each row execute function public.before_property_insert();
-
 create or replace function public.after_property_insert_qr()
 returns trigger
 language plpgsql
@@ -210,12 +197,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_properties_after_insert_qr on public.properties;
 create trigger trg_properties_after_insert_qr
 after insert on public.properties
 for each row execute function public.after_property_insert_qr();
-
 create index if not exists idx_properties_account_id on public.properties (account_id);
 create index if not exists idx_properties_broker_id on public.properties (broker_id);
 create index if not exists idx_properties_listing_status on public.properties (listing_status);

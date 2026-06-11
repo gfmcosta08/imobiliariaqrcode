@@ -17,6 +17,31 @@ Deno.serve(async (req) => {
     });
   }
 
+  const legacyEnabled = Deno.env.get("ENABLE_LEGACY_BILLING_WEBHOOK_STUB") === "1";
+  if (!legacyEnabled) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        reason: "legacy_billing_webhook_disabled",
+        not_authoritative_for_saas_billing: true,
+      }),
+      {
+        status: 410,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const authHeader = req.headers.get("authorization") ?? "";
+  const authToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  if (!cronSecret || authToken !== cronSecret) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const raw = await req.text();
     let payload: Record<string, unknown> = {};
@@ -54,9 +79,12 @@ Deno.serve(async (req) => {
 
     if (error) {
       if (error.code === "23505") {
-        return new Response(JSON.stringify({ ok: true, duplicate: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ ok: true, duplicate: true, not_authoritative_for_saas_billing: true }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
       return new Response(JSON.stringify({ ok: false, detail: error.message }), {
         status: 500,
@@ -64,9 +92,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, stored: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, stored: true, not_authoritative_for_saas_billing: true }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return new Response(JSON.stringify({ ok: false, detail: message }), {

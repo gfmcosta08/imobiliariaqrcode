@@ -62,7 +62,7 @@ export default async function PublicPropertyPage({ params }: PageProps) {
     <main className="min-h-screen bg-white">
       <nav className="flex items-center justify-between border-b border-gray-200 px-6 py-5 md:px-8">
         <Link href="/" className="text-sm font-bold uppercase tracking-widest text-gray-900">
-          IMOBQR
+          ImoveisQR
         </Link>
         <div className="flex items-center gap-5">
           <Link href="/#imoveis" className="text-sm font-medium text-gray-700 hover:text-gray-900">

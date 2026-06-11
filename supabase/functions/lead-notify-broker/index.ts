@@ -6,10 +6,31 @@ import { corsHeaders } from "../_shared/cors.ts";
  * Esta função pode ser chamada manualmente via API ou por outras funções.
  * O trigger de banco em public.leads já enfileira a notificação básica de WhatsApp.
  */
+function validateCronBearer(req: Request): Response | null {
+  const secret = Deno.env.get("CRON_SECRET")?.trim();
+  if (!secret) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const auth = req.headers.get("Authorization");
+  if (auth !== `Bearer ${secret}`) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const authError = validateCronBearer(req);
+  if (authError) return authError;
 
   try {
     const { lead_id } = await req.json();
@@ -34,7 +55,7 @@ Deno.serve(async (req) => {
         `
         *,
         properties (public_id),
-        brokers (whatsapp_number, account_id)
+        brokers (id, whatsapp_number, account_id, profiles(whatsapp_number))
       `,
       )
       .eq("id", lead_id)
@@ -50,7 +71,12 @@ Deno.serve(async (req) => {
     const broker = lead.brokers as any;
     const property = lead.properties as any;
 
-    if (!broker?.whatsapp_number) {
+    const brokerProfilePhone =
+      (broker as { profiles?: { whatsapp_number?: string } } | null)?.profiles?.whatsapp_number ||
+      null;
+    const brokerWhatsapp = brokerProfilePhone || broker?.whatsapp_number;
+
+    if (!brokerWhatsapp) {
       return new Response(JSON.stringify({ ok: true, message: "no_broker_phone" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -71,12 +97,13 @@ Deno.serve(async (req) => {
       account_id: broker.account_id,
       property_id: lead.property_id,
       lead_phone: lead.client_phone,
-      broker_phone: broker.whatsapp_number,
+      broker_phone: brokerWhatsapp,
       message_type: "text",
       status: "queued",
       payload: {
         kind: "lead_notify_manual",
         lead_id: lead.id,
+        broker_id: broker.id,
         text: msg_text,
         to_broker: true,
       },

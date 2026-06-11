@@ -168,9 +168,7 @@ export function PlansEditor() {
   return (
     <div className="space-y-4">
       {error && !editingCode ? (
-        <p className="border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <p className="border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       ) : null}
 
       {plans.map((plan) => (
@@ -182,8 +180,8 @@ export function PlansEditor() {
                   Editando: {PLAN_LABEL[plan.plan_code] ?? plan.plan_code}
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
-                  O preco exibido muda somente o texto publico. Checkout online esta
-                  temporariamente desativado.
+                  O preco exibido muda somente o texto publico. Checkout online esta temporariamente
+                  desativado.
                 </p>
               </div>
 
@@ -349,9 +347,7 @@ export function PlansEditor() {
                   {plan.display_suffix} - {plan.display_note || "sem nota"}
                 </p>
                 {plan.display_description ? (
-                  <p className="mt-1 max-w-3xl text-sm text-gray-500">
-                    {plan.display_description}
-                  </p>
+                  <p className="mt-1 max-w-3xl text-sm text-gray-500">{plan.display_description}</p>
                 ) : null}
                 <p className="mt-2 text-xs text-gray-400">
                   {plan.features.length} beneficio(s) - botao: &quot;{plan.display_label}&quot; -

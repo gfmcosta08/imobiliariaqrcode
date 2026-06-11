@@ -9,11 +9,7 @@
  */
 import * as cheerio from "cheerio";
 import type { ExtratorListing } from "../../extrator-types";
-import {
-  cleanDescription,
-  collectImages,
-  firstText,
-} from "../html-helpers";
+import { cleanDescription, collectImages, firstText } from "../html-helpers";
 import type { SiteParser } from "../types";
 
 export function parseGenericaBr(html: string, url: string): Partial<ExtratorListing> {
@@ -149,12 +145,7 @@ export function parseGenericaBr(html: string, url: string): Partial<ExtratorList
     "li.vagas",
     "li.garagem",
   ]);
-  const suiteText = firstText($, [
-    "[class*='suite']",
-    "[class*='suíte']",
-    ".suites",
-    "li.suites",
-  ]);
+  const suiteText = firstText($, ["[class*='suite']", "[class*='suíte']", ".suites", "li.suites"]);
 
   const bedNum = bedText.match(/\d+/);
   const bathNum = bathText.match(/\d+/);
@@ -201,7 +192,9 @@ export function parseGenericaBr(html: string, url: string): Partial<ExtratorList
     ".property-code",
     ".ref",
     "[id*='codigo']",
-  ]).replace(/[^\w\-]/g, "").slice(0, 20);
+  ])
+    .replace(/[^\w\-]/g, "")
+    .slice(0, 20);
 
   // ── Imagens ──────────────────────────────────────────────────────────────────
   const images = collectImages(
@@ -255,10 +248,7 @@ export function parseGenericaBr(html: string, url: string): Partial<ExtratorList
   // Derive city/state
   const parts = locationRaw.split(/[-–,]/);
   const city = parts[0]?.trim() ?? "";
-  const state =
-    estadoRaw ||
-    parts.find((p) => /^[A-Z]{2}$/.test(p.trim()))?.trim() ||
-    "";
+  const state = estadoRaw || parts.find((p) => /^[A-Z]{2}$/.test(p.trim()))?.trim() || "";
 
   return {
     title,
@@ -275,7 +265,7 @@ export function parseGenericaBr(html: string, url: string): Partial<ExtratorList
     parking_spaces: parkNum ? parseInt(parkNum[0], 10) : null,
     area_m2: areaNum ? areaNum[0] : "",
     sale_price: purpose !== "rent" ? saleRaw : "",
-    rent_price: purpose === "rent" ? (rentRaw || saleRaw) : "",
+    rent_price: purpose === "rent" ? rentRaw || saleRaw : "",
     internal_code: internalCode,
     images: uniqueImages,
   };

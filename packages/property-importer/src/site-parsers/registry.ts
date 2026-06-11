@@ -63,7 +63,10 @@ export type ResolveImportSiteResult = {
 export const IMPORT_IMAGE_CAP = 10;
 
 function normalizeHost(h: string): string {
-  return h.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+  return h
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/\.$/, "");
 }
 
 export function mergeEnrichedListing(

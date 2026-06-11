@@ -30,12 +30,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_property_media_before_insert on public.property_media;
 create trigger trg_property_media_before_insert
 before insert on public.property_media
 for each row execute function public.before_property_media_insert();
-
 create or replace function public.partner_lookup_property(p_public_id text)
 returns jsonb
 language plpgsql
@@ -70,5 +68,4 @@ begin
   );
 end;
 $$;
-
 grant execute on function public.partner_lookup_property(text) to authenticated;

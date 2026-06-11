@@ -72,13 +72,19 @@ async function resolveQrFromDatabase(token: string): Promise<QrResolvePayload | 
     ? await supabase.from("brokers").select("whatsapp_number").eq("id", brokerId).maybeSingle()
     : { data: null };
   const targetPhone =
-    process.env.UAZAPI_BOT_PHONE ?? process.env.WHATSAPP_BOT_PHONE ?? broker?.whatsapp_number ?? null;
+    process.env.UAZAPI_BOT_PHONE ??
+    process.env.WHATSAPP_BOT_PHONE ??
+    broker?.whatsapp_number ??
+    null;
   const publicId = typeof property.public_id === "string" ? property.public_id : "";
-  const leadStartText = encodeURIComponent(`Ola! Tenho interesse no imovel ${publicId} que vi no QRImoveis`);
+  const leadStartText = encodeURIComponent(
+    `Ola! Tenho interesse no imovel ${publicId} que vi no ImoveisQR`,
+  );
   const whatsappLink = targetPhone
     ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
     : null;
-  const price = numeric(property.price) ?? numeric(property.sale_price) ?? numeric(property.rent_price);
+  const price =
+    numeric(property.price) ?? numeric(property.sale_price) ?? numeric(property.rent_price);
 
   return {
     ok: true,
@@ -175,7 +181,6 @@ export default async function PublicQrPage(props: PageProps) {
       initial = fallback;
     }
   }
-
 
   return <PublicQrClient token={token} initial={initial} fetchError={fetchError} />;
 }

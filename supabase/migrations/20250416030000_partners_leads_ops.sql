@@ -7,14 +7,12 @@ create table if not exists public.partners (
   status text not null default 'active' check (status in ('active', 'inactive', 'blocked')),
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.partner_users (
   id uuid primary key default gen_random_uuid(),
   partner_id uuid not null references public.partners (id) on delete cascade,
   profile_id uuid not null unique references public.profiles (id) on delete cascade,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.print_events (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -23,9 +21,7 @@ create table if not exists public.print_events (
   event_type text not null default 'print_registered' check (event_type in ('print_registered', 'reprint_registered')),
   created_at timestamptz not null default now()
 );
-
 create index if not exists idx_print_events_property_id on public.print_events (property_id);
-
 create table if not exists public.leads (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
@@ -37,14 +33,11 @@ create table if not exists public.leads (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create trigger trg_leads_updated_at
 before update on public.leads
 for each row execute function public.set_updated_at();
-
 create index if not exists idx_leads_property_id on public.leads (property_id);
 create index if not exists idx_leads_broker_id on public.leads (broker_id);
-
 create table if not exists public.lead_interactions (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references public.leads (id) on delete cascade,
@@ -52,7 +45,6 @@ create table if not exists public.lead_interactions (
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.conversation_sessions (
   id uuid primary key default gen_random_uuid(),
   lead_phone text not null,
@@ -74,13 +66,10 @@ create table if not exists public.conversation_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create trigger trg_conversation_sessions_updated_at
 before update on public.conversation_sessions
 for each row execute function public.set_updated_at();
-
 create index if not exists idx_conversation_sessions_phone on public.conversation_sessions (lead_phone);
-
 create table if not exists public.whatsapp_messages (
   id uuid primary key default gen_random_uuid(),
   direction text not null check (direction in ('inbound', 'outbound')),
@@ -98,13 +87,10 @@ create table if not exists public.whatsapp_messages (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create trigger trg_whatsapp_messages_updated_at
 before update on public.whatsapp_messages
 for each row execute function public.set_updated_at();
-
 create index if not exists idx_whatsapp_messages_status on public.whatsapp_messages (status);
-
 create table if not exists public.webhook_events (
   id uuid primary key default gen_random_uuid(),
   provider text not null,
@@ -116,9 +102,7 @@ create table if not exists public.webhook_events (
   processing_status text not null default 'pending' check (processing_status in ('pending', 'processed', 'failed', 'ignored')),
   unique (provider, external_event_id)
 );
-
 create index if not exists idx_webhook_events_provider_status on public.webhook_events (provider, processing_status);
-
 create table if not exists public.recommendation_events (
   id uuid primary key default gen_random_uuid(),
   origin_property_id uuid not null references public.properties (id) on delete cascade,
@@ -126,7 +110,6 @@ create table if not exists public.recommendation_events (
   lead_phone text,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   account_id uuid,
@@ -137,11 +120,9 @@ create table if not exists public.audit_logs (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-
 create index if not exists idx_profiles_account_id on public.profiles (account_id);
 create index if not exists idx_brokers_account_id on public.brokers (account_id);
 create index if not exists idx_subscriptions_account_id on public.subscriptions (account_id);
-
 -- Impressão (FREE: primeira impressão inicia prazo; reimpressão não renova).
 
 create or replace function public.register_print_event(
@@ -197,7 +178,6 @@ begin
   );
 end;
 $$;
-
 create or replace function public.expire_free_properties()
 returns integer
 language plpgsql
@@ -218,7 +198,6 @@ begin
   return coalesce(affected, 0);
 end;
 $$;
-
 -- Recomendação determinística (MVP): origem FREE → só candidatos PRO; origem PRO → acervo PRO do mesmo corretor.
 
 create or replace function public.recommend_similar_properties(
@@ -280,7 +259,6 @@ as $$
   order by ranked.score desc, ranked.updated_at desc
   limit greatest(1, least(limit_count, 20));
 $$;
-
 create or replace function public.create_lead_from_visit_interest(
   p_property_id uuid,
   p_broker_id uuid,

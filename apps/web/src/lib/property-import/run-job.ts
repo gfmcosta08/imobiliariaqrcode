@@ -6,6 +6,7 @@ import {
   listingFromResult,
   mapExtratorListingToPropertyPayload,
   MAX_PROPERTIES_PER_IMPORT,
+  normalizeExtratorFetchError,
   validateImportUrl,
   inferImportMode,
 } from "@imobiliariaqrcode/property-importer";
@@ -29,10 +30,7 @@ export type ImportJobItemResult = {
 function isBlockedListingTitle(title: string | null | undefined): boolean {
   const t = (title ?? "").trim().toLowerCase();
   if (!t) return true;
-  return (
-    /^olx - o maior site/.test(t) ||
-    /^vivanci imobili[aá]ria - im[oó]veis em/.test(t)
-  );
+  return /^olx - o maior site/.test(t) || /^vivanci imobili[aá]ria - im[oó]veis em/.test(t);
 }
 
 const SOURCE_URLS_SEPARATOR = "\n";
@@ -57,13 +55,27 @@ function summarizeImportFailure(results: ImportJobItemResult[]): string {
   if (errors.every((e) => e === "listing_empty_or_unavailable")) {
     return "all_listings_empty_or_unavailable";
   }
+  if (
+    errors.every(
+      (e) =>
+        e === "extrator_unreachable" ||
+        e === "extrator_timeout" ||
+        e === "fetch failed" ||
+        e.startsWith("extrator_http_"),
+    )
+  ) {
+    return "extrator_unreachable";
+  }
   if (errors.some((e) => e.includes("site_blocked_cloudflare"))) {
     return "Alguns anúncios foram bloqueados (Cloudflare). Tente outro portal ou importe manualmente.";
   }
   return "Nenhum imóvel importado com sucesso.";
 }
 
-function looksLikeIncompleteDescription(listing: { full_description?: string | null; debug?: { expanded?: boolean } | null }): boolean {
+function looksLikeIncompleteDescription(listing: {
+  full_description?: string | null;
+  debug?: { expanded?: boolean } | null;
+}): boolean {
   const text = (listing.full_description ?? "").trim();
   if (!text) return false;
 
@@ -211,57 +223,93 @@ export async function runPropertyImportJob(jobId: string): Promise<void> {
       }
 
       const parserMeta =
-        siteDef != null
-          ? { parser_id: siteDef.id, parser_tier: siteDef.tier }
-          : {};
+        siteDef != null ? { parser_id: siteDef.id, parser_tier: siteDef.tier } : {};
 
-      let listing: Awaited<ReturnType<typeof extractListingWithSiteParser>> | null =
-        await extractListingWithSiteParser(url, extratorBase);
+      let listing: Awaited<ReturnType<typeof extractListingWithSiteParser>> | null = null;
+      try {
+        listing = await extractListingWithSiteParser(url, extratorBase);
 
-      if (!listing) {
-        if (siteDef && !siteDef.allowGenericFallback) {
-          results.push({
-            source_url: sourceUrl,
-            status: "error",
-            error: "parser_verified_failed",
-            ...parserMeta,
+        if (!listing) {
+          if (siteDef && !siteDef.allowGenericFallback) {
+            results.push({
+              source_url: sourceUrl,
+              status: "error",
+              error: "parser_verified_failed",
+              ...parserMeta,
+            });
+            processed += 1;
+            await admin
+              .from("property_import_jobs")
+              .update({
+                processed_count: processed,
+                results,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", jobId);
+            continue;
+          }
+
+          const [item] = await extractListingsFromUrls([url], {
+            extratorBaseUrl: extratorBase,
+            extractOptions: { downloadImages: false, maxImages: 10 },
           });
-          processed += 1;
-          await admin
-            .from("property_import_jobs")
-            .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
-            .eq("id", jobId);
-          continue;
+          if (!item) {
+            results.push({
+              source_url: sourceUrl,
+              status: "error",
+              error: "extract_failed",
+              ...parserMeta,
+            });
+            processed += 1;
+            await admin
+              .from("property_import_jobs")
+              .update({
+                processed_count: processed,
+                results,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", jobId);
+            continue;
+          }
+          if (!item.ok) {
+            results.push({
+              source_url: sourceUrl,
+              status: "error",
+              error: item.error?.message ?? "extract_failed",
+              ...parserMeta,
+            });
+            processed += 1;
+            await admin
+              .from("property_import_jobs")
+              .update({
+                processed_count: processed,
+                results,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", jobId);
+            continue;
+          }
+          listing = listingFromResult(item);
         }
-
-        const [item] = await extractListingsFromUrls([url], {
-          extratorBaseUrl: extratorBase,
-          extractOptions: { downloadImages: false, maxImages: 10 },
+      } catch (extractError) {
+        const errorCode = normalizeExtratorFetchError(extractError);
+        console.warn("[import] item_extract_failed", {
+          jobId,
+          sourceUrl,
+          error: errorCode,
         });
-        if (!item) {
-          results.push({ source_url: sourceUrl, status: "error", error: "extract_failed", ...parserMeta });
-          processed += 1;
-          await admin
-            .from("property_import_jobs")
-            .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
-            .eq("id", jobId);
-          continue;
-        }
-        if (!item.ok) {
-          results.push({
-            source_url: sourceUrl,
-            status: "error",
-            error: item.error?.message ?? "extract_failed",
-            ...parserMeta,
-          });
-          processed += 1;
-          await admin
-            .from("property_import_jobs")
-            .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
-            .eq("id", jobId);
-          continue;
-        }
-        listing = listingFromResult(item);
+        results.push({
+          source_url: sourceUrl,
+          status: "error",
+          error: errorCode,
+          ...parserMeta,
+        });
+        processed += 1;
+        await admin
+          .from("property_import_jobs")
+          .update({ processed_count: processed, results, updated_at: new Date().toISOString() })
+          .eq("id", jobId);
+        continue;
       }
 
       if (!listing || !listing.title?.trim() || isBlockedListingTitle(listing.title)) {

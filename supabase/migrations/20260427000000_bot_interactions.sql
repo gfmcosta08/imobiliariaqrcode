@@ -27,21 +27,17 @@ create table if not exists public.bot_interactions (
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
-
 -- Indice para queries do monitor (interacoes ativas ordenadas por tempo)
 create index if not exists idx_bot_interactions_active
   on public.bot_interactions (updated_at desc)
   where is_resolved = false;
-
 -- Indice para busca por lead
 create index if not exists idx_bot_interactions_lead_phone
   on public.bot_interactions (lead_phone, created_at desc);
-
 -- Indice para queries por etapa (monitor detecta etapas presas)
 create index if not exists idx_bot_interactions_step
   on public.bot_interactions (current_step)
   where is_resolved = false;
-
 -- 2. Trigger: atualiza updated_at e auto-resolve etapas finais
 create or replace function public.fn_bot_interactions_touch()
 returns trigger
@@ -58,22 +54,18 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_bot_interactions_touch on public.bot_interactions;
 create trigger trg_bot_interactions_touch
 before update on public.bot_interactions
 for each row execute function public.fn_bot_interactions_touch();
-
 -- 3. Coluna retry_count em whatsapp_messages (limite de tentativas no dispatch)
 alter table public.whatsapp_messages
   add column if not exists retry_count int not null default 0;
-
 create index if not exists idx_whatsapp_messages_retriable
   on public.whatsapp_messages (created_at asc)
   where status = 'queued'
     and direction = 'outbound'
     and retry_count < 5;
-
 -- 4. Views de observabilidade (acessiveis no Supabase Studio > Table Editor > Views)
 
 -- 4.1 Visao geral de saude (ultimas 24h)
@@ -88,7 +80,6 @@ from public.bot_interactions
 where created_at > now() - interval '24 hours'
 group by current_step
 order by total desc;
-
 -- 4.2 Interacoes com problema ativo (presas > 5 min, nao resolvidas)
 create or replace view public.v_bot_stuck_interactions as
 select
@@ -103,7 +94,6 @@ from public.bot_interactions
 where is_resolved = false
   and updated_at < now() - interval '5 minutes'
 order by updated_at asc;
-
 -- 4.3 Taxa de sucesso por hora (ultimas 12h)
 create or replace view public.v_bot_hourly_success as
 select
@@ -120,13 +110,11 @@ from public.bot_interactions
 where created_at > now() - interval '12 hours'
 group by 1
 order by 1 desc;
-
 -- 5. Grant de acesso para service_role (Edge Functions)
 grant all on public.bot_interactions to service_role;
 grant select on public.v_bot_health_summary to service_role;
 grant select on public.v_bot_stuck_interactions to service_role;
 grant select on public.v_bot_hourly_success to service_role;
-
 -- ============================================================
 -- ROLLBACK (se necessario):
 -- drop view if exists public.v_bot_hourly_success;
@@ -140,4 +128,4 @@ grant select on public.v_bot_hourly_success to service_role;
 -- drop index if exists idx_bot_interactions_lead_phone;
 -- drop index if exists idx_bot_interactions_active;
 -- drop table if exists public.bot_interactions;
--- ============================================================
+-- ============================================================;

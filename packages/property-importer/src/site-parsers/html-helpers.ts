@@ -14,10 +14,7 @@ export function firstText($: CheerioAPI, selectors: string[]): string {
 }
 
 /** Pick the first non-empty attribute value from a list of selector+attr pairs. */
-export function firstAttr(
-  $: CheerioAPI,
-  pairs: Array<{ sel: string; attr: string }>,
-): string {
+export function firstAttr($: CheerioAPI, pairs: Array<{ sel: string; attr: string }>): string {
   for (const { sel, attr } of pairs) {
     const val = $(sel).first().attr(attr)?.trim();
     if (val) return val;

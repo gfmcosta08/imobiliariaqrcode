@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 
+import { validateCronAuthorization } from "@/lib/security/cron-auth";
+
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET ?? "";
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = validateCronAuthorization(
+    request.headers.get("authorization"),
+    process.env.CRON_SECRET,
+  );
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,7 +19,7 @@ export async function GET(request: Request) {
   const dispatchUrl = `${supabaseUrl}/functions/v1/whatsapp-dispatch`;
   const res = await fetch(dispatchUrl, {
     method: "POST",
-    headers: { Authorization: `Bearer ${cronSecret}` },
+    headers: { Authorization: `Bearer ${auth.secret}` },
   });
 
   const body = await res.text();

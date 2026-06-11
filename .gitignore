@@ -30,6 +30,7 @@ Thumbs.db
 .idea
 .vscode/*
 !.vscode/extensions.json
+.claude/
 
 # Supabase
 supabase/.branches
@@ -38,6 +39,8 @@ supabase/.temp
 # Vercel
 .vercel
 .env.vercel.*
+.env.vercel-*
+.vercel-deploy-inspect.json
 
 # Binaries
 *.exe
@@ -48,3 +51,12 @@ imobiliariaqrcode/
 
 # Test
 coverage
+
+# Local QA and Playwright artifacts
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/qa-output/
+output/
+QA_STAGING_REPORT.md
+QA_REPORT_STAGING_*.md
+RELATORIO_COBERTURA_IMPORTACAO_*.md

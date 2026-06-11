@@ -66,7 +66,6 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_leads_after_insert_notify on public.leads;
 create trigger trg_leads_after_insert_notify
 after insert on public.leads

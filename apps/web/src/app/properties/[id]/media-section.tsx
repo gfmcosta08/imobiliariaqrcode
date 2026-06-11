@@ -38,10 +38,7 @@ export function MediaSection(props: {
   const [loading, setLoading] = useState(false);
   const [brokenIds, setBrokenIds] = useState<Record<string, boolean>>({});
 
-  const mediaVisible = useMemo(
-    () => media.filter((item) => item.status !== "deleted"),
-    [media],
-  );
+  const mediaVisible = useMemo(() => media.filter((item) => item.status !== "deleted"), [media]);
   const count = mediaVisible.length;
   const availableSlots = Math.max(0, props.maxImages - count);
   const canAdd = availableSlots > 0;
@@ -58,10 +55,13 @@ export function MediaSection(props: {
     body.append("files", file);
 
     try {
-      const response = await fetch(`/api/properties/${encodeURIComponent(props.propertyId)}/media`, {
-        method: "POST",
-        body,
-      });
+      const response = await fetch(
+        `/api/properties/${encodeURIComponent(props.propertyId)}/media`,
+        {
+          method: "POST",
+          body,
+        },
+      );
       const payload = (await response.json()) as {
         error?: string;
         uploaded?: Array<{ id: string; storage_path: string; signedUrl?: string | null }>;
@@ -71,7 +71,9 @@ export function MediaSection(props: {
       if (!response.ok || !payload.uploaded?.length) {
         const error = payload.error ?? payload.failed?.[0]?.error ?? "Falha ao enviar imagem.";
         setUploads((current) =>
-          current.map((item) => (item.id === uploadId ? { ...item, status: "error", error } : item)),
+          current.map((item) =>
+            item.id === uploadId ? { ...item, status: "error", error } : item,
+          ),
         );
         return;
       }
@@ -156,7 +158,10 @@ export function MediaSection(props: {
   return (
     <div className="mt-10" data-testid="property-media-section">
       <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Imagens</h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400" data-testid="property-media-count">
+      <p
+        className="mt-1 text-sm text-zinc-600 dark:text-zinc-400"
+        data-testid="property-media-count"
+      >
         {count}/{props.maxImages} imagens (limite do plano de origem do imovel).
       </p>
 
@@ -171,7 +176,11 @@ export function MediaSection(props: {
           </div>
         ) : null}
         {loading ? (
-          <p className="mt-3 text-sm text-zinc-500" role="status" data-testid="property-media-status">
+          <p
+            className="mt-3 text-sm text-zinc-500"
+            role="status"
+            data-testid="property-media-status"
+          >
             Enviando imagem(ns) automaticamente...
           </p>
         ) : null}
@@ -215,7 +224,10 @@ export function MediaSection(props: {
       </div>
 
       {uploads.length ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="property-media-upload-status-list">
+        <div
+          className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"
+          data-testid="property-media-upload-status-list"
+        >
           {uploads.map((item) => (
             <div
               key={item.id}
@@ -267,7 +279,8 @@ export function MediaSection(props: {
             Escolher arquivos
           </button>
           <p className="text-xs text-zinc-500">
-            Selecione ate {availableSlots} imagem(ns). O upload comeca automaticamente apos confirmar a selecao.
+            Selecione ate {availableSlots} imagem(ns). O upload comeca automaticamente apos
+            confirmar a selecao.
           </p>
         </div>
       ) : (

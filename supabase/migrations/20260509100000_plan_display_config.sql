@@ -19,15 +19,12 @@ create table if not exists public.plan_display_config (
   updated_at       timestamptz not null default now(),
   updated_by       uuid references public.profiles(id) on delete set null
 );
-
 alter table public.plan_display_config enable row level security;
-
 -- Leitura pública (página /plans é acessível sem login)
 drop policy if exists "public_read_plan_display_config" on public.plan_display_config;
 create policy "public_read_plan_display_config"
   on public.plan_display_config for select
   using (true);
-
 -- Escrita somente por admin (via service role nas API routes)
 -- As API routes usam createServiceRoleClient, então RLS não bloqueia.
 -- Esta policy é para segurança adicional via client anon.
@@ -41,77 +38,52 @@ create policy "admin_write_plan_display_config"
         and profiles.role = 'admin'
     )
   );
-
 -- Seed: valores atuais hardcoded de apps/web/src/app/plans/page.tsx
 -- Garante que a página /plans funcione imediatamente após a migration.
-with seed(plan_code, display_name, display_price, display_suffix, display_note, display_label, display_featured, features) as (
-  values
-    (
-      'trial',
-      'Teste',
-      'R$ 0',
-      ' por 30 dias',
-      'Sem cobranca Stripe',
-      'Comecar teste',
-      false,
-      array['1 anuncio ativo', '1 QR Code ativo por 30 dias', 'Bot WhatsApp automatico', 'Captura de leads']
-    ),
-    (
-      'free',
-      'Free',
-      'R$ 0',
-      ' sem recorrencia',
-      'Plano legado',
-      'Plano Free',
-      false,
-      array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
-    ),
-    (
-      'solo',
-      'Solo',
-      'R$ 150',
-      ' trimestral',
-      'Validade: 3 meses',
-      'Contratar Solo',
-      false,
-      array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
-    ),
-    (
-      'pro',
-      'Pro',
-      'R$ 500',
-      '/mes',
-      'Renovacao mensal automatica',
-      'Assinar Pro',
-      true,
-      array['Multiplos imoveis', 'Kit inicial: 10 placas QR Code', 'Bot WhatsApp + leads ilimitados']
-    ),
-    (
-      'premium',
-      'Premium',
-      'R$ 2.000',
-      '/mes',
-      'Renovacao mensal automatica',
-      'Assinar Premium',
-      false,
-      array['Multiplos imoveis', '5 corretores', 'Kit inicial: 20 placas QR Code', 'Bot WhatsApp + leads ilimitados']
-    )
-)
 insert into public.plan_display_config
   (plan_code, display_name, display_price, display_suffix, display_note, display_label, display_featured, features)
-select
-  seed.plan_code,
-  seed.display_name,
-  seed.display_price,
-  seed.display_suffix,
-  seed.display_note,
-  seed.display_label,
-  seed.display_featured,
-  seed.features
-from seed
-join public.plans p on p.code = seed.plan_code
+values
+  (
+    'trial',
+    'Teste',
+    'R$ 0',
+    ' por 30 dias',
+    'Sem cobrança Stripe',
+    'Começar teste',
+    false,
+    array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
+  ),
+  (
+    'solo',
+    'Solo',
+    'R$ 150',
+    ' trimestral',
+    'Validade: 3 meses',
+    'Contratar Solo',
+    false,
+    array['1 anuncio ativo', '1 placa QR Code inclusa', 'Bot WhatsApp automatico', 'Captura de leads']
+  ),
+  (
+    'pro',
+    'Pro',
+    'R$ 500',
+    '/mes',
+    'Renovacao mensal automatica',
+    'Assinar Pro',
+    true,
+    array['Multiplos imoveis', 'Kit inicial: 10 placas QR Code', 'Bot WhatsApp + leads ilimitados']
+  ),
+  (
+    'premium',
+    'Premium',
+    'R$ 2.000',
+    '/mes',
+    'Renovacao mensal automatica',
+    'Assinar Premium',
+    false,
+    array['Multiplos imoveis', '5 corretores', 'Kit inicial: 20 placas QR Code', 'Bot WhatsApp + leads ilimitados']
+  )
 on conflict (plan_code) do nothing;
-
 -- ============================================================
 -- 2. broker_invitations — novas colunas para configuração
 -- ============================================================
@@ -120,7 +92,6 @@ alter table public.broker_invitations
   add column if not exists property_count integer not null default 1,
   add column if not exists property_ids uuid[] not null default '{}',
   add column if not exists expiration_days_configured integer not null default 30;
-
 -- ============================================================
 -- 3. Índice útil para listagem admin de broker_invitations
 -- ============================================================

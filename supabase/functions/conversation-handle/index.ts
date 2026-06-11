@@ -435,10 +435,10 @@ async function loadBrokerContact(
     .eq("id", brokerId)
     .maybeSingle();
 
-  const rawPhone =
-    broker?.whatsapp_number ||
+  const profilePhone =
     (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles?.whatsapp_number ||
     null;
+  const rawPhone = profilePhone || broker?.whatsapp_number || null;
 
   return {
     name: broker?.display_name ? String(broker.display_name) : null,
@@ -501,11 +501,7 @@ async function resolveRecommendedProperty(
   shownIds: string[] = [],
 ): Promise<Record<string, unknown> | null> {
   const candidateIds = Array.from(
-    new Set(
-      [...recommendedIds, ...shownIds]
-        .map((id) => String(id ?? "").trim())
-        .filter(Boolean),
-    ),
+    new Set([...recommendedIds, ...shownIds].map((id) => String(id ?? "").trim()).filter(Boolean)),
   );
   if (!candidateIds.length) return null;
 
@@ -809,10 +805,10 @@ async function sendPropertyPack(
     .eq("id", brokerId)
     .maybeSingle();
 
-  const rawBrokerPhone =
-    broker?.whatsapp_number ||
+  const brokerProfilePhone =
     (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles?.whatsapp_number ||
     null;
+  const rawBrokerPhone = brokerProfilePhone || broker?.whatsapp_number || null;
   const brokerPhone = sanitizeBrokerPhone(rawBrokerPhone ? String(rawBrokerPhone) : null);
   const brokerName = broker?.display_name ? String(broker.display_name) : null;
   const firstName = pickGreetingName(lead, profileName);
@@ -1397,6 +1393,7 @@ async function doRegisterVisit(
       payload: {
         kind: "broker_notification",
         to_broker: true,
+        broker_id: originBrokerId,
         scenario: isGeneralStockOwner ? "B" : "A",
         listing_owner_broker_id: isGeneralStockOwner ? listingOwnerBrokerId : null,
         listing_owner_name: isGeneralStockOwner ? ownerName : null,
@@ -1438,19 +1435,17 @@ async function doRegisterVisit(
     .eq("id", sessionId);
 }
 
-async function handlePostSimilarPropertyId(
-  input: {
-    supabase: ReturnType<typeof createClient>;
-    session: Record<string, unknown>;
-    property: Record<string, unknown>;
-    lead: LeadSnapshot | null;
-    leadPhone: string;
-    brokerPhone: string | null;
-    firstName: string;
-    profileName: string | null;
-    text: string;
-  },
-): Promise<Response> {
+async function handlePostSimilarPropertyId(input: {
+  supabase: ReturnType<typeof createClient>;
+  session: Record<string, unknown>;
+  property: Record<string, unknown>;
+  lead: LeadSnapshot | null;
+  leadPhone: string;
+  brokerPhone: string | null;
+  firstName: string;
+  profileName: string | null;
+  text: string;
+}): Promise<Response> {
   const {
     supabase,
     session,
@@ -1888,9 +1883,13 @@ Deno.serve(async (req) => {
         });
         const { data: broker } = await supabase
           .from("brokers")
-          .select("whatsapp_number")
+          .select("whatsapp_number, profiles(whatsapp_number)")
           .eq("id", String(property.broker_id))
           .maybeSingle();
+        const fallbackBrokerProfilePhone =
+          (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles
+            ?.whatsapp_number || null;
+        const fallbackBrokerPhone = fallbackBrokerProfilePhone || broker?.whatsapp_number || null;
         await supabase.from("whatsapp_messages").insert({
           direction: "outbound",
           provider: "uazapi",
@@ -1898,7 +1897,7 @@ Deno.serve(async (req) => {
           property_id: propertyId,
           lead_phone: leadPhone,
           broker_phone: sanitizeBrokerPhone(
-            broker?.whatsapp_number ? String(broker.whatsapp_number) : null,
+            fallbackBrokerPhone ? String(fallbackBrokerPhone) : null,
           ),
           message_type: "text",
           status: "queued",
@@ -1961,11 +1960,10 @@ Deno.serve(async (req) => {
       .eq("id", property.broker_id)
       .maybeSingle();
 
-    const rawBrokerPhone2 =
-      broker?.whatsapp_number ||
+    const brokerProfilePhone2 =
       (broker as unknown as { profiles?: { whatsapp_number?: string } })?.profiles
-        ?.whatsapp_number ||
-      null;
+        ?.whatsapp_number || null;
+    const rawBrokerPhone2 = brokerProfilePhone2 || broker?.whatsapp_number || null;
     const brokerPhone = sanitizeBrokerPhone(rawBrokerPhone2 ? String(rawBrokerPhone2) : null);
     const brokerName = broker?.display_name ? String(broker.display_name) : null;
 

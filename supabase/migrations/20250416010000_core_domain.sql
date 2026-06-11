@@ -10,7 +10,6 @@ create table if not exists public.plans (
   recommendation_source text not null check (recommendation_source in ('self', 'pro_only')),
   created_at timestamptz not null default now()
 );
-
 insert into public.plans (
   code, name, max_active_properties, max_images_per_property,
   has_auto_expiration, expiration_days, recommendation_source
@@ -19,13 +18,11 @@ values
   ('free', 'FREE', 1, 10, true, 30, 'pro_only'),
   ('pro', 'PRO', 999999, 15, false, null, 'self')
 on conflict (code) do nothing;
-
 create table if not exists public.accounts (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   account_id uuid not null references public.accounts (id) on delete cascade,
@@ -36,7 +33,6 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.brokers (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null unique references public.accounts (id) on delete cascade,
@@ -47,7 +43,6 @@ create table if not exists public.brokers (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.subscriptions (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references public.accounts (id) on delete cascade,
@@ -65,7 +60,6 @@ create table if not exists public.subscriptions (
   updated_at timestamptz not null default now(),
   unique (account_id)
 );
-
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -75,23 +69,18 @@ begin
   return new;
 end;
 $$;
-
 create trigger trg_accounts_updated_at
 before update on public.accounts
 for each row execute function public.set_updated_at();
-
 create trigger trg_profiles_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
-
 create trigger trg_brokers_updated_at
 before update on public.brokers
 for each row execute function public.set_updated_at();
-
 create trigger trg_subscriptions_updated_at
 before update on public.subscriptions
 for each row execute function public.set_updated_at();
-
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -126,7 +115,6 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users

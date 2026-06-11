@@ -4,9 +4,11 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   lint-and-typecheck:
+    name: CI gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +31,184 @@ jobs:
       - name: Typecheck
         run: pnpm --filter web run typecheck
 
+      - name: Build
+        run: pnpm --filter web run build
+
       - name: Unit tests
         run: pnpm test
 
+      - name: Dependency audit
+        run: pnpm audit --prod --audit-level high
+
       - name: Prettier check
         run: pnpm format:check
+
+      - name: Secret pattern scan
+        shell: bash
+        run: |
+          if git grep -n -E 'sk_live_[A-Za-z0-9]{8,}|sk_test_[A-Za-z0-9]{8,}|whsec_[A-Za-z0-9]{8,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}' -- . \
+            ':!pnpm-lock.yaml' \
+            ':!docs/implementation-reports/**'
+          then
+            echo "Potential secret material found. Remove or rotate before merging."
+            exit 1
+          fi
+
+  staging-readiness:
+    name: Staging readiness gate
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    environment: staging
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.32.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Assert staging environment guardrails
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          STAGING_SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$STAGING_BASE_URL" != "https://farollimoveis-staging.vercel.app" ]]; then
+            echo "STAGING_BASE_URL must be the canonical staging alias."
+            exit 1
+          fi
+
+          if [[ "$STAGING_SUPABASE_PROJECT_REF" != "coeuoyeydqoslhvbbojx" ]]; then
+            echo "STAGING_SUPABASE_PROJECT_REF must point to Supabase staging."
+            exit 1
+          fi
+
+          if [[ "$STAGING_SUPABASE_URL" != "https://coeuoyeydqoslhvbbojx.supabase.co" ]]; then
+            echo "STAGING_SUPABASE_URL must point to Supabase staging."
+            exit 1
+          fi
+
+          if [[ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]]; then
+            echo "VERCEL_AUTOMATION_BYPASS_SECRET is required because staging is protected by Vercel Authentication."
+            exit 1
+          fi
+
+      - name: Supabase migration drift check
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          async function main() {
+            const projectRef = process.env.SUPABASE_PROJECT_REF;
+            const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+
+            if (!projectRef) {
+              throw new Error("SUPABASE_PROJECT_REF is required.");
+            }
+
+            if (!accessToken) {
+              throw new Error("SUPABASE_ACCESS_TOKEN is required.");
+            }
+
+            const migrationsDir = path.join(process.cwd(), "supabase", "migrations");
+            const localVersions = fs
+              .readdirSync(migrationsDir)
+              .map((fileName) => fileName.match(/^(\d{14})_.*\.sql$/)?.[1])
+              .filter(Boolean)
+              .sort();
+
+            const response = await fetch(
+              `https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  query:
+                    "select version from supabase_migrations.schema_migrations order by version;",
+                }),
+              },
+            );
+
+            if (!response.ok) {
+              throw new Error(
+                `Supabase migration query failed: ${response.status} ${await response.text()}`,
+              );
+            }
+
+            const rows = await response.json();
+            const remoteVersions = rows.map((row) => String(row.version)).sort();
+            const missingRemote = localVersions.filter(
+              (version) => !remoteVersions.includes(version),
+            );
+            const missingLocal = remoteVersions.filter(
+              (version) => !localVersions.includes(version),
+            );
+
+            if (missingRemote.length || missingLocal.length) {
+              console.error("Migration drift detected.");
+              console.error(
+                "Local migrations not applied remotely:",
+                missingRemote.join(", ") || "none",
+              );
+              console.error(
+                "Remote migrations missing locally:",
+                missingLocal.join(", ") || "none",
+              );
+              process.exit(1);
+            }
+
+            console.log(`Migration history matches staging (${localVersions.length} migrations).`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Staging smoke and RLS isolation
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          E2E_STAGING_WRITE: ${{ secrets.E2E_STAGING_WRITE }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          pnpm --filter web exec playwright test \
+            tests/e2e/staging-security-smoke.spec.ts \
+            tests/e2e/homepage-mobile.spec.ts \
+            tests/e2e/staging-rls-isolation.spec.ts \
+            --config=playwright.config.ts
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-staging-readiness
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore

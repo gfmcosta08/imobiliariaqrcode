@@ -1,6 +1,5 @@
 alter table public.plan_display_config
   add column if not exists display_description text not null default '';
-
 update public.plan_display_config
 set
   display_description = case plan_code
@@ -17,7 +16,6 @@ set
   updated_at = now()
 where plan_code in ('trial', 'solo', 'pro', 'premium')
   and display_description = '';
-
 update public.plan_display_config
 set
   features = array_replace(features, '1 placa QR Code inclusa', '1 QR Code ativo por 30 dias'),

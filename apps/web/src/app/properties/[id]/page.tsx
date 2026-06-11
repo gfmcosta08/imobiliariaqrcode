@@ -190,6 +190,46 @@ export default async function PropertyDetailPage(props: PageProps) {
           />
         </div>
 
+        {publicQrUrl ? (
+          <div className="mt-6 border border-gray-200 p-6">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Primeiro QR
+            </h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a
+                href={publicQrUrl}
+                target="_blank"
+                rel="noreferrer"
+                data-testid="property-qr-open"
+                className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
+              >
+                Abrir pagina do QR
+              </a>
+              <a
+                href="#qr-print-area"
+                data-testid="property-qr-print"
+                className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
+              >
+                Baixar/Imprimir placa
+              </a>
+              <a
+                href={publicQrUrl}
+                data-testid="property-qr-copy"
+                className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
+              >
+                Copiar link publico
+              </a>
+              <Link
+                href="/leads"
+                data-testid="property-qr-leads"
+                className="border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-gray-500"
+              >
+                Ver leads deste imovel
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {/* QR Code */}
         {publicQrUrl ? (
           <QrPrintCard

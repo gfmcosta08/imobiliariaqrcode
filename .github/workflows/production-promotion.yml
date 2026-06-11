@@ -1,0 +1,79 @@
+name: Production Promotion Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      staging_readiness_run_url:
+        description: "GitHub Actions run URL for the green Staging readiness gate"
+        required: true
+        type: string
+      staging_deployment_url:
+        description: "Canonical staging URL that was validated"
+        required: true
+        default: "https://farollimoveis-staging.vercel.app"
+        type: string
+      confirmation:
+        description: "Type STAGING_READINESS_GREEN to confirm that staging evidence was reviewed"
+        required: true
+        type: string
+
+jobs:
+  production-promotion-gate:
+    name: Production promotion gate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.32.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Validate promotion evidence
+        env:
+          STAGING_READINESS_RUN_URL: ${{ inputs.staging_readiness_run_url }}
+          STAGING_DEPLOYMENT_URL: ${{ inputs.staging_deployment_url }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$CONFIRMATION" != "STAGING_READINESS_GREEN" ]]; then
+            echo "Production promotion requires explicit STAGING_READINESS_GREEN confirmation."
+            exit 1
+          fi
+
+          if [[ "$STAGING_DEPLOYMENT_URL" != "https://farollimoveis-staging.vercel.app" ]]; then
+            echo "Promotion evidence must reference the canonical staging alias."
+            exit 1
+          fi
+
+          if [[ ! "$STAGING_READINESS_RUN_URL" =~ ^https://github\.com/.*/actions/runs/[0-9]+$ ]]; then
+            echo "staging_readiness_run_url must be a GitHub Actions run URL."
+            exit 1
+          fi
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter web run typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm --filter web run build
+
+      - name: Prettier check
+        run: pnpm format:check
+
+      - name: No deploy in this gate
+        run: |
+          echo "This workflow is a mandatory production-promotion gate only."
+          echo "It does not run vercel --prod and does not modify Supabase production."

@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { isAllowedImportImageUrl, isPropertyImportImageUrl } from "@imobiliariaqrcode/property-importer";
+import {
+  isAllowedImportImageUrl,
+  isPropertyImportImageUrl,
+} from "@imobiliariaqrcode/property-importer";
 
 const BUCKET = "property-media";
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
@@ -61,7 +64,7 @@ export async function uploadImportedImages(
         signal: AbortSignal.timeout(30_000),
         headers: {
           "user-agent":
-            "Mozilla/5.0 (compatible; ImobQR-Import/1.0; +https://farollimoveis-staging.vercel.app)",
+            "Mozilla/5.0 (compatible; ImoveisQR-Import/1.0; +https://farollimoveis-staging.vercel.app)",
           accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
           ...(sourceHostname ? { referer: `https://${sourceHostname}/` } : {}),
         },

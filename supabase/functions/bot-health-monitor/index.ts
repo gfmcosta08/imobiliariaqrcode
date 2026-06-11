@@ -63,6 +63,12 @@ type Context = {
 const DEFAULT_MONITOR_WINDOW_HOURS = 24;
 const DEFAULT_STUCK_MINUTES = 5;
 const MAX_STUCK_MINUTES = 5;
+const DEFAULT_WEBHOOK_PENDING_MINUTES = 15;
+const DEFAULT_CRON_STALE_MINUTES = 15;
+const OPS_PROVIDER = "ops";
+const CRON_HEARTBEAT_EVENT = "cron_heartbeat";
+const MONITOR_CRON_NAME = "bot-health-monitor";
+const DISPATCH_CRON_NAME = "whatsapp-dispatch";
 const FALLBACK_TEXT = "Desculpe, tivemos um problema tecnico. Tente novamente em instantes.";
 
 function toInt(value: string | undefined | null, fallback: number): number {
@@ -95,13 +101,9 @@ function sanitizeBrokerPhone(value: string | null | undefined): string | null {
 
 function authOk(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const authHeader = req.headers.get("authorization") ?? "";
   const authToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-  return (
-    (cronSecret.length > 0 && authToken === cronSecret) ||
-    (serviceRoleKey.length > 0 && authToken === serviceRoleKey)
-  );
+  return cronSecret.length > 0 && authToken === cronSecret;
 }
 
 function json(body: Record<string, unknown>, status = 200) {
@@ -109,6 +111,18 @@ function json(body: Record<string, unknown>, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function emptyContext(): Context {
+  return {
+    propertyId: null,
+    propertyPublicId: null,
+    propertyTitle: null,
+    accountId: null,
+    brokerId: null,
+    brokerName: null,
+    brokerPhone: null,
+  };
 }
 
 async function hasVisibleCustomerOutbound(
@@ -366,6 +380,235 @@ async function createOrGetIncident(
   return { incident: data as IncidentRow, created: true };
 }
 
+function trackCreatedIncident(
+  createdIncidentIds: Set<string>,
+  incident: IncidentRow | null,
+  created: boolean,
+  correlationId: string,
+) {
+  if (!created || !incident?.id) return;
+  createdIncidentIds.add(incident.id);
+  console.warn("[bot-health-monitor] operational incident created", {
+    correlation_id: correlationId,
+    incident_id: incident.id,
+    incident_type: incident.incident_type,
+    severity: incident.incident_severity,
+  });
+}
+
+async function recordCronHeartbeat(
+  supabase: Supabase,
+  cronName: string,
+  correlationId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("webhook_events").upsert(
+    {
+      provider: OPS_PROVIDER,
+      event_name: CRON_HEARTBEAT_EVENT,
+      external_event_id: cronName,
+      payload: {
+        cron_name: cronName,
+        correlation_id: correlationId,
+      },
+      received_at: now,
+      processed_at: now,
+      processing_status: "processed",
+    },
+    { onConflict: "provider,external_event_id" },
+  );
+
+  if (error) {
+    console.error("[bot-health-monitor] cron heartbeat failed", {
+      correlation_id: correlationId,
+      cron_name: cronName,
+      error: error.message,
+    });
+  }
+}
+
+async function resolveOpenSystemIncidents(
+  supabase: Supabase,
+  incidentType: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("bot_interactions")
+    .update({
+      incident_status: "auto_recovered",
+      incident_resolved_at: new Date().toISOString(),
+    })
+    .eq("lead_phone", "system")
+    .eq("incident_type", incidentType)
+    .eq("incident_status", "open")
+    .select("id");
+  return data?.length ?? 0;
+}
+
+async function monitorStripeWebhookFailures(
+  supabase: Supabase,
+  windowIso: string,
+  correlationId: string,
+  createdIncidentIds: Set<string>,
+): Promise<number> {
+  const { data: failedRows, error } = await supabase
+    .from("webhook_events")
+    .select("id, event_name, external_event_id, received_at, processed_at")
+    .eq("provider", "stripe")
+    .eq("processing_status", "failed")
+    .gte("received_at", windowIso)
+    .order("received_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("[bot-health-monitor] stripe webhook failure query failed", {
+      correlation_id: correlationId,
+      error: error.message,
+    });
+    return 0;
+  }
+
+  if (!failedRows?.length) {
+    return resolveOpenSystemIncidents(supabase, "stripe_webhook_failed");
+  }
+
+  const latest = failedRows[0] as Record<string, unknown>;
+  const { incident, created } = await createOrGetIncident(supabase, {
+    lead_phone: "system",
+    incident_type: "stripe_webhook_failed",
+    severity: "critical",
+    details: {
+      correlation_id: correlationId,
+      total_failed_sample: failedRows.length,
+      latest_event_name: latest.event_name ?? null,
+      latest_external_event_id: latest.external_event_id ?? null,
+      latest_received_at: latest.received_at ?? null,
+      window_start: windowIso,
+    },
+  });
+  trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
+  await recoverAndNotify(supabase, incident, emptyContext(), {});
+  return 0;
+}
+
+async function monitorWebhookPendingTimeouts(
+  supabase: Supabase,
+  pendingCutoffIso: string,
+  correlationId: string,
+  createdIncidentIds: Set<string>,
+): Promise<number> {
+  const { data: pendingRows, error } = await supabase
+    .from("webhook_events")
+    .select("id, provider, event_name, external_event_id, received_at")
+    .eq("processing_status", "pending")
+    .lt("received_at", pendingCutoffIso)
+    .order("received_at", { ascending: true })
+    .limit(20);
+
+  if (error) {
+    console.error("[bot-health-monitor] pending webhook query failed", {
+      correlation_id: correlationId,
+      error: error.message,
+    });
+    return 0;
+  }
+
+  if (!pendingRows?.length) {
+    return resolveOpenSystemIncidents(supabase, "webhook_pending_timeout");
+  }
+
+  const oldest = pendingRows[0] as Record<string, unknown>;
+  const { incident, created } = await createOrGetIncident(supabase, {
+    lead_phone: "system",
+    incident_type: "webhook_pending_timeout",
+    severity: "warning",
+    details: {
+      correlation_id: correlationId,
+      total_pending_sample: pendingRows.length,
+      oldest_provider: oldest.provider ?? null,
+      oldest_event_name: oldest.event_name ?? null,
+      oldest_external_event_id: oldest.external_event_id ?? null,
+      oldest_received_at: oldest.received_at ?? null,
+      pending_cutoff: pendingCutoffIso,
+    },
+  });
+  trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
+  await recoverAndNotify(supabase, incident, emptyContext(), {});
+  return 0;
+}
+
+async function monitorCronHeartbeats(
+  supabase: Supabase,
+  staleCutoffIso: string,
+  correlationId: string,
+  createdIncidentIds: Set<string>,
+): Promise<number> {
+  const requiredCrons = (Deno.env.get("BOT_MONITOR_REQUIRED_CRONS") ?? DISPATCH_CRON_NAME)
+    .split(",")
+    .map((cron) => cron.trim())
+    .filter(Boolean);
+
+  const expectedCrons = Array.from(new Set([MONITOR_CRON_NAME, ...requiredCrons]));
+  const { data: heartbeatRows, error } = await supabase
+    .from("webhook_events")
+    .select("external_event_id, received_at, payload")
+    .eq("provider", OPS_PROVIDER)
+    .eq("event_name", CRON_HEARTBEAT_EVENT)
+    .in("external_event_id", expectedCrons);
+
+  if (error) {
+    console.error("[bot-health-monitor] cron heartbeat query failed", {
+      correlation_id: correlationId,
+      error: error.message,
+    });
+    return 0;
+  }
+
+  const byName = new Map<string, Record<string, unknown>>();
+  for (const row of heartbeatRows ?? []) {
+    byName.set(String(row.external_event_id), row as Record<string, unknown>);
+  }
+
+  const stale = expectedCrons.filter((cronName) => {
+    const row = byName.get(cronName);
+    if (!row?.received_at) return true;
+    return new Date(String(row.received_at)).getTime() < new Date(staleCutoffIso).getTime();
+  });
+
+  if (!stale.length) {
+    return resolveOpenSystemIncidents(supabase, "cron_heartbeat_stale");
+  }
+
+  const { incident, created } = await createOrGetIncident(supabase, {
+    lead_phone: "system",
+    incident_type: "cron_heartbeat_stale",
+    severity: "critical",
+    details: {
+      correlation_id: correlationId,
+      stale_crons: stale,
+      stale_cutoff: staleCutoffIso,
+      expected_crons: expectedCrons,
+    },
+  });
+  trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
+  await recoverAndNotify(supabase, incident, emptyContext(), {});
+  return 0;
+}
+
+async function countCriticalOpenIncidents(supabase: Supabase): Promise<number> {
+  const { count, error } = await supabase
+    .from("bot_interactions")
+    .select("id", { count: "exact", head: true })
+    .eq("incident_status", "open")
+    .eq("incident_severity", "critical");
+
+  if (error) {
+    console.error("[bot-health-monitor] critical incident count failed", error.message);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 function buildAdminText(incident: IncidentRow, context: Context): string {
   return [
     "Alerta do monitor do bot.",
@@ -442,6 +685,7 @@ async function notifyBroker(supabase: Supabase, incident: IncidentRow, context: 
       kind: "bot_incident_broker_alert",
       incident_id: incident.id,
       to_broker: true,
+      broker_id: context.brokerId,
       text: buildBrokerText(incident, context),
     },
   });
@@ -484,7 +728,7 @@ async function queueFallbackIfNeeded(
 
 async function triggerDispatch(): Promise<Record<string, unknown>> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const cronSecret = Deno.env.get("CRON_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const cronSecret = Deno.env.get("CRON_SECRET");
   if (!supabaseUrl || !cronSecret) return { dispatch: "skipped_missing_config" };
 
   try {
@@ -572,8 +816,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const correlationId = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
+
   if (!authOk(req)) {
-    return json({ ok: false, error: "unauthorized" }, 401);
+    console.warn("[bot-health-monitor] unauthorized", { correlation_id: correlationId });
+    return json({ ok: false, error: "unauthorized", correlation_id: correlationId }, 401);
   }
 
   const supabase = createClient(
@@ -588,13 +835,45 @@ Deno.serve(async (req) => {
     Deno.env.get("BOT_MONITOR_WINDOW_HOURS"),
     DEFAULT_MONITOR_WINDOW_HOURS,
   );
+  const webhookPendingMinutes = toInt(
+    Deno.env.get("BOT_MONITOR_WEBHOOK_PENDING_MINUTES"),
+    DEFAULT_WEBHOOK_PENDING_MINUTES,
+  );
+  const cronStaleMinutes = toInt(
+    Deno.env.get("BOT_MONITOR_CRON_STALE_MINUTES"),
+    DEFAULT_CRON_STALE_MINUTES,
+  );
   const cutoffIso = new Date(Date.now() - cappedStuckMinutes * 60_000).toISOString();
   const windowIso = new Date(Date.now() - monitorWindowHours * 60 * 60_000).toISOString();
+  const webhookPendingCutoffIso = new Date(
+    Date.now() - webhookPendingMinutes * 60_000,
+  ).toISOString();
+  const cronStaleCutoffIso = new Date(Date.now() - cronStaleMinutes * 60_000).toISOString();
 
   const createdIncidentIds = new Set<string>();
   let checked = 0;
 
-  const resolved = await markRecoverableIncidentsResolved(supabase);
+  await recordCronHeartbeat(supabase, MONITOR_CRON_NAME, correlationId);
+
+  let resolved = await markRecoverableIncidentsResolved(supabase);
+  resolved += await monitorStripeWebhookFailures(
+    supabase,
+    windowIso,
+    correlationId,
+    createdIncidentIds,
+  );
+  resolved += await monitorWebhookPendingTimeouts(
+    supabase,
+    webhookPendingCutoffIso,
+    correlationId,
+    createdIncidentIds,
+  );
+  resolved += await monitorCronHeartbeats(
+    supabase,
+    cronStaleCutoffIso,
+    correlationId,
+    createdIncidentIds,
+  );
 
   const { data: interactions } = await supabase
     .from("bot_interactions")
@@ -652,7 +931,7 @@ Deno.serve(async (req) => {
           updated_at: interaction.updated_at,
         },
       });
-      if (created && incident?.id) createdIncidentIds.add(incident.id);
+      trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
       await recoverAndNotify(supabase, incident, context, {
         fallback: true,
         dispatch: true,
@@ -681,7 +960,7 @@ Deno.serve(async (req) => {
             retry_count: interaction.retry_count,
           },
         });
-        if (created && incident?.id) createdIncidentIds.add(incident.id);
+        trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
         await recoverAndNotify(supabase, incident, context, { dispatch: true, broker: true });
       }
     }
@@ -701,7 +980,7 @@ Deno.serve(async (req) => {
           retry_count: interaction.retry_count,
         },
       });
-      if (created && incident?.id) createdIncidentIds.add(incident.id);
+      trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
       await recoverAndNotify(supabase, incident, context, { broker: true });
     }
 
@@ -729,7 +1008,7 @@ Deno.serve(async (req) => {
           error_detail: interaction.error_detail,
         },
       });
-      if (created && incident?.id) createdIncidentIds.add(incident.id);
+      trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
       await recoverAndNotify(supabase, incident, context, {
         fallback: !interaction.is_resolved,
         dispatch: true,
@@ -776,7 +1055,7 @@ Deno.serve(async (req) => {
         updated_at: message.updated_at,
       },
     });
-    if (created && incident?.id) createdIncidentIds.add(incident.id);
+    trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
     await recoverAndNotify(supabase, incident, context, { dispatch: true, broker: false });
   }
 
@@ -824,7 +1103,7 @@ Deno.serve(async (req) => {
         payload: message.payload,
       },
     });
-    if (created && incident?.id) createdIncidentIds.add(incident.id);
+    trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
     await recoverAndNotify(supabase, incident, context, { broker: true });
   }
 
@@ -852,27 +1131,18 @@ Deno.serve(async (req) => {
         min_success_rate_pct: minSuccessRate,
       },
     });
-    if (created && incident?.id) createdIncidentIds.add(incident.id);
-    await recoverAndNotify(
-      supabase,
-      incident,
-      {
-        propertyId: null,
-        propertyPublicId: null,
-        propertyTitle: null,
-        accountId: null,
-        brokerId: null,
-        brokerName: null,
-        brokerPhone: null,
-      },
-      {},
-    );
+    trackCreatedIncident(createdIncidentIds, incident, created, correlationId);
+    await recoverAndNotify(supabase, incident, emptyContext(), {});
   }
+
+  const criticalOpenIncidents = await countCriticalOpenIncidents(supabase);
 
   return json({
     ok: true,
+    correlation_id: correlationId,
     checked,
     created_incidents: createdIncidentIds.size,
     auto_resolved_incidents: resolved,
+    critical_open_incidents: criticalOpenIncidents,
   });
 });

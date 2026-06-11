@@ -1,37 +1,82 @@
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { NextResponse } from "next/server";
+import { clampString, parseJsonObjectWithLimit, rejectUnknownKeys } from "@/lib/security/json-body";
+import {
+  checkSecurityRateLimit,
+  clearSecurityRateLimit,
+  getClientIp,
+  hashedRateLimitKey,
+  sha256Hex,
+} from "@/lib/security/request-guards";
 
-async function sha256Hex(text: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(text));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+const INVITE_CLAIM_RATE_LIMIT = 10;
+const INVITE_CLAIM_RATE_WINDOW_SECONDS = 10 * 60;
+const INVITE_CLAIM_RATE_LOCK_SECONDS = 15 * 60;
+const INVITE_INVALID_ATTEMPT_LIMIT = 6;
+const INVITE_INVALID_LOCK_SECONDS = 30 * 60;
 
 export async function POST(request: Request) {
   try {
-    let body: { login_code?: string; access_code?: string };
-    try {
-      body = (await request.json()) as { login_code?: string; access_code?: string };
-    } catch {
-      return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    const parsed = await parseJsonObjectWithLimit(request, { maxBytes: 2_048 });
+    if (!parsed.ok) return parsed.response;
+
+    const unknown = rejectUnknownKeys(parsed.value, ["login_code", "access_code"]);
+    if (unknown) {
+      return NextResponse.json(
+        { ok: false, error: "unexpected_field", field: unknown },
+        { status: 400 },
+      );
     }
 
-    const { login_code, access_code } = body;
+    const login_code = clampString(parsed.value.login_code, { maxLength: 32, trim: true });
+    const access_code = clampString(parsed.value.access_code, { maxLength: 64, trim: true });
     if (!login_code || !access_code) {
       return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
     }
 
     const supabase = createServiceRoleClient();
+    const ip = getClientIp(request);
+    const ipHash = await sha256Hex(ip);
+    const rateKey = await hashedRateLimitKey(["invite_claim", ip, login_code]);
+    const rate = await checkSecurityRateLimit(supabase, {
+      key: rateKey,
+      limit: INVITE_CLAIM_RATE_LIMIT,
+      windowSeconds: INVITE_CLAIM_RATE_WINDOW_SECONDS,
+      lockSeconds: INVITE_CLAIM_RATE_LOCK_SECONDS,
+    });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { ok: false, error: "too_many_attempts", locked_until: rate.lockedUntil },
+        { status: 429 },
+      );
+    }
 
     const { data: invitation } = await supabase
       .from("broker_invitations")
-      .select("id, access_code_hash, temp_email, expires_at, status")
+      .select(
+        "id, access_code_hash, temp_email, expires_at, status, invalid_attempt_count, locked_until",
+      )
       .eq("login_code", login_code)
       .maybeSingle();
 
     if (!invitation) {
       return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
+    }
+
+    const lockedUntil = invitation.locked_until ? new Date(String(invitation.locked_until)) : null;
+    if (lockedUntil && !Number.isNaN(lockedUntil.getTime()) && lockedUntil > new Date()) {
+      await supabase.from("audit_logs").insert({
+        account_id: null,
+        actor_profile_id: null,
+        action: "invite_claim_locked",
+        entity_type: "broker_invitations",
+        entity_id: String(invitation.id),
+        metadata: { ip_hash: ipHash, locked_until: lockedUntil.toISOString() },
+      });
+      return NextResponse.json(
+        { ok: false, error: "too_many_attempts", locked_until: lockedUntil.toISOString() },
+        { status: 429 },
+      );
     }
 
     if (invitation.status === "claimed") {
@@ -45,19 +90,57 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "invitation_completed" }, { status: 409 });
     }
 
+    if (invitation.status === "canceled") {
+      return NextResponse.json({ ok: false, error: "invitation_canceled" }, { status: 410 });
+    }
+
+    if (invitation.status === "expired") {
+      return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 410 });
+    }
+
     if (invitation.status !== "pending") {
-      return NextResponse.json({ ok: false, error: "invitation_already_used" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "invitation_unavailable" }, { status: 409 });
     }
 
     const now = new Date();
     const expiresAt = invitation.expires_at ? new Date(String(invitation.expires_at)) : null;
     if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt < now) {
-      await supabase.from("broker_invitations").update({ status: "expired" }).eq("id", invitation.id);
+      await supabase
+        .from("broker_invitations")
+        .update({ status: "expired" })
+        .eq("id", invitation.id);
       return NextResponse.json({ ok: false, error: "invitation_expired" }, { status: 401 });
     }
 
     const inputHash = await sha256Hex(access_code);
     if (inputHash !== invitation.access_code_hash) {
+      const nextAttempts = Number(invitation.invalid_attempt_count ?? 0) + 1;
+      const shouldLock = nextAttempts >= INVITE_INVALID_ATTEMPT_LIMIT;
+      const lockUntil = shouldLock
+        ? new Date(Date.now() + INVITE_INVALID_LOCK_SECONDS * 1000).toISOString()
+        : null;
+      await supabase
+        .from("broker_invitations")
+        .update({
+          invalid_attempt_count: nextAttempts,
+          last_failed_at: new Date().toISOString(),
+          locked_until: lockUntil,
+        })
+        .eq("id", invitation.id);
+      await supabase.from("audit_logs").insert({
+        account_id: null,
+        actor_profile_id: null,
+        action: shouldLock ? "invite_claim_lockout" : "invite_claim_invalid_attempt",
+        entity_type: "broker_invitations",
+        entity_id: String(invitation.id),
+        metadata: { ip_hash: ipHash, attempt_count: nextAttempts, locked_until: lockUntil },
+      });
+      if (shouldLock) {
+        return NextResponse.json(
+          { ok: false, error: "too_many_attempts", locked_until: lockUntil },
+          { status: 429 },
+        );
+      }
       return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
     }
 
@@ -71,11 +154,27 @@ export async function POST(request: Request) {
     });
 
     if (signInError || !sessionData.session) {
-      return NextResponse.json(
-        { ok: false, error: "invalid_credentials", detail: signInError?.message },
-        { status: 401 },
-      );
+      return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
     }
+
+    await supabase
+      .from("broker_invitations")
+      .update({
+        invalid_attempt_count: 0,
+        last_failed_at: null,
+        locked_until: null,
+        claimed_ip_hash: ipHash,
+      })
+      .eq("id", invitation.id);
+    await clearSecurityRateLimit(supabase, rateKey);
+    await supabase.from("audit_logs").insert({
+      account_id: null,
+      actor_profile_id: null,
+      action: "invite_claim_success",
+      entity_type: "broker_invitations",
+      entity_id: String(invitation.id),
+      metadata: { ip_hash: ipHash },
+    });
 
     return NextResponse.json({
       ok: true,

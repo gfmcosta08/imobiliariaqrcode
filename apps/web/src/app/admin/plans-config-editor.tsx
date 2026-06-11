@@ -140,10 +140,7 @@ export function PlansConfigEditor() {
                       value={form.max_active_properties ?? ""}
                       placeholder="∞"
                       onChange={(e) =>
-                        setField(
-                          "max_active_properties",
-                          parseNullableInt(e.target.value),
-                        )
+                        setField("max_active_properties", parseNullableInt(e.target.value))
                       }
                     />
                   </td>
@@ -153,9 +150,7 @@ export function PlansConfigEditor() {
                       className="w-20 border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500"
                       value={form.max_brokers ?? ""}
                       placeholder="∞"
-                      onChange={(e) =>
-                        setField("max_brokers", parseNullableInt(e.target.value))
-                      }
+                      onChange={(e) => setField("max_brokers", parseNullableInt(e.target.value))}
                     />
                   </td>
                   <td className="py-3 pr-4">
@@ -181,9 +176,7 @@ export function PlansConfigEditor() {
                         Cancelar
                       </button>
                     </div>
-                    {error && (
-                      <p className="mt-1 text-xs text-red-600">{error}</p>
-                    )}
+                    {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
                   </td>
                 </>
               ) : (
@@ -194,15 +187,9 @@ export function PlansConfigEditor() {
                       <span className="ml-2 text-xs font-semibold text-green-600">✓</span>
                     )}
                   </td>
-                  <td className="py-3 pr-4 text-gray-600">
-                    {plan.expiration_days ?? "∞"}
-                  </td>
-                  <td className="py-3 pr-4 text-gray-600">
-                    {plan.max_active_properties ?? "∞"}
-                  </td>
-                  <td className="py-3 pr-4 text-gray-600">
-                    {plan.max_brokers ?? "∞"}
-                  </td>
+                  <td className="py-3 pr-4 text-gray-600">{plan.expiration_days ?? "∞"}</td>
+                  <td className="py-3 pr-4 text-gray-600">{plan.max_active_properties ?? "∞"}</td>
+                  <td className="py-3 pr-4 text-gray-600">{plan.max_brokers ?? "∞"}</td>
                   <td className="py-3 pr-4 text-gray-600">
                     {plan.has_auto_expiration ? "sim" : "não"}
                   </td>

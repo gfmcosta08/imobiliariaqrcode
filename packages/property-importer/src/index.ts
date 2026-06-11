@@ -7,9 +7,19 @@ export {
   PROPERTY_DETAIL_SLUG_PATH,
 } from "./constants";
 export { discoverPropertyUrls, parsePropertyLinksFromHtml } from "./discover";
-export { extractListingsFromUrls, fetchRenderedHtmlFromExtrator, listingFromResult } from "./extrator-client";
-export type { ExtractOptions } from "./extrator-client";
-export type { ExtratorExtractResponse, ExtratorExtractResult, ExtratorListing } from "./extrator-types";
+export {
+  extractListingsFromUrls,
+  fetchRenderedHtmlFromExtrator,
+  listingFromResult,
+  normalizeExtratorFetchError,
+  probeExtratorConnectivity,
+} from "./extrator-client";
+export type { ExtractOptions, ExtratorProbeResult } from "./extrator-client";
+export type {
+  ExtratorExtractResponse,
+  ExtratorExtractResult,
+  ExtratorListing,
+} from "./extrator-types";
 export {
   getImportUrlPolicy,
   hostnameMatchesSourceSite,

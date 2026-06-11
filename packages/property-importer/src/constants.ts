@@ -94,7 +94,10 @@ export function looksLikeSingleListingUrl(url: URL): boolean {
   if (isPropertyDetailQueryUrl(url)) return true;
   if (isPropertyDetailPathname(url.pathname)) return true;
   const host = url.hostname.toLowerCase();
-  if (host.includes("olx.com.br") && PROPERTY_DETAIL_SLUG_ID_PATH.test(url.pathname.replace(/\/+$/, ""))) {
+  if (
+    host.includes("olx.com.br") &&
+    PROPERTY_DETAIL_SLUG_ID_PATH.test(url.pathname.replace(/\/+$/, ""))
+  ) {
     return true;
   }
   if (host.includes("zapimoveis.com.br") && /\/imovel\//i.test(url.pathname)) {

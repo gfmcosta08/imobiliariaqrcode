@@ -1,12 +1,7 @@
 import * as cheerio from "cheerio";
 import type { ExtratorListing } from "../../extrator-types";
 import { normalizeImportImageUrl } from "../../import-image-url";
-import {
-  cleanDescription,
-  collectImages,
-  firstAttr,
-  firstText,
-} from "../html-helpers";
+import { cleanDescription, collectImages, firstAttr, firstText } from "../html-helpers";
 import type { SiteParser } from "../types";
 import { extractVivanciCodigoFromUrl } from "./vivanci-api";
 
@@ -187,8 +182,11 @@ function parse(html: string, url: string): Partial<ExtratorListing> {
     "[class*='purpose']",
     "[class*='negocio']",
   ]).toLowerCase();
-  const purpose: "" | "sale" | "rent" =
-    purposeRaw.includes("alug") ? "rent" : purposeRaw.includes("vend") ? "sale" : "";
+  const purpose: "" | "sale" | "rent" = purposeRaw.includes("alug")
+    ? "rent"
+    : purposeRaw.includes("vend")
+      ? "sale"
+      : "";
 
   const internalCode =
     extractVivanciCodigoFromUrl(url) ||

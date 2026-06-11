@@ -7,23 +7,12 @@ import {
   SUN_POSITIONS,
 } from "@/lib/property-options";
 import {
-  buildHomeHref,
   loadHomeProperties,
   parseHomeFilters,
   type HomePropertiesResult,
   type HomePropertyCard,
   type HomePropertyFilters,
 } from "@/lib/public/home-properties";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
-
-type GlobalMetrics = {
-  total_properties: number;
-  total_sold: number;
-  total_clients: number;
-  active_brokers: number;
-  total_commission: number;
-};
-
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -83,60 +72,6 @@ function getAreaLabel(item: HomePropertyCard): string {
   return area ? `${area} m2` : "Area sob consulta";
 }
 
-function filterHref(
-  filters: HomePropertyFilters,
-  overrides: Record<string, string | null | undefined>,
-): string {
-  const current: Record<string, string | null | undefined> = {
-    q: filters.q,
-    purpose: filters.purpose,
-    property_type: filters.property_type,
-    property_subtype: filters.property_subtype,
-    furnished: filters.furnished,
-    floor_type: filters.floor_type,
-    sun_position: filters.sun_position,
-    city_region: filters.city_region,
-  };
-
-  for (const group of numericFilterGroups) {
-    const min = filters[group.min];
-    const max = filters[group.max];
-    current[group.min] = typeof min === "number" ? String(min) : null;
-    current[group.max] = typeof max === "number" ? String(max) : null;
-  }
-
-  return buildHomeHref({ ...current, ...overrides });
-}
-
-async function loadMetrics(): Promise<GlobalMetrics> {
-  const fallback: GlobalMetrics = {
-    total_properties: 0,
-    total_sold: 0,
-    total_clients: 0,
-    active_brokers: 0,
-    total_commission: 0,
-  };
-
-  try {
-    const sb = createServiceRoleClient();
-    const { data } = await sb.rpc("get_global_dashboard_metrics");
-    if (data && typeof data === "object") {
-      const d = data as Partial<GlobalMetrics>;
-      return {
-        total_properties: Number(d.total_properties ?? 0),
-        total_sold: Number(d.total_sold ?? 0),
-        total_clients: Number(d.total_clients ?? 0),
-        active_brokers: Number(d.active_brokers ?? 0),
-        total_commission: Number(d.total_commission ?? 0),
-      };
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
-
 function emptyHomeResult(filters: HomePropertyFilters): HomePropertiesResult {
   return {
     filters,
@@ -154,7 +89,6 @@ function emptyHomeResult(filters: HomePropertyFilters): HomePropertiesResult {
 
 export default async function Home({ searchParams }: PageProps) {
   const rawSearchParams = searchParams ? await searchParams : undefined;
-  const metrics = await loadMetrics();
 
   let home = emptyHomeResult(parseHomeFilters(rawSearchParams));
   try {
@@ -180,7 +114,7 @@ export default async function Home({ searchParams }: PageProps) {
 
         <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-8">
           <Link href="/" className="text-sm font-bold uppercase tracking-widest text-white">
-            IMOBQR
+            ImoveisQR
           </Link>
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/dashboard" className="text-sm text-white/90 transition hover:text-white">
@@ -199,35 +133,29 @@ export default async function Home({ searchParams }: PageProps) {
         </nav>
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16 text-center">
-          <h1 className="font-display text-5xl font-semibold text-white drop-shadow-sm lg:text-6xl">
-            Encontre seu lugar
+          <h1 className="font-display max-w-4xl text-4xl font-semibold text-white drop-shadow-sm lg:text-5xl">
+            Cole esse QR no imovel e nunca mais perca um interessado anonimo.
           </h1>
+          <p className="mt-4 max-w-2xl text-base text-white/90">
+            Gere um QR para cada imovel, capture o interessado pelo WhatsApp e acompanhe leituras e
+            oportunidades no painel.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/teste-gratis"
+              className="bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+            >
+              Criar meu primeiro QR
+            </Link>
+            <Link
+              href="/como-funciona"
+              className="border border-white px-6 py-3 text-sm font-semibold text-white"
+            >
+              Ver como funciona
+            </Link>
+          </div>
 
-          <div className="mt-8 w-full max-w-3xl">
-            <div className="flex flex-wrap">
-              <Link
-                href={filterHref(filters, { purpose: "sale" })}
-                className={`px-6 py-3 text-sm font-semibold ${
-                  filters.purpose === "sale" ? "bg-black text-white" : "bg-white text-gray-900"
-                }`}
-              >
-                Comprar
-              </Link>
-              <Link
-                href={filterHref(filters, { purpose: "rent" })}
-                className={`px-6 py-3 text-sm font-semibold ${
-                  filters.purpose === "rent" ? "bg-black text-white" : "bg-white text-gray-600"
-                }`}
-              >
-                Alugar
-              </Link>
-              <Link
-                href="/login"
-                className="bg-white px-6 py-3 text-sm font-semibold text-gray-600"
-              >
-                Anunciar
-              </Link>
-            </div>
+          <div className="mt-10 w-full max-w-3xl">
             <form action="/" method="get" className="flex bg-white">
               {filters.purpose ? (
                 <input type="hidden" name="purpose" value={filters.purpose} />
@@ -256,9 +184,9 @@ export default async function Home({ searchParams }: PageProps) {
       <section id="imoveis" className="px-6 py-14 md:px-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Imoveis em destaque</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Imoveis com QR ativo</h2>
             <p className="mt-1 text-sm text-gray-500">
-              {home.totalEligible} imoveis publicos disponiveis na plataforma.
+              {home.totalEligible} anuncios publicos com QR para captura de interesse.
             </p>
           </div>
           <Link
@@ -463,22 +391,6 @@ export default async function Home({ searchParams }: PageProps) {
         </Link>
       </section>
 
-      <section className="px-8 py-14">
-        <h2 className="text-2xl font-bold text-gray-900">Plataforma em numeros</h2>
-        <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
-          <Metric value={metrics.total_properties} label="Imoveis cadastrados" />
-          <Metric value={metrics.total_sold} label="Imoveis vendidos" />
-          <Metric value={metrics.total_clients} label="Clientes atendidos" />
-          <Metric value={metrics.active_brokers} label="Corretores ativos" />
-          <div>
-            <p className="text-2xl font-bold text-gray-900">
-              {formatBRL(metrics.total_commission)}
-            </p>
-            <p className="mt-1 text-sm text-gray-500">Comissao total</p>
-          </div>
-        </div>
-      </section>
-
       <footer className="bg-black px-8 py-14 text-white">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
           <FooterColumn
@@ -513,7 +425,7 @@ export default async function Home({ searchParams }: PageProps) {
         </div>
         <div className="mt-12 border-t border-white/10 pt-8">
           <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} ImobQR. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} ImoveisQR. Todos os direitos reservados.
           </p>
         </div>
       </footer>
@@ -548,15 +460,6 @@ function SelectFilter({
         ))}
       </select>
     </label>
-  );
-}
-
-function Metric({ value, label }: { value: number; label: string }) {
-  return (
-    <div>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-      <p className="mt-1 text-sm text-gray-500">{label}</p>
-    </div>
   );
 }
 

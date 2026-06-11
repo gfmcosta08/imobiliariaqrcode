@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const ACTIVE_SUB_STATUSES = ["free", "solo_active", "pro_pending_activation", "pro_active"];
+const ACTIVE_SUB_STATUSES = ["free", "starter_active", "pro_pending_activation", "pro_active"];
 
 export type ResolvedBroker = {
   broker: { id: string; account_id: string };
@@ -79,10 +79,12 @@ export async function resolveBrokerForImport(
       return { error: brokerErr?.message ?? "broker_create_failed", status: 500 };
     }
     broker = brokerCreated;
-    await supabase.from("subscriptions").upsert(
-      { account_id: accountId, plan_code: "free", status: "free" },
-      { onConflict: "account_id" },
-    );
+    await supabase
+      .from("subscriptions")
+      .upsert(
+        { account_id: accountId, plan_code: "free", status: "free" },
+        { onConflict: "account_id" },
+      );
   }
 
   if (!broker) {

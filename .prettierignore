@@ -3,3 +3,10 @@ node_modules
 pnpm-lock.yaml
 supabase/.temp
 imobiliarioqrcode.md
+
+# Local worktrees and generated QA artifacts
+.claude/
+output/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/qa-output/
