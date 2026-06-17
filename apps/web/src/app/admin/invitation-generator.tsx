@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 
 type InvitationResult = {
@@ -18,8 +18,8 @@ function parsePositiveInteger(value: string, fallback: number) {
   return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback;
 }
 
-function qrImageUrl(data: string): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}`;
+function qrImageUrl(data: string, size = 300): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
 }
 
 export function InvitationGenerator() {
@@ -28,6 +28,7 @@ export function InvitationGenerator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<InvitationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const printAreaRef = useRef<HTMLDivElement>(null);
 
   async function handleGenerate() {
     setError(null);
@@ -54,13 +55,79 @@ export function InvitationGenerator() {
   }
 
   function handlePrint() {
-    window.print();
+    const printArea = printAreaRef.current;
+    if (!printArea) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.border = "0";
+    iframe.style.bottom = "0";
+    iframe.style.height = "0";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.width = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      iframe.remove();
+      return;
+    }
+
+    const appUrl = window.location.origin;
+
+    doc.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Convite Cortesia - ImoveisQR</title>
+          <style>
+            @page { size: A4 portrait; margin: 0; }
+            * { box-sizing: border-box; }
+            html, body {
+              background: #fff;
+              margin: 0;
+              min-height: auto;
+              padding: 0;
+            }
+            body {
+              align-items: center;
+              display: flex;
+              justify-content: center;
+            }
+            .convite-print-area {
+              border: 0 !important;
+              box-shadow: none !important;
+              margin: 0 auto !important;
+              max-width: 210mm !important;
+              padding: 10mm 15mm !important;
+              width: 210mm !important;
+              break-after: avoid;
+              break-before: avoid;
+              break-inside: avoid;
+              page-break-after: avoid;
+              page-break-before: avoid;
+              page-break-inside: avoid;
+            }
+            .convite-screen-only { display: none !important; }
+            img { max-width: 100%; }
+          </style>
+        </head>
+        <body>${printArea.outerHTML}</body>
+      </html>`);
+    doc.close();
+
+    window.setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      window.setTimeout(() => iframe.remove(), 1000);
+    }, 500);
   }
 
   function handleNew() {
     setResult(null);
     setError(null);
   }
+
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
     <div className="mt-8 border border-gray-200 p-6">
@@ -113,52 +180,64 @@ export function InvitationGenerator() {
         </div>
       ) : (
         <div className="mt-5" data-testid="admin-invite-result">
-          <div id="print-area" className="border border-gray-200 p-6 print:border-none print:p-0">
-            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-              <div className="shrink-0">
-                <Image
-                  src={qrImageUrl(result.qr_url)}
-                  alt="QR Code do imovel"
-                  width={160}
-                  height={160}
-                  className="border border-gray-200"
-                  unoptimized
+          <div
+            ref={printAreaRef}
+            data-testid="admin-invite-print-area"
+            className="convite-print-area border border-gray-200 bg-white p-6"
+          >
+            <div className="convite-print-content flex flex-col items-center">
+              <div className="mb-5 flex flex-col items-center">
+                <img
+                  src="/brand/qr-sign-logo-black-blue.png"
+                  alt="ImoveisQR"
+                  width={140}
+                  height={55}
+                  className="mb-2"
                 />
               </div>
 
-              <div className="flex-1">
-                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">
-                  Credenciais de acesso
-                </p>
-                <div className="space-y-3">
-                  <div>
-                    <span className="block text-xs text-gray-500">Login</span>
-                    <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
-                      <span className="sr-only">Login gerado: </span>
-                      <span data-testid="admin-invite-login-code">{result.login_code}</span>
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-xs text-gray-500">Senha</span>
-                    <span className="font-mono text-3xl font-bold tracking-widest text-gray-900">
-                      <span className="sr-only">Senha gerada: </span>
-                      <span data-testid="admin-invite-access-code">{result.access_code}</span>
-                    </span>
-                  </div>
-                </div>
-                <p className="mt-4 text-xs text-gray-400">
-                  Acesse: <span className="font-medium">{window.location.origin}/convite</span>
-                </p>
-                {result.property_count > 1 && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    {result.property_count} imoveis + QR Codes criados neste convite.
-                  </p>
-                )}
+              <div className="mb-5">
+                <img
+                  src={qrImageUrl(result.qr_url, 240)}
+                  alt="QR Code de acesso"
+                  width={240}
+                  height={240}
+                  className="border border-gray-200"
+                />
               </div>
+
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">
+                Credenciais de acesso
+              </p>
+
+              <div className="space-y-3 text-center">
+                <div>
+                  <span className="block text-xs uppercase tracking-wider text-gray-500">Login</span>
+                  <span className="font-mono text-3xl font-bold tracking-widest text-gray-900" data-testid="admin-invite-login-code-print">
+                    {result.login_code}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase tracking-wider text-gray-500">Senha</span>
+                  <span className="font-mono text-3xl font-bold tracking-widest text-gray-900" data-testid="admin-invite-access-code-print">
+                    {result.access_code}
+                  </span>
+                </div>
+              </div>
+
+              <p className="mt-5 text-sm font-medium text-gray-700">
+                Acesse: {appUrl}/convite
+              </p>
+
+              {result.property_count > 1 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {result.property_count} imoveis + QR Codes criados neste convite.
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="mt-4 flex gap-3 print:hidden">
+          <div className="convite-screen-only mt-4 flex gap-3">
             <button
               onClick={handlePrint}
               data-testid="admin-invite-print"

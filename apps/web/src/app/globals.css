@@ -96,4 +96,41 @@ a:focus-visible {
   body.printing-qr-plate .qr-screen-only {
     display: none !important;
   }
+
+  html.printing-convite,
+  body.printing-convite {
+    background: #ffffff !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-convite * {
+    display: none !important;
+  }
+
+  body.printing-convite .convite-print-area,
+  body.printing-convite .convite-print-area * {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  body.printing-convite .convite-print-area {
+    break-after: avoid;
+    break-before: avoid;
+    break-inside: avoid;
+    border: 0 !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    max-width: 210mm !important;
+    padding: 10mm 15mm !important;
+    page-break-after: avoid;
+    page-break-before: avoid;
+    page-break-inside: avoid;
+    width: 210mm !important;
+  }
+
+  body.printing-convite .convite-screen-only {
+    display: none !important;
+  }
 }
