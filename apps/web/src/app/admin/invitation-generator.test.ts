@@ -11,14 +11,14 @@ const cssSource = readFileSync(resolve(dir, "..", "globals.css"), "utf8");
 describe("InvitationGenerator — impressao em pagina unica", () => {
   it("usa abordagem iframe para imprimir, nao window.print()", () => {
     expect(source).not.toContain("window.print()");
-    expect(source).toContain("document.createElement(\"iframe\")");
+    expect(source).toContain('document.createElement("iframe")');
     expect(source).toContain("iframe.contentWindow?.print()");
   });
 
   it("cria iframe invisivel fixo com dimensoes zero", () => {
-    expect(source).toContain("iframe.style.height = \"0\"");
-    expect(source).toContain("iframe.style.width = \"0\"");
-    expect(source).toContain("iframe.style.position = \"fixed\"");
+    expect(source).toContain('iframe.style.height = "0"');
+    expect(source).toContain('iframe.style.width = "0"');
+    expect(source).toContain('iframe.style.position = "fixed"');
   });
 
   it("define @page com A4 portrait e margin zero no iframe", () => {
@@ -55,14 +55,14 @@ describe("InvitationGenerator — impressao em pagina unica", () => {
   });
 
   it("dados-testid essenciais permanecem para teste de regressao", () => {
-    expect(source).toContain("data-testid=\"admin-invite-generate\"");
-    expect(source).toContain("data-testid=\"admin-invite-result\"");
-    expect(source).toContain("data-testid=\"admin-invite-print\"");
-    expect(source).toContain("data-testid=\"admin-invite-login-code-print\"");
-    expect(source).toContain("data-testid=\"admin-invite-access-code-print\"");
-    expect(source).toContain("data-testid=\"admin-invite-property-count\"");
-    expect(source).toContain("data-testid=\"admin-invite-expiration-days\"");
-    expect(source).toContain("data-testid=\"admin-invite-print-area\"");
+    expect(source).toContain('data-testid="admin-invite-generate"');
+    expect(source).toContain('data-testid="admin-invite-result"');
+    expect(source).toContain('data-testid="admin-invite-print"');
+    expect(source).toContain('data-testid="admin-invite-login-code-print"');
+    expect(source).toContain('data-testid="admin-invite-access-code-print"');
+    expect(source).toContain('data-testid="admin-invite-property-count"');
+    expect(source).toContain('data-testid="admin-invite-expiration-days"');
+    expect(source).toContain('data-testid="admin-invite-print-area"');
   });
 });
 
@@ -75,13 +75,13 @@ describe("InvitationGenerator — regras CSS de impressao para convite", () => {
 
   it("oculta tudo exceto convite-print-area durante impressao", () => {
     expect(cssSource).toMatch(/body\.printing-convite \*\s*\{[^}]*display:\s*none\s*!important/);
-    expect(cssSource).toMatch(/body\.printing-convite \.convite-print-area[^,]*\{[^}]*display:\s*revert\s*!important/);
+    expect(cssSource).toMatch(
+      /body\.printing-convite \.convite-print-area[^,]*\{[^}]*display:\s*revert\s*!important/,
+    );
   });
 
   it("protege contra quebra de pagina no CSS global", () => {
-    const conviteBlock = cssSource.match(
-      /body\.printing-convite \.convite-print-area \{[^}]+\}/s,
-    );
+    const conviteBlock = cssSource.match(/body\.printing-convite \.convite-print-area \{[^}]+\}/s);
     expect(conviteBlock).not.toBeNull();
     expect(conviteBlock![0]).toContain("break-inside: avoid");
     expect(conviteBlock![0]).toContain("page-break-inside: avoid");

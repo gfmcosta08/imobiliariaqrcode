@@ -212,22 +212,30 @@ export function InvitationGenerator() {
 
               <div className="space-y-3 text-center">
                 <div>
-                  <span className="block text-xs uppercase tracking-wider text-gray-500">Login</span>
-                  <span className="font-mono text-3xl font-bold tracking-widest text-gray-900" data-testid="admin-invite-login-code-print">
+                  <span className="block text-xs uppercase tracking-wider text-gray-500">
+                    Login
+                  </span>
+                  <span
+                    className="font-mono text-3xl font-bold tracking-widest text-gray-900"
+                    data-testid="admin-invite-login-code-print"
+                  >
                     {result.login_code}
                   </span>
                 </div>
                 <div>
-                  <span className="block text-xs uppercase tracking-wider text-gray-500">Senha</span>
-                  <span className="font-mono text-3xl font-bold tracking-widest text-gray-900" data-testid="admin-invite-access-code-print">
+                  <span className="block text-xs uppercase tracking-wider text-gray-500">
+                    Senha
+                  </span>
+                  <span
+                    className="font-mono text-3xl font-bold tracking-widest text-gray-900"
+                    data-testid="admin-invite-access-code-print"
+                  >
                     {result.access_code}
                   </span>
                 </div>
               </div>
 
-              <p className="mt-5 text-sm font-medium text-gray-700">
-                Acesse: {appUrl}/convite
-              </p>
+              <p className="mt-5 text-sm font-medium text-gray-700">Acesse: {appUrl}/convite</p>
 
               {result.property_count > 1 && (
                 <p className="mt-2 text-xs text-gray-500">
