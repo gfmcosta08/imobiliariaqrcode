@@ -18,7 +18,11 @@ async function resolveUserAccountId() {
     return { supabase: ctx.supabase, accountId: null as string | null, error: "Sessao expirada." };
   }
   if (ctx.error || !ctx.accountId) {
-    return { supabase: ctx.supabase, accountId: null as string | null, error: "Perfil nao encontrado." };
+    return {
+      supabase: ctx.supabase,
+      accountId: null as string | null,
+      error: "Perfil nao encontrado.",
+    };
   }
   return { supabase: ctx.supabase, accountId: ctx.accountId, error: null as string | null };
 }

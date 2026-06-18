@@ -95,7 +95,9 @@ test.describe("QA compliance staging", () => {
     await page.getByTestId("admin-invite-generate").click();
     await expect(page.getByTestId("admin-invite-result")).toBeVisible({ timeout: 60_000 });
     inviteLoginCode = (await page.getByTestId("admin-invite-login-code-print").innerText()).trim();
-    inviteAccessCode = (await page.getByTestId("admin-invite-access-code-print").innerText()).trim();
+    inviteAccessCode = (
+      await page.getByTestId("admin-invite-access-code-print").innerText()
+    ).trim();
     expect(inviteLoginCode).toMatch(/^\d{6,8}$/);
 
     await page.reload();

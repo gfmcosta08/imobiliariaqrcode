@@ -21,7 +21,13 @@ function requireStaging() {
   expect(baseURL).toContain("farollimoveis-staging");
 }
 
-async function signupFree(page: Page, email: string, password: string, whatsapp: string, name: string) {
+async function signupFree(
+  page: Page,
+  email: string,
+  password: string,
+  whatsapp: string,
+  name: string,
+) {
   await page.goto("/login");
   await page.getByRole("button", { name: "Cadastre-se" }).click();
   await page.getByTestId("signup-full-name").fill(name);

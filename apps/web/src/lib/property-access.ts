@@ -14,7 +14,11 @@ export async function assertOwnedPropertyAccess(propertyId: string): Promise<Own
 
   const ctx = await resolveCurrentAccountContext();
   if (ctx.error === "unauthenticated") {
-    return { supabase: ctx.supabase, accountId: null, error: "Sessao expirada. Faca login novamente." };
+    return {
+      supabase: ctx.supabase,
+      accountId: null,
+      error: "Sessao expirada. Faca login novamente.",
+    };
   }
   if (ctx.error || !ctx.accountId) {
     return { supabase: ctx.supabase, accountId: null, error: "Perfil nao encontrado." };

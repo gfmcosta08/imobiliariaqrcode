@@ -8,10 +8,7 @@ const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "";
 const writeEnabled = process.env.E2E_STAGING_WRITE === "1";
 const stripeE2E = process.env.E2E_STRIPE_CHECKOUT === "1";
 const runId = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-const evidenceDir = path.resolve(
-  process.cwd(),
-  "../../../qa-evidencias/rodada-pr9",
-);
+const evidenceDir = path.resolve(process.cwd(), "../../../qa-evidencias/rodada-final");
 
 const freeEmail = `qa.novo.${runId}@teste.com`;
 const freePassword = `TesteQA123!${runId.slice(-4)}`;
@@ -126,7 +123,9 @@ test.describe("PR9 QA staging completo", () => {
     await page.getByTestId("admin-invite-generate").click();
     await expect(page.getByTestId("admin-invite-result")).toBeVisible({ timeout: 60_000 });
     inviteLoginCode = (await page.getByTestId("admin-invite-login-code-print").innerText()).trim();
-    inviteAccessCode = (await page.getByTestId("admin-invite-access-code-print").innerText()).trim();
+    inviteAccessCode = (
+      await page.getByTestId("admin-invite-access-code-print").innerText()
+    ).trim();
     await snap(page, "05-convite-criado-impressao");
 
     await expect(page.getByTestId("admin-invite-print")).toBeVisible();
@@ -139,7 +138,9 @@ test.describe("PR9 QA staging completo", () => {
     await expect(item.getByTestId("admin-invitation-edit")).toBeVisible({ timeout: 30_000 });
     await snap(page, "05-convite-editado");
 
-    const cancelItem = page.getByTestId("admin-invitation-item").filter({ hasText: inviteLoginCode });
+    const cancelItem = page
+      .getByTestId("admin-invitation-item")
+      .filter({ hasText: inviteLoginCode });
     page.once("dialog", (d) => d.accept());
     await cancelItem.getByTestId("admin-invitation-cancel").click();
     await expect(
@@ -152,7 +153,9 @@ test.describe("PR9 QA staging completo", () => {
     await page.getByTestId("admin-invite-generate").click();
     await expect(page.getByTestId("admin-invite-result")).toBeVisible({ timeout: 60_000 });
     inviteLoginCode = (await page.getByTestId("admin-invite-login-code-print").innerText()).trim();
-    inviteAccessCode = (await page.getByTestId("admin-invite-access-code-print").innerText()).trim();
+    inviteAccessCode = (
+      await page.getByTestId("admin-invite-access-code-print").innerText()
+    ).trim();
     await snap(page, "05-convite-novo-para-limite");
   });
 
@@ -197,7 +200,11 @@ test.describe("PR9 QA staging completo", () => {
     requireStaging();
     await login(page, brokerEmail, brokerPassword);
     await page.goto("/properties");
-    await page.getByTestId("properties-list-item").filter({ hasText: property2Title }).first().click();
+    await page
+      .getByTestId("properties-list-item")
+      .filter({ hasText: property2Title })
+      .first()
+      .click();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
       "base64",
@@ -207,7 +214,9 @@ test.describe("PR9 QA staging completo", () => {
       mimeType: "image/png",
       buffer: png,
     });
-    await expect(page.getByTestId("property-media-count")).toContainText(/1\//, { timeout: 60_000 });
+    await expect(page.getByTestId("property-media-count")).toContainText(/1\//, {
+      timeout: 60_000,
+    });
     await snap(page, "07-upload-imagem");
     propertyPublicId = (await page.getByTestId("property-detail-public-id").innerText()).trim();
     qrPublicUrl = (await page.getByTestId("qr-print-public-url").innerText()).trim();
@@ -277,7 +286,11 @@ test.describe("PR9 QA staging completo", () => {
     requireStaging();
     await login(page, brokerEmail, brokerPassword);
     await page.goto("/properties");
-    await page.getByTestId("properties-list-item").filter({ hasText: property2Title }).first().click();
+    await page
+      .getByTestId("properties-list-item")
+      .filter({ hasText: property2Title })
+      .first()
+      .click();
     await page.waitForURL(/\/properties\/[0-9a-f-]+/, { timeout: 30_000 });
     const brokerPropertyUrl = page.url();
     expect(brokerPropertyUrl).toMatch(/\/properties\/[0-9a-f-]+/);
