@@ -14,11 +14,16 @@ import {
 } from "@/lib/chat";
 import { normalizeBrazilPhone } from "@/lib/phone";
 
-export type VisitorInfo = {
-  name: string;
-  email: string;
-  phone: string;
-};
+import {
+  hasVisitorInfo,
+  initialVisitorFormMode,
+  validateOptionalVisitorInfo,
+  type VisitorFormMode,
+  type VisitorInfo,
+} from "./visitor-info";
+
+export type { VisitorInfo } from "./visitor-info";
+export { validateOptionalVisitorInfo } from "./visitor-info";
 
 const FALE_CONOSCO_VISITOR_KEY = "fale_conosco_visitor_info";
 
@@ -43,18 +48,6 @@ function saveVisitorInfo(info: VisitorInfo): void {
   sessionStorage.setItem(FALE_CONOSCO_VISITOR_KEY, JSON.stringify(info));
 }
 
-export function validateOptionalVisitorInfo(info: VisitorInfo): string | null {
-  const email = info.email.trim();
-  const phone = info.phone.trim();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return "E-mail invalido. Corrija ou deixe em branco.";
-  }
-  if (phone && !normalizeBrazilPhone(phone)) {
-    return "Telefone invalido. Corrija ou deixe em branco.";
-  }
-  return null;
-}
-
 type UseChatSessionOptions = {
   isLoggedIn: boolean;
   enabled: boolean;
@@ -69,19 +62,18 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     email: "",
     phone: "",
   });
+  const [visitorDraft, setVisitorDraft] = useState<VisitorInfo>({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  const [visitorFormMode, setVisitorFormMode] = useState<VisitorFormMode>("hidden");
+  const [visitorFormError, setVisitorFormError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
-
-  const setVisitorInfo = useCallback((updater: (prev: VisitorInfo) => VisitorInfo) => {
-    setVisitorInfoState((prev) => {
-      const next = updater(prev);
-      saveVisitorInfo(next);
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -104,14 +96,45 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     const accepted = sessionStorage.getItem(FALE_CONOSCO_ACCEPTED_KEY) === "true";
     setLgpdAccepted(accepted);
     if (!isLoggedIn) {
-      setVisitorInfoState(loadVisitorInfo());
+      const saved = loadVisitorInfo();
+      setVisitorInfoState(saved);
+      setVisitorDraft(saved);
+      setVisitorFormMode(initialVisitorFormMode(saved));
     }
   }, [enabled, ensureSessionId, isLoggedIn]);
 
   const acceptLgpd = useCallback(() => {
     sessionStorage.setItem(FALE_CONOSCO_ACCEPTED_KEY, "true");
     setLgpdAccepted(true);
-  }, []);
+    if (!isLoggedIn) {
+      const saved = loadVisitorInfo();
+      setVisitorFormMode(initialVisitorFormMode(saved));
+    }
+  }, [isLoggedIn]);
+
+  const expandVisitorForm = useCallback(() => {
+    setVisitorDraft({ ...visitorInfo });
+    setVisitorFormError(null);
+    setVisitorFormMode("expanded");
+  }, [visitorInfo]);
+
+  const saveVisitorForm = useCallback(() => {
+    const validationError = validateOptionalVisitorInfo(visitorDraft);
+    if (validationError) {
+      setVisitorFormError(validationError);
+      return;
+    }
+    setVisitorInfoState(visitorDraft);
+    saveVisitorInfo(visitorDraft);
+    setVisitorFormError(null);
+    setVisitorFormMode(hasVisitorInfo(visitorDraft) ? "bar" : "hidden");
+  }, [visitorDraft]);
+
+  const cancelVisitorForm = useCallback(() => {
+    setVisitorDraft({ ...visitorInfo });
+    setVisitorFormError(null);
+    setVisitorFormMode("hidden");
+  }, [visitorInfo]);
 
   const fetchMessages = useCallback(async () => {
     const sid = sessionId || ensureSessionId();
@@ -251,7 +274,11 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     sessionStorage.removeItem(FALE_CONOSCO_VISITOR_KEY);
     localStorage.removeItem(FALE_CONOSCO_SESSION_KEY);
     setLgpdAccepted(false);
-    setVisitorInfoState({ name: "", email: "", phone: "" });
+    const empty = { name: "", email: "", phone: "" };
+    setVisitorInfoState(empty);
+    setVisitorDraft(empty);
+    setVisitorFormMode("hidden");
+    setVisitorFormError(null);
     setSendError(null);
     ensureSessionId();
   }, [ensureSessionId]);
@@ -264,7 +291,13 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     lgpdAccepted,
     acceptLgpd,
     visitorInfo,
-    setVisitorInfo,
+    visitorDraft,
+    setVisitorDraft,
+    visitorFormMode,
+    visitorFormError,
+    expandVisitorForm,
+    saveVisitorForm,
+    cancelVisitorForm,
     isSending,
     sendError,
     sendMessage,

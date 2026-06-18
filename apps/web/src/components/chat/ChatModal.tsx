@@ -68,7 +68,16 @@ export function ChatModal({ open, onClose, isLoggedIn }: ChatModalProps) {
         {!chat.lgpdAccepted ? <LgpdBanner onAccept={chat.acceptLgpd} /> : null}
 
         {showVisitorForm ? (
-          <ChatVisitorForm visitorInfo={chat.visitorInfo} onChange={chat.setVisitorInfo} />
+          <ChatVisitorForm
+            mode={chat.visitorFormMode}
+            savedInfo={chat.visitorInfo}
+            draft={chat.visitorDraft}
+            error={chat.visitorFormError}
+            onDraftChange={chat.setVisitorDraft}
+            onExpand={chat.expandVisitorForm}
+            onSave={chat.saveVisitorForm}
+            onCancel={chat.cancelVisitorForm}
+          />
         ) : null}
 
         <ChatMessageList

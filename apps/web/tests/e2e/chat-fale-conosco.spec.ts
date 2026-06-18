@@ -62,6 +62,8 @@ test.describe("chat Fale Conosco", () => {
     await page.goto("/");
     await page.getByTestId("chat-floating-bubble").click();
     await page.getByTestId("chat-lgpd-accept").click();
+    await expect(page.getByTestId("chat-visitor-hidden")).toBeVisible();
+    await expect(page.getByTestId("chat-visitor-form")).not.toBeVisible();
     await page.getByTestId("chat-input").fill("mensagem e2e sem cadastro");
     await page.getByTestId("chat-send").click();
 

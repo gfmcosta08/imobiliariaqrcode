@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { validateOptionalVisitorInfo } from "@/components/chat/useChatSession";
+import {
+  formatVisitorSummary,
+  hasVisitorInfo,
+  initialVisitorFormMode,
+  validateOptionalVisitorInfo,
+} from "./visitor-info";
 
 describe("validateOptionalVisitorInfo", () => {
   it("permite campos vazios", () => {
@@ -23,5 +28,24 @@ describe("validateOptionalVisitorInfo", () => {
     expect(
       validateOptionalVisitorInfo({ name: "", email: "", phone: "11999998888" }),
     ).toBeNull();
+  });
+});
+
+describe("visitor form modes", () => {
+  it("inicia compacto quando ja ha dados salvos", () => {
+    expect(
+      initialVisitorFormMode({ name: "Ana", email: "a@b.com", phone: "" }),
+    ).toBe("bar");
+  });
+
+  it("inicia oculto quando nao ha dados", () => {
+    expect(initialVisitorFormMode({ name: "", email: "", phone: "" })).toBe("hidden");
+  });
+
+  it("monta resumo compacto", () => {
+    expect(
+      formatVisitorSummary({ name: "Ana", email: "a@b.com", phone: "11999998888" }),
+    ).toContain("Ana");
+    expect(hasVisitorInfo({ name: "", email: "", phone: "" })).toBe(false);
   });
 });
