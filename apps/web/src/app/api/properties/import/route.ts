@@ -51,6 +51,14 @@ export async function POST(request: Request) {
     return json(404, { ok: false, error: "feature_disabled" });
   }
 
+  const userClient = await createClient();
+  const {
+    data: { user },
+  } = await userClient.auth.getUser();
+  if (!user) {
+    return json(401, { ok: false, error: "unauthorized" });
+  }
+
   if (!getPropertyExtractorBaseUrl()) {
     return json(503, {
       ok: false,
@@ -126,14 +134,6 @@ export async function POST(request: Request) {
   }
 
   const storedSourceUrl = validatedUrls.map((u) => u.toString()).join(SOURCE_URLS_SEPARATOR);
-
-  const userClient = await createClient();
-  const {
-    data: { user },
-  } = await userClient.auth.getUser();
-  if (!user) {
-    return json(401, { ok: false, error: "unauthorized" });
-  }
 
   const admin = createServiceRoleClient();
   const resolved = await resolveBrokerForImport(admin, user);

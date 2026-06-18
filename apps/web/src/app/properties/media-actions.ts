@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+
+import { resolveCurrentAccountContext } from "@/lib/account-context";
+import { assertOwnedPropertyAccess } from "@/lib/property-access";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -11,25 +13,18 @@ type UploadFailed = { name: string; error: string };
 type UploadOutcome = { uploaded: number; failed: UploadFailed[] };
 
 async function resolveUserAccountId() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { supabase, accountId: null as string | null, error: "Sessao expirada." };
+  const ctx = await resolveCurrentAccountContext();
+  if (ctx.error === "unauthenticated") {
+    return { supabase: ctx.supabase, accountId: null as string | null, error: "Sessao expirada." };
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("account_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile?.account_id) {
-    return { supabase, accountId: null as string | null, error: "Perfil nao encontrado." };
+  if (ctx.error || !ctx.accountId) {
+    return {
+      supabase: ctx.supabase,
+      accountId: null as string | null,
+      error: "Perfil nao encontrado.",
+    };
   }
-
-  return { supabase, accountId: profile.account_id as string, error: null as string | null };
+  return { supabase: ctx.supabase, accountId: ctx.accountId, error: null as string | null };
 }
 
 export async function uploadMediaFilesForProperty(
@@ -150,20 +145,42 @@ export async function deletePropertyMedia(
   mediaId: string,
   storagePath: string,
 ) {
-  const supabase = await createClient();
-  const { error: rmError } = await supabase.storage.from("property-media").remove([storagePath]);
+  const access = await assertOwnedPropertyAccess(propertyId);
+  if (access.error || !access.accountId) {
+    return { error: access.error ?? "Imovel nao encontrado." };
+  }
+
+  const { data: mediaRow } = await access.supabase
+    .from("property_media")
+    .select("id, storage_path")
+    .eq("id", mediaId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+
+  if (!mediaRow) {
+    return { error: "Midia nao encontrada." };
+  }
+
+  const pathToRemove = mediaRow.storage_path ?? storagePath;
+  const { error: rmError } = await access.supabase.storage
+    .from("property-media")
+    .remove([pathToRemove]);
   if (rmError) {
     return { error: rmError.message };
   }
 
-  const { error } = await supabase
+  const { data, error } = await access.supabase
     .from("property_media")
     .delete()
     .eq("id", mediaId)
-    .eq("property_id", propertyId);
+    .eq("property_id", propertyId)
+    .select("id");
 
   if (error) {
     return { error: error.message };
+  }
+  if (!data?.length) {
+    return { error: "Midia nao encontrada." };
   }
 
   revalidatePath(`/properties/${propertyId}`);

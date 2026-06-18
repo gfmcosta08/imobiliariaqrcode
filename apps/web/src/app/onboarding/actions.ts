@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import type { CreatePropertyState } from "@/app/properties/actions";
 import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
-import { createClient } from "@/lib/supabase/server";
+import { assertOwnedPropertyAccess } from "@/lib/property-access";
 
 export async function updateInvitationProperty(
   _prev: CreatePropertyState,
@@ -15,7 +15,6 @@ export async function updateInvitationProperty(
     return { error: "Imóvel inválido." };
   }
 
-  const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
   payload.listing_status = "published";
   const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
@@ -23,16 +22,26 @@ export async function updateInvitationProperty(
     return { error: locationError };
   }
 
-  const { error: updateError } = await supabase
+  const access = await assertOwnedPropertyAccess(propertyId);
+  if (access.error || !access.accountId) {
+    return { error: access.error ?? "Imovel nao encontrado." };
+  }
+
+  const { data, error: updateError } = await access.supabase
     .from("properties")
     .update(payload)
-    .eq("id", propertyId);
+    .eq("id", propertyId)
+    .eq("account_id", access.accountId)
+    .select("id");
 
   if (updateError) {
     return { error: updateError.message };
   }
+  if (!data?.length) {
+    return { error: "Imovel nao encontrado." };
+  }
 
-  await supabase
+  await access.supabase
     .from("broker_invitations")
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("property_id", propertyId)
