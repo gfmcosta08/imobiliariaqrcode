@@ -16,6 +16,52 @@ alter table public.subscriptions
   add constraint subscriptions_max_active_properties_override_check
   check (max_active_properties_override is null or max_active_properties_override >= 1);
 
+create schema if not exists private;
+
+create or replace function private.assert_rpc_account_scope(p_account_id uuid)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_role text := nullif(auth.role(), '');
+begin
+  if p_account_id is null then
+    raise exception 'account_id required' using errcode = '22023';
+  end if;
+
+  if v_uid is not null then
+    if exists (
+      select 1
+      from public.profiles p
+      where p.id = v_uid
+        and p.account_id = p_account_id
+    ) then
+      return;
+    end if;
+
+    raise exception 'account scope violation' using errcode = '42501';
+  end if;
+
+  if v_role = 'service_role'
+    or (v_role is null and current_user in ('postgres', 'supabase_admin'))
+  then
+    return;
+  end if;
+
+  raise exception 'authentication required' using errcode = '28000';
+end;
+$$;
+
+revoke all on function private.assert_rpc_account_scope(uuid)
+  from public, anon, authenticated;
+
+grant execute on function private.assert_rpc_account_scope(uuid)
+  to service_role;
+
 create or replace function public.account_property_limit(p_account_id uuid)
 returns integer
 language plpgsql

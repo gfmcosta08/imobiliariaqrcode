@@ -21,6 +21,8 @@ describe("Courtesy property limit guardrails", () => {
     );
 
     expect(migration).toContain("create or replace function public.account_property_limit");
+    expect(migration).toContain("create schema if not exists private");
+    expect(migration).toContain("private.assert_rpc_account_scope");
     expect(migration).toContain("max_active_properties_override");
     expect(migration).toContain("property_limit_override");
     expect(migration).toContain(
