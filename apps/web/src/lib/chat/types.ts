@@ -32,3 +32,5 @@ export const FALE_CONOSCO_ACCEPTED_KEY = "fale_conosco_accepted";
 
 export const CHAT_CONTENT_MAX_LENGTH = 1000;
 export const CHAT_POLL_INTERVAL_MS = 3_000;
+/** Tempo maximo do indicador "digitando..." antes de confirmar recebimento. */
+export const CHAT_TYPING_WINDOW_MS = 20_000;

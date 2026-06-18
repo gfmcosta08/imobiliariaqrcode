@@ -103,7 +103,11 @@ export function ChatModal({ open, onClose, isLoggedIn }: ChatModalProps) {
           </div>
         ) : null}
 
-        <ChatMessageList messages={chat.messages} isTyping={chat.isTyping} />
+        <ChatMessageList
+          messages={chat.messages}
+          isTyping={chat.isTyping}
+          awaitingReply={chat.awaitingReply}
+        />
 
         {chat.sendError ? (
           <p className="px-4 pb-1 text-xs text-red-600" role="alert">

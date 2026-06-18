@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/lib/chat";
 type ChatMessageListProps = {
   messages: ChatMessage[];
   isTyping: boolean;
+  awaitingReply?: boolean;
 };
 
 function formatTime(iso: string): string {
@@ -17,7 +18,7 @@ function formatTime(iso: string): string {
   }
 }
 
-export function ChatMessageList({ messages, isTyping }: ChatMessageListProps) {
+export function ChatMessageList({ messages, isTyping, awaitingReply = false }: ChatMessageListProps) {
   return (
     <div
       className="flex-1 space-y-3 overflow-y-auto px-4 py-3"
@@ -62,6 +63,12 @@ export function ChatMessageList({ messages, isTyping }: ChatMessageListProps) {
             <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
           </div>
         </div>
+      ) : null}
+
+      {awaitingReply ? (
+        <p className="text-center text-xs text-gray-500" data-testid="chat-awaiting-reply">
+          Mensagem recebida. Responderemos em breve — voce pode continuar conversando.
+        </p>
       ) : null}
     </div>
   );

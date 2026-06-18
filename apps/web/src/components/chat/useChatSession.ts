@@ -8,6 +8,7 @@ import {
   FALE_CONOSCO_ACCEPTED_KEY,
   FALE_CONOSCO_SESSION_KEY,
   hasPendingVisitorReply,
+  resolveChatReplyState,
   scheduleNextPoll,
   type ChatMessage,
 } from "@/lib/chat";
@@ -30,6 +31,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
   const [visitorInfoComplete, setVisitorInfoComplete] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
 
@@ -97,6 +99,13 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
 
     pollTimerRef.current = scheduleNextPoll(tick, document.hidden);
   }, [enabled, fetchMessages, lgpdAccepted]);
+
+  useEffect(() => {
+    if (!hasPendingVisitorReply(messages)) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [messages]);
 
   useEffect(() => {
     if (!enabled || !lgpdAccepted) return;
@@ -182,6 +191,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
           metadata: null,
         };
         setMessages((prev) => dedupeMessagesById([...prev, optimistic]));
+        void fetchMessages();
         return true;
       } catch {
         setSendError("Nao foi possivel enviar. Tente novamente.");
@@ -190,7 +200,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
         setIsSending(false);
       }
     },
-    [ensureSessionId, isLoggedIn, lgpdAccepted, visitorInfo.email, visitorInfo.name],
+    [ensureSessionId, fetchMessages, isLoggedIn, lgpdAccepted, visitorInfo.email, visitorInfo.name],
   );
 
   const clearConversation = useCallback(() => {
@@ -203,6 +213,8 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     setSendError(null);
     ensureSessionId();
   }, [ensureSessionId, isLoggedIn]);
+
+  const replyState = resolveChatReplyState(messages, nowMs);
 
   return {
     messages,
@@ -217,7 +229,8 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
     sendError,
     sendMessage,
     clearConversation,
-    isTyping: hasPendingVisitorReply(messages),
+    isTyping: replyState.isTyping,
+    awaitingReply: replyState.awaitingReply,
     needsVisitorInfo: !isLoggedIn && !visitorInfoComplete,
   };
 }

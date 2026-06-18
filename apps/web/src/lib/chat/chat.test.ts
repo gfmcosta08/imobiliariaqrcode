@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { detectChatKind } from "./kind";
-import { computeSinceFromMessages, dedupeMessagesById, hasPendingVisitorReply } from "./messages";
+import {
+  computeSinceFromMessages,
+  dedupeMessagesById,
+  hasPendingVisitorReply,
+  isWithinTypingWindow,
+  resolveChatReplyState,
+} from "./messages";
+import { CHAT_TYPING_WINDOW_MS } from "./types";
 import { getChatPollIntervalMs, scheduleNextPoll } from "./polling";
 import { sanitizeChatContent } from "./sanitize";
 import type { ChatMessage } from "./types";
@@ -118,6 +125,27 @@ describe("hasPendingVisitorReply", () => {
     expect(hasPendingVisitorReply([visitor])).toBe(true);
     const hermes = makeMessage({ direction: "hermes" });
     expect(hasPendingVisitorReply([visitor, hermes])).toBe(false);
+  });
+});
+
+describe("typing window", () => {
+  it("mostra digitando so dentro da janela e depois confirma recebimento", () => {
+    const sentAt = "2026-06-18T22:00:00.000Z";
+    const visitor = makeMessage({ direction: "visitor", created_at: sentAt });
+    const early = Date.parse(sentAt) + 5_000;
+    const late = Date.parse(sentAt) + CHAT_TYPING_WINDOW_MS + 1_000;
+
+    expect(isWithinTypingWindow([visitor], early)).toBe(true);
+    expect(isWithinTypingWindow([visitor], late)).toBe(false);
+
+    expect(resolveChatReplyState([visitor], early)).toEqual({
+      isTyping: true,
+      awaitingReply: false,
+    });
+    expect(resolveChatReplyState([visitor], late)).toEqual({
+      isTyping: false,
+      awaitingReply: true,
+    });
   });
 });
 
