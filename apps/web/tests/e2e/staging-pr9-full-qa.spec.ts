@@ -292,12 +292,15 @@ test.describe("PR9 QA staging completo", () => {
     await pageB.goto(brokerPropertyUrl);
     await pageB.waitForLoadState("domcontentloaded");
 
-    const hasEditForm = await pageB.getByText(/Edicao completa do imovel/i).count();
+    const hasEditForm = await pageB.getByText(/Edi(c|ç)(a|ã)o completa do im(o|ó)vel/i).count();
     const hasPropertyTitle = await pageB.getByTestId("property-detail-title").count();
+    const hasSafeNotFound = await pageB
+      .getByText(/404|n(a|ã)o encontrado|im(o|ó)vel n(a|ã)o encontrado|not found/i)
+      .count();
     const blocked =
       pageB.url().includes("/login") ||
       !pageB.url().includes(brokerPropertyUrl.split("/properties/")[1] ?? "___") ||
-      (await pageB.getByText(/404|nao encontrado|not found/i).count()) > 0;
+      hasSafeNotFound > 0;
 
     expect(hasEditForm).toBe(0);
     expect(hasPropertyTitle).toBe(0);

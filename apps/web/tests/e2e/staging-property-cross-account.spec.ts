@@ -76,13 +76,16 @@ test("usuario B nao acessa imovel de A (404/redirect, sem formulario de edicao)"
   const status = response?.status() ?? 0;
   await pageB.waitForLoadState("domcontentloaded");
 
-  const hasEditForm = await pageB.getByText(/Edicao completa do imovel/i).count();
+  const hasEditForm = await pageB.getByText(/Edi(c|ç)(a|ã)o completa do im(o|ó)vel/i).count();
   const hasPropertyTitle = await pageB.getByTestId("property-detail-title").count();
+  const hasSafeNotFound = await pageB
+    .getByText(/404|n(a|ã)o encontrado|im(o|ó)vel n(a|ã)o encontrado|not found/i)
+    .count();
   const blocked =
     status === 404 ||
     pageB.url().includes("/login") ||
     !pageB.url().includes("/properties/") ||
-    (await pageB.getByText(/404|nao encontrado|not found/i).count()) > 0;
+    hasSafeNotFound > 0;
 
   fs.mkdirSync(evidenceDir, { recursive: true });
   await pageB.screenshot({
