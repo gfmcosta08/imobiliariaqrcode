@@ -16,7 +16,7 @@ export function FaleConoscoWidget({ variant, isLoggedIn = false }: FaleConoscoWi
   return (
     <>
       {variant === "floating" ? (
-        <ChatBubble onClick={() => setOpen(true)} />
+        <ChatBubble onOpen={() => setOpen(true)} />
       ) : (
         <button
           type="button"

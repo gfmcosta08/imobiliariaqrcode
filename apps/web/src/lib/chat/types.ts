@@ -24,6 +24,7 @@ export type ChatPostBody = {
   kind?: ChatKind;
   visitor_name?: string;
   visitor_email?: string;
+  visitor_phone?: string;
   page_url?: string;
 };
 

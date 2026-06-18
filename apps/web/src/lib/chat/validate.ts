@@ -1,4 +1,5 @@
 import { clampString } from "@/lib/security/json-body";
+import { normalizeBrazilPhone } from "@/lib/phone";
 
 import { detectChatKind } from "./kind";
 import { sanitizeChatContent } from "./sanitize";
@@ -36,10 +37,20 @@ export function validateChatPostBody(raw: Record<string, unknown>): ValidatePost
 
   const visitor_name = clampString(raw.visitor_name, { maxLength: 120, trim: true }) || undefined;
   const visitor_email = clampString(raw.visitor_email, { maxLength: 254, trim: true }) || undefined;
+  const visitor_phone_raw = clampString(raw.visitor_phone, { maxLength: 32, trim: true }) || undefined;
   const page_url = clampString(raw.page_url, { maxLength: 2048, trim: true }) || undefined;
 
   if (visitor_email && !isValidEmail(visitor_email)) {
     return { ok: false, error: "invalid_email" };
+  }
+
+  let visitor_phone: string | undefined;
+  if (visitor_phone_raw) {
+    const normalized = normalizeBrazilPhone(visitor_phone_raw);
+    if (!normalized) {
+      return { ok: false, error: "invalid_phone" };
+    }
+    visitor_phone = normalized;
   }
 
   if (kindRaw && !CHAT_KINDS.includes(kindRaw as ChatKind)) {
@@ -54,6 +65,7 @@ export function validateChatPostBody(raw: Record<string, unknown>): ValidatePost
       kind: kindDetected,
       visitor_name,
       visitor_email,
+      visitor_phone,
       page_url,
     },
     kindDetected,

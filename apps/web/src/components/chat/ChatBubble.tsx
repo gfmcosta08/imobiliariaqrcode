@@ -1,24 +1,34 @@
 "use client";
 
+import { useDraggableBubble } from "./useDraggableBubble";
+
 type ChatBubbleProps = {
-  onClick: () => void;
+  onOpen: () => void;
   unread?: boolean;
 };
 
-export function ChatBubble({ onClick, unread }: ChatBubbleProps) {
+export function ChatBubble({ onOpen, unread }: ChatBubbleProps) {
+  const drag = useDraggableBubble({ onTap: onOpen });
+
+  if (!drag.position || !drag.style) return null;
+
   return (
     <button
       type="button"
-      onClick={onClick}
       data-testid="chat-floating-bubble"
-      aria-label="Abrir Fale Conosco"
-      className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+      aria-label="Abrir Fale Conosco. Arraste para reposicionar."
+      className="fixed z-50 flex items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+      style={drag.style}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerCancel}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="currentColor"
-        className="h-6 w-6"
+        className="h-6 w-6 pointer-events-none"
         aria-hidden="true"
       >
         <path
@@ -28,7 +38,7 @@ export function ChatBubble({ onClick, unread }: ChatBubbleProps) {
         />
       </svg>
       {unread ? (
-        <span className="absolute right-1 top-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
+        <span className="pointer-events-none absolute right-1 top-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
       ) : null}
     </button>
   );

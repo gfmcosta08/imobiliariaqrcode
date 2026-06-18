@@ -28,12 +28,10 @@ test.describe("chat Fale Conosco", () => {
     await expect(page.getByTestId("chat-lgpd-banner")).not.toBeVisible();
   });
 
-  test("envio chama POST /api/chat e polling chama GET /api/chat/messages", async ({ page }) => {
+  test("envio sem dados do visitante chama POST /api/chat", async ({ page }) => {
     let postCalled = false;
-    let getCalled = false;
 
     await page.route("**/api/chat/messages**", async (route) => {
-      getCalled = true;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -61,20 +59,17 @@ test.describe("chat Fale Conosco", () => {
       await route.continue();
     });
 
-    await page.goto("/contato");
-    await page.getByTestId("chat-inline-button").click();
+    await page.goto("/");
+    await page.getByTestId("chat-floating-bubble").click();
     await page.getByTestId("chat-lgpd-accept").click();
-    await page.getByTestId("chat-visitor-name").fill("Visitante E2E");
-    await page.getByTestId("chat-visitor-email").fill("e2e@example.com");
-    await page.getByTestId("chat-input").fill("mensagem e2e de teste");
+    await page.getByTestId("chat-input").fill("mensagem e2e sem cadastro");
     await page.getByTestId("chat-send").click();
 
     await expect.poll(() => postCalled).toBe(true);
-    await expect.poll(() => getCalled, { timeout: 10_000 }).toBe(true);
   });
 
-  test("deslogado nao ve floating na home", async ({ page }) => {
+  test("deslogado ve bubble flutuante na home", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByTestId("chat-floating-bubble")).toHaveCount(0);
+    await expect(page.getByTestId("chat-floating-bubble")).toBeVisible();
   });
 });

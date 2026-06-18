@@ -6,19 +6,28 @@ import { describe, expect, it } from "vitest";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const gateSource = readFileSync(resolve(dir, "ChatWidgetGate.tsx"), "utf8");
+const bubbleSource = readFileSync(resolve(dir, "ChatBubble.tsx"), "utf8");
 const pageSource = readFileSync(resolve(dir, "../../app/page.tsx"), "utf8");
 
 describe("ChatWidgetGate", () => {
-  it("renderiza floating apenas para logados e exclui admin/checkout payment", () => {
+  it("renderiza floating para visitantes e logados, excluindo admin/checkout apenas deslogado", () => {
     expect(gateSource).toContain('variant="floating"');
-    expect(gateSource).toContain("!isLoggedIn");
-    expect(gateSource).toContain('pathname.startsWith("/admin")');
-    expect(gateSource).toContain('pathname.startsWith("/checkout/payment")');
+    expect(gateSource).not.toContain("!isLoggedIn");
+    expect(gateSource).toContain("isExcludedRoute(pathname, isLoggedIn)");
+    expect(gateSource).toContain("if (isLoggedIn) return false");
   });
 
   it("falha silenciosamente sem env Supabase", () => {
     expect(gateSource).toContain("NEXT_PUBLIC_SUPABASE_URL");
     expect(gateSource).toContain("catch");
+  });
+});
+
+describe("ChatBubble draggable", () => {
+  it("usa arraste com pointer events e posicao fixa", () => {
+    expect(bubbleSource).toContain("useDraggableBubble");
+    expect(bubbleSource).toContain("onPointerDown");
+    expect(bubbleSource).toContain("Arraste para reposicionar");
   });
 });
 

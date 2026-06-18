@@ -81,6 +81,18 @@ describe("validateChatPostBody", () => {
     expect(validateChatPostBody({ session_id: "bad", content: "x" }).ok).toBe(false);
     expect(validateChatPostBody({ session_id: SAMPLE_UUID, content: "   " }).ok).toBe(false);
   });
+
+  it("aceita telefone opcional valido", () => {
+    const result = validateChatPostBody({
+      session_id: SAMPLE_UUID,
+      content: "Oi",
+      visitor_phone: "11999998888",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.body.visitor_phone).toBe("5511999998888");
+    }
+  });
 });
 
 describe("validateMessagesQuery", () => {

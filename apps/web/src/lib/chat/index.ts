@@ -1,3 +1,4 @@
+export * from "./bubble-position";
 export * from "./kind";
 export * from "./messages";
 export * from "./polling";

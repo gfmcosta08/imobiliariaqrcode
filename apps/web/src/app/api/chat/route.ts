@@ -11,6 +11,7 @@ const ALLOWED_KEYS = [
   "kind",
   "visitor_name",
   "visitor_email",
+  "visitor_phone",
   "page_url",
 ] as const;
 
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
 
   const metadata: Record<string, unknown> = {};
   if (body.page_url) metadata.page_url = body.page_url;
+  if (body.visitor_phone) metadata.visitor_phone = body.visitor_phone;
   metadata.user_agent = request.headers.get("user-agent")?.slice(0, 256) ?? null;
 
   const insertRow = {

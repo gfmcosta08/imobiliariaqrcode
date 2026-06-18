@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 
 import { FaleConoscoWidget } from "./FaleConoscoWidget";
 
-function isExcludedRoute(pathname: string): boolean {
+function isExcludedRoute(pathname: string, isLoggedIn: boolean): boolean {
+  if (isLoggedIn) return false;
   return pathname.startsWith("/admin") || pathname.startsWith("/checkout/payment");
 }
 
@@ -44,7 +45,7 @@ export function ChatWidgetGate() {
     }
   }, []);
 
-  if (!ready || !isLoggedIn || isExcludedRoute(pathname)) {
+  if (!ready || isExcludedRoute(pathname, isLoggedIn)) {
     return null;
   }
 
