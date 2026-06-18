@@ -410,8 +410,7 @@ export default async function Home({ searchParams }: PageProps) {
           <FooterColumn
             title="Suporte"
             links={[
-              ["Central de ajuda", "/login"],
-              ["Contato", "/login"],
+              ["Contato", "/contato"],
             ]}
           />
           <FooterColumn

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
+
+import { ChatWidgetGate } from "@/components/chat";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +36,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} antialiased`}
       >
         {children}
+        <ChatWidgetGate />
       </body>
     </html>
   );
