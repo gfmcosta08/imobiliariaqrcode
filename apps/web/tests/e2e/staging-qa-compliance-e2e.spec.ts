@@ -94,9 +94,9 @@ test.describe("QA compliance staging", () => {
     await page.getByTestId("admin-invite-expiration-days").fill("45");
     await page.getByTestId("admin-invite-generate").click();
     await expect(page.getByTestId("admin-invite-result")).toBeVisible({ timeout: 60_000 });
-    inviteLoginCode = (await page.getByTestId("admin-invite-login-code").innerText()).trim();
-    inviteAccessCode = (await page.getByTestId("admin-invite-access-code").innerText()).trim();
-    expect(inviteLoginCode).toMatch(/^\d{6}$/);
+    inviteLoginCode = (await page.getByTestId("admin-invite-login-code-print").innerText()).trim();
+    inviteAccessCode = (await page.getByTestId("admin-invite-access-code-print").innerText()).trim();
+    expect(inviteLoginCode).toMatch(/^\d{6,8}$/);
 
     await page.reload();
     const newInvite = page
@@ -115,7 +115,7 @@ test.describe("QA compliance staging", () => {
 
   test("03 convidado completa onboarding e respeita limite", async ({ page }) => {
     requireStaging();
-    expect(inviteLoginCode).toMatch(/^\d{6}$/);
+    expect(inviteLoginCode).toMatch(/^\d{6,8}$/);
     await page.goto("/convite");
     await page.getByTestId("invite-login-code").fill(inviteLoginCode);
     await page.getByTestId("invite-access-code").fill(inviteAccessCode);

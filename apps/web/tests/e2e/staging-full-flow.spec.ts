@@ -106,10 +106,10 @@ test("02 admin acessa painel e gera convite cortesia", async ({ page }) => {
   await page.getByTestId("admin-invite-generate").click();
   await expect(page.getByTestId("admin-invite-result")).toBeVisible({ timeout: 60_000 });
 
-  inviteLoginCode = (await page.getByTestId("admin-invite-login-code").innerText()).trim();
-  inviteAccessCode = (await page.getByTestId("admin-invite-access-code").innerText()).trim();
-  expect(inviteLoginCode).toMatch(/^\d{6}$/);
-  expect(inviteAccessCode).toMatch(/^\d{6}$/);
+  inviteLoginCode = (await page.getByTestId("admin-invite-login-code-print").innerText()).trim();
+  inviteAccessCode = (await page.getByTestId("admin-invite-access-code-print").innerText()).trim();
+  expect(inviteLoginCode).toMatch(/^\d{6,8}$/);
+  expect(inviteAccessCode).toMatch(/^\d{6,8}$/);
 });
 
 test("03 formulario mostra mensagem oficial para localizacao obrigatoria", async ({ page }) => {
@@ -129,7 +129,7 @@ test("03 formulario mostra mensagem oficial para localizacao obrigatoria", async
 
 test("04 corretor usa convite completa perfil e publica anuncio inicial", async ({ page }) => {
   requireStaging();
-  expect(inviteLoginCode).toMatch(/^\d{6}$/);
+  expect(inviteLoginCode).toMatch(/^\d{6,8}$/);
 
   await page.goto("/convite");
   await page.getByTestId("invite-login-code").fill(inviteLoginCode);

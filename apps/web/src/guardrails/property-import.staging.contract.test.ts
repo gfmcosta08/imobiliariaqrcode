@@ -45,6 +45,18 @@ describe("Property import staging guardrails", () => {
     expect(importRoute).toContain("validateImportUrl");
   });
 
+  it("autentica antes de exigir PROPERTY_EXTRACTOR_URL", () => {
+    const importRoute = read(
+      path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
+    );
+    const authIndex = importRoute.indexOf("auth.getUser()");
+    const extractorCheckIndex = importRoute.indexOf("if (!getPropertyExtractorBaseUrl())");
+    expect(authIndex).toBeGreaterThan(-1);
+    expect(extractorCheckIndex).toBeGreaterThan(-1);
+    expect(authIndex).toBeLessThan(extractorCheckIndex);
+    expect(importRoute).toContain('return json(401, { ok: false, error: "unauthorized" })');
+  });
+
   it("missing_url retorna detail granular para diagnóstico", () => {
     const importRoute = read(
       path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
