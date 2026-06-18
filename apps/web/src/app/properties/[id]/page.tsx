@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { resolveCurrentAccountContext } from "@/lib/account-context";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { AppHeader } from "@/components/app-header";
 
@@ -19,6 +19,8 @@ type PageProps = {
   searchParams?: Promise<{ mediaError?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 function statusLabel(status: string | null | undefined): string {
   if (status === "draft") return "Rascunho";
   if (status === "published") return "Disponivel";
@@ -33,7 +35,11 @@ export default async function PropertyDetailPage(props: PageProps) {
   const { id } = await props.params;
   const query = props.searchParams ? await props.searchParams : undefined;
   const mediaError = query?.mediaError ? decodeURIComponent(query.mediaError) : null;
-  const supabase = await createClient();
+  const ctx = await resolveCurrentAccountContext();
+  if (ctx.error === "unauthenticated") redirect("/login");
+  if (ctx.error || !ctx.accountId) notFound();
+
+  const supabase = ctx.supabase;
   const serviceRole = createServiceRoleClient();
 
   const { data: property, error } = await supabase
@@ -42,6 +48,7 @@ export default async function PropertyDetailPage(props: PageProps) {
       "id, public_id, created_at, updated_at, title, internal_code, property_type, property_subtype, purpose, listing_status, city, state, neighborhood, postal_code, full_address, street_number, address_complement, location_map_url, latitude, longitude, description, full_description, highlights, broker_notes, sale_price, rent_price, condo_fee, iptu_amount, other_fees, accepts_financing, accepts_trade, total_area_m2, built_area_m2, land_area_m2, bedrooms, suites, bathrooms, parking_spaces, living_rooms, floors_count, unit_floor, is_furnished, furnishing_status, floor_type, sun_position, property_age_years, owner_name, owner_phone, owner_email, listing_broker_name, listing_broker_phone, listing_broker_email, features, infrastructure, security_items, key_available, is_occupied, documentation, technical_details, construction_type, finish_standard, registry_number, documentation_status, has_deed, has_registration, nearby_points, distance_to_center_km, city_region, origin_plan_code, expires_at, printed_at",
     )
     .eq("id", id)
+    .eq("account_id", ctx.accountId)
     .maybeSingle();
 
   if (error || !property) notFound();
@@ -244,7 +251,7 @@ export default async function PropertyDetailPage(props: PageProps) {
           </p>
         )}
 
-        <PropertySimilarSection propertyId={property.id} />
+        <PropertySimilarSection propertyId={property.id} accountId={ctx.accountId} />
       </main>
     </div>
   );

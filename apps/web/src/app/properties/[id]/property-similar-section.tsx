@@ -13,10 +13,24 @@ function formatPrice(value: number | null): string | null {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-export async function PropertySimilarSection({ propertyId }: { propertyId: string }) {
+export async function PropertySimilarSection({
+  propertyId,
+  accountId,
+}: {
+  propertyId: string;
+  accountId: string;
+}) {
   let items: SimilarPropertyCard[] = [];
   try {
     const sb = createServiceRoleClient();
+    const { data: owned } = await sb
+      .from("properties")
+      .select("id")
+      .eq("id", propertyId)
+      .eq("account_id", accountId)
+      .maybeSingle();
+    if (!owned) return null;
+
     items = await loadSimilarPropertyCards(sb, propertyId, 5);
   } catch {
     return null;

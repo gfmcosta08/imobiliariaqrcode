@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { buildPropertyPayload, validateLocationMapUrl } from "@/lib/property-form";
+import { assertOwnedPropertyAccess } from "@/lib/property-access";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 
@@ -178,15 +179,28 @@ export async function updatePropertyDetails(
     return { error: "Imóvel inválido." };
   }
 
-  const supabase = await createClient();
   const payload = buildPropertyPayload(formData);
   const locationError = validateLocationMapUrl(payload.listing_status, payload.location_map_url);
   if (locationError) {
     return { error: locationError };
   }
-  const { error } = await supabase.from("properties").update(payload).eq("id", propertyId);
+
+  const access = await assertOwnedPropertyAccess(propertyId);
+  if (access.error || !access.accountId) {
+    return { error: access.error ?? "Imovel nao encontrado." };
+  }
+
+  const { data, error } = await access.supabase
+    .from("properties")
+    .update(payload)
+    .eq("id", propertyId)
+    .eq("account_id", access.accountId)
+    .select("id");
   if (error) {
     return { error: error.message };
+  }
+  if (!data?.length) {
+    return { error: "Imovel nao encontrado." };
   }
 
   revalidatePath("/properties");
@@ -195,12 +209,17 @@ export async function updatePropertyDetails(
 }
 
 export async function updatePropertyStatus(propertyId: string, listing_status: string) {
-  const supabase = await createClient();
+  const access = await assertOwnedPropertyAccess(propertyId);
+  if (access.error || !access.accountId) {
+    return { error: access.error ?? "Imovel nao encontrado." };
+  }
+
   if (listing_status === "published" || listing_status === "printed") {
-    const { data: property, error: propertyError } = await supabase
+    const { data: property, error: propertyError } = await access.supabase
       .from("properties")
       .select("location_map_url")
       .eq("id", propertyId)
+      .eq("account_id", access.accountId)
       .maybeSingle();
     if (propertyError) {
       return { error: propertyError.message };
@@ -215,12 +234,17 @@ export async function updatePropertyStatus(propertyId: string, listing_status: s
     }
   }
 
-  const { error } = await supabase
+  const { data, error } = await access.supabase
     .from("properties")
     .update({ listing_status })
-    .eq("id", propertyId);
+    .eq("id", propertyId)
+    .eq("account_id", access.accountId)
+    .select("id");
   if (error) {
     return { error: error.message };
+  }
+  if (!data?.length) {
+    return { error: "Imovel nao encontrado." };
   }
   revalidatePath("/properties");
   revalidatePath(`/properties/${propertyId}`);
@@ -276,8 +300,12 @@ export async function markPropertyAsSold(params: {
   }
 
   const sold_notes = String(params.soldNotes ?? "").trim() || null;
-  const supabase = await createClient();
-  const { error } = await supabase
+  const access = await assertOwnedPropertyAccess(params.propertyId);
+  if (access.error || !access.accountId) {
+    return { error: access.error ?? "Imovel nao encontrado." };
+  }
+
+  const { data, error } = await access.supabase
     .from("properties")
     .update({
       listing_status: "removed",
@@ -286,10 +314,15 @@ export async function markPropertyAsSold(params: {
       sold_confirmed_at: new Date().toISOString(),
       sold_notes,
     })
-    .eq("id", params.propertyId);
+    .eq("id", params.propertyId)
+    .eq("account_id", access.accountId)
+    .select("id");
 
   if (error) {
     return { error: error.message };
+  }
+  if (!data?.length) {
+    return { error: "Imovel nao encontrado." };
   }
 
   revalidatePath("/properties");
