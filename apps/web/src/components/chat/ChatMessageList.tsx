@@ -20,7 +20,11 @@ function formatTime(iso: string): string {
   }
 }
 
-export function ChatMessageList({ messages, isTyping, awaitingReply = false }: ChatMessageListProps) {
+export function ChatMessageList({
+  messages,
+  isTyping,
+  awaitingReply = false,
+}: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -30,7 +34,8 @@ export function ChatMessageList({ messages, isTyping, awaitingReply = false }: C
     if (!container) return;
 
     const onScroll = () => {
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
       shouldStickToBottomRef.current = distanceFromBottom < 80;
     };
 

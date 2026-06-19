@@ -9,12 +9,12 @@ export type BubblePosition = {
   y: number;
 };
 
-export function getDefaultBubblePosition(viewportWidth: number, viewportHeight: number): BubblePosition {
+export function getDefaultBubblePosition(
+  viewportWidth: number,
+  viewportHeight: number,
+): BubblePosition {
   return {
-    x: Math.max(
-      CHAT_BUBBLE_MARGIN_PX,
-      viewportWidth - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX,
-    ),
+    x: Math.max(CHAT_BUBBLE_MARGIN_PX, viewportWidth - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX),
     y: Math.max(
       CHAT_BUBBLE_MARGIN_PX,
       viewportHeight - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX,
@@ -27,18 +27,21 @@ export function clampBubblePosition(
   viewportWidth: number,
   viewportHeight: number,
 ): BubblePosition {
-  const maxX = Math.max(CHAT_BUBBLE_MARGIN_PX, viewportWidth - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX);
-  const maxY = Math.max(CHAT_BUBBLE_MARGIN_PX, viewportHeight - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX);
+  const maxX = Math.max(
+    CHAT_BUBBLE_MARGIN_PX,
+    viewportWidth - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX,
+  );
+  const maxY = Math.max(
+    CHAT_BUBBLE_MARGIN_PX,
+    viewportHeight - CHAT_BUBBLE_SIZE_PX - CHAT_BUBBLE_MARGIN_PX,
+  );
   return {
     x: Math.min(Math.max(CHAT_BUBBLE_MARGIN_PX, position.x), maxX),
     y: Math.min(Math.max(CHAT_BUBBLE_MARGIN_PX, position.y), maxY),
   };
 }
 
-export function loadBubblePosition(
-  viewportWidth: number,
-  viewportHeight: number,
-): BubblePosition {
+export function loadBubblePosition(viewportWidth: number, viewportHeight: number): BubblePosition {
   if (typeof window === "undefined") {
     return getDefaultBubblePosition(viewportWidth, viewportHeight);
   }

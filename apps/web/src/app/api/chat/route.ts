@@ -59,11 +59,7 @@ export async function POST(request: Request) {
       .from("chat_messages")
       .select("id")
       .eq("session_id", body.session_id)
-      .filter(
-        `metadata->>${CHAT_CLIENT_MESSAGE_ID_METADATA_KEY}`,
-        "eq",
-        body.client_message_id,
-      )
+      .filter(`metadata->>${CHAT_CLIENT_MESSAGE_ID_METADATA_KEY}`, "eq", body.client_message_id)
       .maybeSingle();
 
     if (lookupError) {

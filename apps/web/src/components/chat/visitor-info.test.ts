@@ -19,23 +19,19 @@ describe("validateOptionalVisitorInfo", () => {
   });
 
   it("rejeita telefone invalido quando preenchido", () => {
-    expect(
-      validateOptionalVisitorInfo({ name: "", email: "", phone: "123" }),
-    ).toContain("Telefone");
+    expect(validateOptionalVisitorInfo({ name: "", email: "", phone: "123" })).toContain(
+      "Telefone",
+    );
   });
 
   it("aceita telefone brasileiro valido", () => {
-    expect(
-      validateOptionalVisitorInfo({ name: "", email: "", phone: "11999998888" }),
-    ).toBeNull();
+    expect(validateOptionalVisitorInfo({ name: "", email: "", phone: "11999998888" })).toBeNull();
   });
 });
 
 describe("visitor form modes", () => {
   it("inicia compacto quando ja ha dados salvos", () => {
-    expect(
-      initialVisitorFormMode({ name: "Ana", email: "a@b.com", phone: "" }),
-    ).toBe("bar");
+    expect(initialVisitorFormMode({ name: "Ana", email: "a@b.com", phone: "" })).toBe("bar");
   });
 
   it("inicia oculto quando nao ha dados", () => {
@@ -43,9 +39,9 @@ describe("visitor form modes", () => {
   });
 
   it("monta resumo compacto", () => {
-    expect(
-      formatVisitorSummary({ name: "Ana", email: "a@b.com", phone: "11999998888" }),
-    ).toContain("Ana");
+    expect(formatVisitorSummary({ name: "Ana", email: "a@b.com", phone: "11999998888" })).toContain(
+      "Ana",
+    );
     expect(hasVisitorInfo({ name: "", email: "", phone: "" })).toBe(false);
   });
 });

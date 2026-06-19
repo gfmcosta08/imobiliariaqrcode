@@ -29,7 +29,10 @@ export function ChatVisitorForm({
 }: ChatVisitorFormProps) {
   if (mode === "hidden") {
     return (
-      <div className="border-b border-gray-200 bg-white px-4 py-2" data-testid="chat-visitor-hidden">
+      <div
+        className="border-b border-gray-200 bg-white px-4 py-2"
+        data-testid="chat-visitor-hidden"
+      >
         <button
           type="button"
           onClick={onExpand}

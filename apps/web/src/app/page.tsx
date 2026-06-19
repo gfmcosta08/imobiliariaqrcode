@@ -407,12 +407,7 @@ export default async function Home({ searchParams }: PageProps) {
               ["Planos e precos", "/plans"],
             ]}
           />
-          <FooterColumn
-            title="Suporte"
-            links={[
-              ["Contato", "/contato"],
-            ]}
-          />
+          <FooterColumn title="Suporte" links={[["Contato", "/contato"]]} />
           <FooterColumn
             title="Acesso"
             links={[

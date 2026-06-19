@@ -43,7 +43,8 @@ export function validateChatPostBody(raw: Record<string, unknown>): ValidatePost
 
   const visitor_name = clampString(raw.visitor_name, { maxLength: 120, trim: true }) || undefined;
   const visitor_email = clampString(raw.visitor_email, { maxLength: 254, trim: true }) || undefined;
-  const visitor_phone_raw = clampString(raw.visitor_phone, { maxLength: 32, trim: true }) || undefined;
+  const visitor_phone_raw =
+    clampString(raw.visitor_phone, { maxLength: 32, trim: true }) || undefined;
   const page_url = clampString(raw.page_url, { maxLength: 2048, trim: true }) || undefined;
 
   if (visitor_email && !isValidEmail(visitor_email)) {
