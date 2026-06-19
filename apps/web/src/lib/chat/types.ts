@@ -22,11 +22,14 @@ export type ChatPostBody = {
   session_id: string;
   content: string;
   kind?: ChatKind;
+  client_message_id?: string;
   visitor_name?: string;
   visitor_email?: string;
   visitor_phone?: string;
   page_url?: string;
 };
+
+export const CHAT_CLIENT_MESSAGE_ID_METADATA_KEY = "client_message_id";
 
 export const FALE_CONOSCO_SESSION_KEY = "fale_conosco_session_id";
 export const FALE_CONOSCO_ACCEPTED_KEY = "fale_conosco_accepted";

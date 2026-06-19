@@ -6,8 +6,10 @@ import {
   dedupeMessagesById,
   hasPendingVisitorReply,
   isWithinTypingWindow,
+  mergeChatMessages,
   resolveChatReplyState,
 } from "./messages";
+import { CHAT_CLIENT_MESSAGE_ID_METADATA_KEY } from "./types";
 import { CHAT_TYPING_WINDOW_MS } from "./types";
 import { getChatPollIntervalMs, scheduleNextPoll } from "./polling";
 import { sanitizeChatContent } from "./sanitize";
@@ -93,6 +95,27 @@ describe("validateChatPostBody", () => {
       expect(result.body.visitor_phone).toBe("5511999998888");
     }
   });
+
+  it("rejeita client_message_id invalido", () => {
+    const result = validateChatPostBody({
+      session_id: SAMPLE_UUID,
+      content: "oi",
+      client_message_id: "not-uuid",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("invalid_client_message_id");
+  });
+
+  it("aceita client_message_id UUID valido", () => {
+    const clientId = "880e8400-e29b-41d4-a716-446655440003";
+    const result = validateChatPostBody({
+      session_id: SAMPLE_UUID,
+      content: "oi",
+      client_message_id: clientId,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.body.client_message_id).toBe(clientId);
+  });
 });
 
 describe("validateMessagesQuery", () => {
@@ -119,6 +142,35 @@ describe("dedupeMessagesById", () => {
     const dup = makeMessage({ id: "a", content: "dup" });
     expect(dedupeMessagesById([a, b, dup])).toHaveLength(2);
     expect(dedupeMessagesById([a, b, dup])[0]?.id).toBe("a");
+  });
+});
+
+describe("mergeChatMessages", () => {
+  it("remove placeholder otimista quando servidor confirma client_message_id", () => {
+    const clientId = "880e8400-e29b-41d4-a716-446655440003";
+    const serverId = "990e8400-e29b-41d4-a716-446655440004";
+    const optimistic = makeMessage({
+      id: clientId,
+      content: "como funciona?",
+      metadata: { [CHAT_CLIENT_MESSAGE_ID_METADATA_KEY]: clientId },
+    });
+    const confirmed = makeMessage({
+      id: serverId,
+      content: "como funciona?",
+      metadata: { [CHAT_CLIENT_MESSAGE_ID_METADATA_KEY]: clientId },
+    });
+
+    const merged = mergeChatMessages([optimistic], [confirmed]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.id).toBe(serverId);
+  });
+
+  it("deduplica por id quando polling repete a mesma mensagem", () => {
+    const serverId = "990e8400-e29b-41d4-a716-446655440004";
+    const confirmed = makeMessage({ id: serverId, content: "ok" });
+    const merged = mergeChatMessages([confirmed], [confirmed]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.id).toBe(serverId);
   });
 });
 

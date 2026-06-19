@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { CHAT_CLIENT_MESSAGE_ID_METADATA_KEY } from "@/lib/chat/types";
 import { validateChatPostBody } from "@/lib/chat/validate";
 import { parseJsonObjectWithLimit, rejectUnknownKeys } from "@/lib/security/json-body";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ const ALLOWED_KEYS = [
   "session_id",
   "content",
   "kind",
+  "client_message_id",
   "visitor_name",
   "visitor_email",
   "visitor_phone",
@@ -52,9 +54,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "server_config" }, { status: 500 });
   }
 
+  if (body.client_message_id) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("chat_messages")
+      .select("id")
+      .eq("session_id", body.session_id)
+      .filter(
+        `metadata->>${CHAT_CLIENT_MESSAGE_ID_METADATA_KEY}`,
+        "eq",
+        body.client_message_id,
+      )
+      .maybeSingle();
+
+    if (lookupError) {
+      return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
+    }
+
+    if (existing?.id) {
+      return NextResponse.json({
+        ok: true,
+        id: existing.id,
+        kind_detected: kindDetected,
+        deduplicated: true,
+      });
+    }
+  }
+
   const metadata: Record<string, unknown> = {};
   if (body.page_url) metadata.page_url = body.page_url;
   if (body.visitor_phone) metadata.visitor_phone = body.visitor_phone;
+  if (body.client_message_id) {
+    metadata[CHAT_CLIENT_MESSAGE_ID_METADATA_KEY] = body.client_message_id;
+  }
   metadata.user_agent = request.headers.get("user-agent")?.slice(0, 256) ?? null;
 
   const insertRow = {

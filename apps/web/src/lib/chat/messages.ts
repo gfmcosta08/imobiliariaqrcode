@@ -1,5 +1,10 @@
-import { CHAT_TYPING_WINDOW_MS } from "./types";
+import { CHAT_CLIENT_MESSAGE_ID_METADATA_KEY, CHAT_TYPING_WINDOW_MS } from "./types";
 import type { ChatMessage } from "./types";
+
+function readClientMessageId(message: ChatMessage): string | null {
+  const value = message.metadata?.[CHAT_CLIENT_MESSAGE_ID_METADATA_KEY];
+  return typeof value === "string" ? value : null;
+}
 
 export type ChatReplyState = {
   isTyping: boolean;
@@ -16,6 +21,23 @@ export function dedupeMessagesById(messages: ChatMessage[]): ChatMessage[] {
     result.push(message);
   }
   return result;
+}
+
+/**
+ * Mescla mensagens locais com as do servidor, removendo placeholders otimistas
+ * quando o servidor confirma o mesmo client_message_id.
+ */
+export function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+  if (incoming.length === 0) return dedupeMessagesById(existing);
+
+  const supersededClientIds = new Set<string>();
+  for (const message of incoming) {
+    const clientId = readClientMessageId(message);
+    if (clientId) supersededClientIds.add(clientId);
+  }
+
+  const filtered = existing.filter((message) => !supersededClientIds.has(message.id));
+  return dedupeMessagesById([...filtered, ...incoming]);
 }
 
 /** Retorna ISO8601 da última created_at para uso como parâmetro since. */

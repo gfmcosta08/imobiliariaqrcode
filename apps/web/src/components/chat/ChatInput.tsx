@@ -1,8 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CHAT_CONTENT_MAX_LENGTH } from "@/lib/chat";
+
+const SEND_LOGO_SRC = "/chat/imoveisqr-logo-send.png";
 
 type ChatInputProps = {
   disabled: boolean;
@@ -14,17 +17,16 @@ type ChatInputProps = {
 const MAX_LINES = 5;
 const LINE_HEIGHT_PX = 24;
 
-function SendIcon() {
+function SendLogo({ muted }: { muted: boolean }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="h-4 w-4"
+    <Image
+      src={SEND_LOGO_SRC}
+      alt=""
+      width={22}
+      height={22}
       aria-hidden="true"
-    >
-      <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 2.25 2.25 0 001.871-.502l15.06-15.06a.75.75 0 00-.502-1.25l-15.06 15.06a2.25 2.25 0 00-.502-1.871z" />
-    </svg>
+      className={`h-[22px] w-[22px] object-contain ${muted ? "opacity-50" : ""}`}
+    />
   );
 }
 
@@ -116,9 +118,9 @@ export function ChatInput({ disabled, isSending, onSend, autoFocus }: ChatInputP
           disabled={!canSend}
           data-testid="chat-send"
           aria-label={isSending ? "Enviando mensagem" : "Enviar mensagem"}
-          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black p-1 text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
         >
-          {isSending ? <SendingSpinner /> : <SendIcon />}
+          {isSending ? <SendingSpinner /> : <SendLogo muted={!canSend} />}
         </button>
       </div>
       <p className="mt-1 text-right text-[10px] text-gray-400" aria-live="off">

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  CHAT_CLIENT_MESSAGE_ID_METADATA_KEY,
   computeSinceFromMessages,
-  dedupeMessagesById,
+  mergeChatMessages,
   FALE_CONOSCO_ACCEPTED_KEY,
   FALE_CONOSCO_SESSION_KEY,
   hasPendingVisitorReply,
@@ -74,6 +75,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
+  const sendInFlightRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -149,7 +151,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
       if (!res.ok) return;
       const data = (await res.json()) as { messages?: ChatMessage[] };
       if (Array.isArray(data.messages) && data.messages.length > 0) {
-        setMessages((prev) => dedupeMessagesById([...prev, ...data.messages!]));
+        setMessages((prev) => mergeChatMessages(prev, data.messages!));
       }
     } catch {
       // Falha silenciosa no polling.
@@ -195,7 +197,7 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!lgpdAccepted) return false;
+      if (!lgpdAccepted || sendInFlightRef.current) return false;
 
       if (!isLoggedIn) {
         const validationError = validateOptionalVisitorInfo(visitorInfo);
@@ -208,12 +210,20 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
       const sid = ensureSessionId();
       if (!sid) return false;
 
+      sendInFlightRef.current = true;
       setIsSending(true);
       setSendError(null);
 
-      const tempId = crypto.randomUUID();
+      const clientMessageId = crypto.randomUUID();
+      const optimisticMetadata: Record<string, unknown> = {
+        [CHAT_CLIENT_MESSAGE_ID_METADATA_KEY]: clientMessageId,
+      };
+      if (!isLoggedIn && visitorInfo.phone.trim()) {
+        optimisticMetadata.visitor_phone = normalizeBrazilPhone(visitorInfo.phone.trim());
+      }
+
       const optimistic: ChatMessage = {
-        id: tempId,
+        id: clientMessageId,
         session_id: sid,
         user_id: null,
         visitor_name: isLoggedIn ? null : visitorInfo.name.trim() || null,
@@ -223,17 +233,14 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
         content,
         is_read_by_costa: false,
         created_at: new Date().toISOString(),
-        metadata: isLoggedIn
-          ? null
-          : visitorInfo.phone.trim()
-            ? { visitor_phone: normalizeBrazilPhone(visitorInfo.phone.trim()) }
-            : null,
+        metadata: optimisticMetadata,
       };
-      setMessages((prev) => dedupeMessagesById([...prev, optimistic]));
+      setMessages((prev) => mergeChatMessages(prev, [optimistic]));
 
       const body: Record<string, string> = {
         session_id: sid,
         content,
+        client_message_id: clientMessageId,
         page_url: typeof window !== "undefined" ? window.location.href : "",
       };
 
@@ -253,29 +260,32 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
           body: JSON.stringify(body),
         });
         const data = (await res.json()) as { ok?: boolean; error?: string; id?: string };
-        if (!res.ok || !data.ok) {
-          setMessages((prev) => prev.filter((message) => message.id !== tempId));
+        if (!res.ok || !data.ok || !data.id) {
+          setMessages((prev) => prev.filter((message) => message.id !== clientMessageId));
           setSendError("Nao foi possivel enviar. Tente novamente.");
           return false;
         }
 
-        if (data.id && data.id !== tempId) {
-          setMessages((prev) =>
-            prev.map((message) => (message.id === tempId ? { ...message, id: data.id! } : message)),
-          );
-        }
+        setMessages((prev) => {
+          const withoutPlaceholder = prev.filter((message) => message.id !== clientMessageId);
+          const confirmed: ChatMessage = {
+            ...optimistic,
+            id: data.id!,
+          };
+          return mergeChatMessages(withoutPlaceholder, [confirmed]);
+        });
 
-        void fetchMessages();
         return true;
       } catch {
-        setMessages((prev) => prev.filter((message) => message.id !== tempId));
+        setMessages((prev) => prev.filter((message) => message.id !== clientMessageId));
         setSendError("Nao foi possivel enviar. Tente novamente.");
         return false;
       } finally {
+        sendInFlightRef.current = false;
         setIsSending(false);
       }
     },
-    [ensureSessionId, fetchMessages, isLoggedIn, lgpdAccepted, visitorInfo],
+    [ensureSessionId, isLoggedIn, lgpdAccepted, visitorInfo],
   );
 
   const clearConversation = useCallback(() => {

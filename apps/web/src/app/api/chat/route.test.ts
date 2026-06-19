@@ -2,10 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SAMPLE_UUID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "660e8400-e29b-41d4-a716-446655440001";
+const CLIENT_MESSAGE_ID = "770e8400-e29b-41d4-a716-446655440002";
 
 const mockGetUser = vi.fn();
 const mockInsert = vi.fn();
 const mockSingle = vi.fn();
+const mockMaybeSingle = vi.fn();
+const mockFilter = vi.fn();
+const mockEq = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -20,13 +24,20 @@ vi.mock("@/lib/supabase/service-role", () => ({
   })),
 }));
 
+function setupDefaultMocks() {
+  mockGetUser.mockResolvedValue({ data: { user: null } });
+  mockSingle.mockResolvedValue({ data: { id: MESSAGE_ID }, error: null });
+  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+  mockInsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
+  mockFilter.mockReturnValue({ maybeSingle: mockMaybeSingle });
+  mockEq.mockReturnValue({ filter: mockFilter });
+  mockFrom.mockReturnValue({ insert: mockInsert, select: vi.fn().mockReturnValue({ eq: mockEq }) });
+}
+
 describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.resetModules();
-    mockGetUser.mockResolvedValue({ data: { user: null } });
-    mockSingle.mockResolvedValue({ data: { id: MESSAGE_ID }, error: null });
-    mockInsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
-    mockFrom.mockReturnValue({ insert: mockInsert });
+    setupDefaultMocks();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     delete process.env.CONTATO_BRIDGE_URL;
   });
@@ -59,6 +70,24 @@ describe("POST /api/chat", () => {
     expect(json.ok).toBe(true);
     expect(json.id).toBe(MESSAGE_ID);
     expect(json.kind_detected).toBe("duvida");
+  });
+
+  it("retorna mensagem existente quando client_message_id ja foi persistido", async () => {
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: MESSAGE_ID }, error: null });
+    const POST = await loadPost();
+    const res = await POST(
+      makeRequest({
+        session_id: SAMPLE_UUID,
+        content: "oi",
+        client_message_id: CLIENT_MESSAGE_ID,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { ok: boolean; id: string; deduplicated?: boolean };
+    expect(json.ok).toBe(true);
+    expect(json.id).toBe(MESSAGE_ID);
+    expect(json.deduplicated).toBe(true);
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("rejeita JSON invalido", async () => {

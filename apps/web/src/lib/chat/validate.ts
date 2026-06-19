@@ -35,6 +35,12 @@ export function validateChatPostBody(raw: Record<string, unknown>): ValidatePost
   const kindRaw = clampString(raw.kind, { maxLength: 32, trim: true });
   const kindDetected = detectChatKind(content, kindRaw || undefined);
 
+  const client_message_id =
+    clampString(raw.client_message_id, { maxLength: 36, trim: true }) || undefined;
+  if (client_message_id && !isValidUuid(client_message_id)) {
+    return { ok: false, error: "invalid_client_message_id" };
+  }
+
   const visitor_name = clampString(raw.visitor_name, { maxLength: 120, trim: true }) || undefined;
   const visitor_email = clampString(raw.visitor_email, { maxLength: 254, trim: true }) || undefined;
   const visitor_phone_raw = clampString(raw.visitor_phone, { maxLength: 32, trim: true }) || undefined;
@@ -63,6 +69,7 @@ export function validateChatPostBody(raw: Record<string, unknown>): ValidatePost
       session_id,
       content,
       kind: kindDetected,
+      client_message_id,
       visitor_name,
       visitor_email,
       visitor_phone,
