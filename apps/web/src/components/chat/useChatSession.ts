@@ -211,6 +211,26 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
       setIsSending(true);
       setSendError(null);
 
+      const tempId = crypto.randomUUID();
+      const optimistic: ChatMessage = {
+        id: tempId,
+        session_id: sid,
+        user_id: null,
+        visitor_name: isLoggedIn ? null : visitorInfo.name.trim() || null,
+        visitor_email: isLoggedIn ? null : visitorInfo.email.trim() || null,
+        direction: "visitor",
+        kind: "duvida",
+        content,
+        is_read_by_costa: false,
+        created_at: new Date().toISOString(),
+        metadata: isLoggedIn
+          ? null
+          : visitorInfo.phone.trim()
+            ? { visitor_phone: normalizeBrazilPhone(visitorInfo.phone.trim()) }
+            : null,
+      };
+      setMessages((prev) => dedupeMessagesById([...prev, optimistic]));
+
       const body: Record<string, string> = {
         session_id: sid,
         content,
@@ -234,31 +254,21 @@ export function useChatSession({ isLoggedIn, enabled }: UseChatSessionOptions) {
         });
         const data = (await res.json()) as { ok?: boolean; error?: string; id?: string };
         if (!res.ok || !data.ok) {
+          setMessages((prev) => prev.filter((message) => message.id !== tempId));
           setSendError("Nao foi possivel enviar. Tente novamente.");
           return false;
         }
 
-        const optimistic: ChatMessage = {
-          id: data.id ?? crypto.randomUUID(),
-          session_id: sid,
-          user_id: null,
-          visitor_name: isLoggedIn ? null : visitorInfo.name.trim() || null,
-          visitor_email: isLoggedIn ? null : visitorInfo.email.trim() || null,
-          direction: "visitor",
-          kind: "duvida",
-          content,
-          is_read_by_costa: false,
-          created_at: new Date().toISOString(),
-          metadata: isLoggedIn
-            ? null
-            : visitorInfo.phone.trim()
-              ? { visitor_phone: normalizeBrazilPhone(visitorInfo.phone.trim()) }
-              : null,
-        };
-        setMessages((prev) => dedupeMessagesById([...prev, optimistic]));
+        if (data.id && data.id !== tempId) {
+          setMessages((prev) =>
+            prev.map((message) => (message.id === tempId ? { ...message, id: data.id! } : message)),
+          );
+        }
+
         void fetchMessages();
         return true;
       } catch {
+        setMessages((prev) => prev.filter((message) => message.id !== tempId));
         setSendError("Nao foi possivel enviar. Tente novamente.");
         return false;
       } finally {

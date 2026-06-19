@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import type { ChatMessage } from "@/lib/chat";
 
 type ChatMessageListProps = {
@@ -19,9 +21,32 @@ function formatTime(iso: string): string {
 }
 
 export function ChatMessageList({ messages, isTyping, awaitingReply = false }: ChatMessageListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      shouldStickToBottomRef.current = distanceFromBottom < 80;
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!shouldStickToBottomRef.current) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isTyping, awaitingReply]);
+
   return (
     <div
-      className="flex-1 space-y-3 overflow-y-auto px-4 py-3"
+      ref={containerRef}
+      className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto px-4 py-3"
       aria-live="polite"
       aria-relevant="additions"
       data-testid="chat-message-list"
@@ -70,6 +95,8 @@ export function ChatMessageList({ messages, isTyping, awaitingReply = false }: C
           Mensagem recebida. Responderemos em breve — voce pode continuar conversando.
         </p>
       ) : null}
+
+      <div ref={bottomRef} aria-hidden="true" className="h-px shrink-0" />
     </div>
   );
 }

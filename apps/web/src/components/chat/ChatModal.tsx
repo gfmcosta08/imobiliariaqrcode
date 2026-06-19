@@ -56,7 +56,7 @@ export function ChatModal({ open, onClose, isLoggedIn }: ChatModalProps) {
         aria-modal="true"
         aria-labelledby="chat-modal-title"
         data-testid="chat-modal"
-        className="relative flex h-full w-full flex-col bg-white shadow-xl sm:h-[600px] sm:max-h-[90vh] sm:w-[380px] sm:max-w-[calc(100vw-2rem)]"
+        className="relative flex h-full min-h-0 w-full flex-col bg-white shadow-xl sm:h-[600px] sm:max-h-[90vh] sm:w-[380px] sm:max-w-[calc(100vw-2rem)]"
       >
         <ChatHeader
           onClose={onClose}
