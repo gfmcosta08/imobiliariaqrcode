@@ -10,6 +10,10 @@ const conversationHandlePath = path.join(
   repoRoot,
   "supabase/functions/conversation-handle/index.ts",
 );
+const conversationMessagesPath = path.join(
+  repoRoot,
+  "supabase/functions/conversation-handle/messages.ts",
+);
 const inboundPath = path.join(repoRoot, "supabase/functions/whatsapp-webhook-inbound/index.ts");
 const dispatchPath = path.join(repoRoot, "supabase/functions/whatsapp-dispatch/index.ts");
 
@@ -18,6 +22,67 @@ function read(filePath: string): string {
 }
 
 describe("WhatsApp guardrails contracts", () => {
+  it("mantem menu unico com as quatro opcoes em todos os pontos de envio", () => {
+    const src = read(conversationHandlePath);
+    const messages = read(conversationMessagesPath);
+
+    expect(messages).toContain('"4 - Finalizar atendimento"');
+    expect(src.match(/text: buildMainMenuText\(firstName\)/g)).toHaveLength(2);
+    expect(src).toContain("responda com 1, 2, 3 ou 4");
+  });
+
+  it("fecha o atendimento pela opcao 4 nos menus principal e pos-semelhantes", () => {
+    const src = read(conversationHandlePath);
+    const mainChoiceBlock = src.match(
+      /if \(session\.state === "awaiting_main_choice"\)[\s\S]*?if \(session\.state === "awaiting_recommendation_choice"\)/,
+    );
+    const postSimilarBlock = src.match(
+      /if \(session\.state === "awaiting_post_similar_choice"\)[\s\S]*?if \(session\.state === "awaiting_visit_property_id"\)/,
+    );
+    const finishBlock = src.match(
+      /async function finishAttendance\([\s\S]*?async function handlePostSimilarPropertyId/,
+    );
+    const classifierBlock = src.match(
+      /function classifyConversationIntent\([\s\S]*?function parseNameFromIntroduction/,
+    );
+
+    expect(classifierBlock?.[0]).toContain("matchChoice4(text)");
+    expect(mainChoiceBlock?.[0]).toContain("if (matchChoice4(text))");
+    expect(mainChoiceBlock?.[0]).toContain("finishAttendance(");
+    expect(postSimilarBlock?.[0]).toContain("if (matchChoice4(text))");
+    expect(postSimilarBlock?.[0]).toContain("finishAttendance(");
+    expect(finishBlock?.[0]).toContain("text: ATTENDANCE_FINISHED_TEXT");
+    expect(finishBlock?.[0]).toContain('state: "closed"');
+  });
+
+  it("permite que um novo QR reabra uma sessao encerrada", () => {
+    const src = read(conversationHandlePath);
+    const qrBlock = src.match(/if \(qrToken\)[\s\S]*?\/\/ fim if \(qrToken\)/)?.[0];
+
+    expect(qrBlock).toBeTruthy();
+    expect(qrBlock).toContain('state: "awaiting_main_choice"');
+    expect(qrBlock).toContain('last_menu: "main_menu"');
+  });
+
+  it("inclui contato do dono do anuncio antes de confirmar a visita", () => {
+    const src = read(conversationHandlePath);
+    const registerVisitBlock = src.match(
+      /async function doRegisterVisit\([\s\S]*?async function finishAttendance/,
+    )?.[0];
+
+    expect(registerVisitBlock).toBeTruthy();
+    expect(registerVisitBlock).toContain("loadBrokerContact(supabase, listingOwnerBrokerId)");
+    expect(registerVisitBlock).toContain(
+      "buildVisitRegisteredText(firstName, listingOwnerContact)",
+    );
+    expect(registerVisitBlock).toContain(
+      'const ownerName = listingOwnerContact.name ?? "Corretor do anuncio"',
+    );
+    expect(registerVisitBlock!.indexOf("listingOwnerContact")).toBeLessThan(
+      registerVisitBlock!.indexOf('kind: "visit_registered"'),
+    );
+  });
+
   it("mantem mapeamento da opcao 2 para semelhantes no menu principal", () => {
     const src = read(conversationHandlePath);
     const mainChoiceBlock = src.match(

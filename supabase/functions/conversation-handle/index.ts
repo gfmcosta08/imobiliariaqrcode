@@ -1,5 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  ATTENDANCE_FINISHED_TEXT,
+  buildMainMenuText,
+  buildVisitRegisteredText,
+  matchChoice4,
+} from "./messages.ts";
 
 type InboundInput = {
   lead_phone?: string;
@@ -170,14 +176,22 @@ function classifyConversationIntent(
   if (sessionState === "awaiting_visit_property_id") return "visit_property_id";
 
   if (sessionState === "awaiting_post_similar_choice") {
-    if (matchChoice1(text) || matchChoice2(text) || matchChoice3(text) || matchNo(text)) {
+    if (
+      matchChoice1(text) ||
+      matchChoice2(text) ||
+      matchChoice3(text) ||
+      matchChoice4(text) ||
+      matchNo(text)
+    ) {
       return "post_similar_menu_choice";
     }
     return parsedQrToken ? "post_similar_property_id" : "post_similar_menu_choice";
   }
 
   if (sessionState === "awaiting_main_choice") {
-    if (matchChoice1(text) || matchChoice2(text) || matchChoice3(text)) return "main_menu_choice";
+    if (matchChoice1(text) || matchChoice2(text) || matchChoice3(text) || matchChoice4(text)) {
+      return "main_menu_choice";
+    }
     return parsedQrToken ? "property_code_lookup" : "conversation_message";
   }
 
@@ -898,7 +912,7 @@ async function sendPropertyPack(
     message_type: "text",
     payload: {
       kind: "main_menu",
-      text: `${firstName ? `${firstName}, como` : "Como"} posso te ajudar agora:\n\n1 - Falar com o corretor sobre esse imovel\n2 - Ver imoveis semelhantes\n3 - Quero o contato do corretor`,
+      text: buildMainMenuText(firstName),
     },
     flow_group: flowGroup,
     flow_step: flowStep++,
@@ -927,7 +941,7 @@ async function sendMainMenu(
     message_type: "text",
     payload: {
       kind: "main_menu",
-      text: `${firstName}, como posso te ajudar agora:\n\n1 - Falar com o corretor sobre esse imovel\n2 - Ver imoveis semelhantes\n3 - Quero o contato do corretor`,
+      text: buildMainMenuText(firstName),
     },
     flow_group: group,
     flow_step: step,
@@ -1324,6 +1338,7 @@ async function doRegisterVisit(
   const originBrokerContact = isPostListingFlow
     ? await loadBrokerContact(supabase, originBrokerId)
     : { name: null, phone: brokerPhone };
+  const listingOwnerContact = await loadBrokerContact(supabase, listingOwnerBrokerId);
   const notificationBrokerPhone = isPostListingFlow
     ? (originBrokerContact.phone ?? brokerPhone)
     : brokerPhone;
@@ -1360,7 +1375,7 @@ async function doRegisterVisit(
     message_type: "text",
     payload: {
       kind: "visit_registered",
-      text: `${firstName}, combinado! Ja registrei seu pedido de visita. O corretor vai falar com voce em instantes.`,
+      text: buildVisitRegisteredText(firstName, listingOwnerContact),
       lead_id: leadForMessage?.id ?? null,
     },
     flow_group: flowGroup,
@@ -1368,11 +1383,8 @@ async function doRegisterVisit(
   });
 
   if (notificationBrokerPhone) {
-    const ownerContact = isGeneralStockOwner
-      ? await loadBrokerContact(supabase, listingOwnerBrokerId)
-      : { name: null, phone: null };
-    const ownerName = ownerContact.name ?? "Corretor do anuncio";
-    const ownerPhone = ownerContact.phone ?? "Numero nao cadastrado";
+    const ownerName = listingOwnerContact.name ?? "Corretor do anuncio";
+    const ownerPhone = listingOwnerContact.phone ?? "Numero nao cadastrado";
     const notificationText = isGeneralStockOwner
       ? [
           "Alerta de novo lead para visita.",
@@ -1411,7 +1423,7 @@ async function doRegisterVisit(
     });
   }
 
-  // Re-mostra o menu: cliente pode ainda escolher opção 2 ou 3
+  // Re-mostra o menu: cliente pode ainda escolher opção 2, 3 ou 4
   await sendMainMenu(
     supabase,
     property,
@@ -1433,6 +1445,35 @@ async function doRegisterVisit(
       target_property_id: null,
     })
     .eq("id", sessionId);
+}
+
+async function finishAttendance(
+  supabase: ReturnType<typeof createClient<any>>,
+  property: Record<string, unknown>,
+  leadPhone: string,
+  brokerPhone: string | null,
+  sessionId: string,
+): Promise<Response> {
+  // queueOutbound ainda usa o ReturnType nao instanciado legado de createClient.
+  const queueClient = supabase as unknown as ReturnType<typeof createClient>;
+  await queueOutbound(queueClient, {
+    account_id: String(property.account_id),
+    property_id: String(property.id),
+    lead_phone: leadPhone,
+    broker_phone: brokerPhone,
+    message_type: "text",
+    payload: {
+      kind: "close",
+      text: ATTENDANCE_FINISHED_TEXT,
+    },
+  });
+
+  await supabase
+    .from("conversation_sessions")
+    .update({ state: "closed", last_menu: "closed", target_property_id: null })
+    .eq("id", sessionId);
+
+  return json({ ok: true, state: "closed" });
 }
 
 async function handlePostSimilarPropertyId(input: {
@@ -2104,6 +2145,10 @@ Deno.serve(async (req) => {
         );
         return json({ ok: true, state: "broker_contact_sent" });
       }
+
+      if (matchChoice4(text)) {
+        return await finishAttendance(supabase, property, leadPhone, brokerPhone, session.id);
+      }
     }
 
     if (session.state === "awaiting_recommendation_choice") {
@@ -2251,6 +2296,10 @@ Deno.serve(async (req) => {
           2,
         );
         return json({ ok: true, state: "broker_contact_sent" });
+      }
+
+      if (matchChoice4(text)) {
+        return await finishAttendance(supabase, property, leadPhone, brokerPhone, session.id);
       }
 
       console.log("option1_direct_property_id_in_multi_property_context", {
@@ -2453,7 +2502,7 @@ Deno.serve(async (req) => {
       message_type: "text",
       payload: {
         kind: "help",
-        text: `${firstName}, para te ajudar melhor, responda com 1, 2 ou 3.`,
+        text: `${firstName}, para te ajudar melhor, responda com 1, 2, 3 ou 4.`,
       },
     });
 

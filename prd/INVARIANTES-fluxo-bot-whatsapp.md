@@ -35,6 +35,8 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
 - Opcao 2 mostra imoveis semelhantes e preserva a sessao.
 - Opcao 3 envia contato do corretor captador quando existe `origin_property_id`.
 - Apos enviar contato do corretor, a sessao continua aberta e o menu deve ser reenviado.
+- Opcao 4 envia exatamente `Ok! Agradeço seu contato!` e fecha a sessao.
+- Uma sessao fechada so volta ao fluxo de atendimento por um novo QR/codigo valido.
 
 ## Fluxo Pos-Semelhantes
 
@@ -52,6 +54,8 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
 - Se o imovel escolhido pertence a outro corretor, a notificacao continua indo ao captador e deve incluir dados do dono do anuncio.
 - Notificacao ao corretor deve usar `payload.to_broker = true`.
 - Notificacao ao corretor nao e resposta visivel ao cliente.
+- A confirmacao de visita ao cliente deve incluir nome e WhatsApp do corretor dono do anuncio
+  escolhido, mesmo quando ele for diferente do corretor captador.
 
 ## Anti-Silencio
 
