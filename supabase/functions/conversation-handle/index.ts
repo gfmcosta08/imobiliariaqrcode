@@ -6,6 +6,15 @@ import {
   buildVisitRegisteredText,
   matchChoice4,
 } from "./messages.ts";
+import {
+  classifyConversationIntent,
+  getEffectiveSessionState,
+  isQrEntryMessage,
+  isSessionExpired,
+  parseQrToken,
+  shouldForceQrEntryForCrossProperty,
+  type ConversationIntent,
+} from "./routing.ts";
 
 type InboundInput = {
   lead_phone?: string;
@@ -55,15 +64,6 @@ type LeadSnapshot = {
   nome_validado: boolean;
   interaction_count: number;
 };
-
-type ConversationIntent =
-  | "qr_entry"
-  | "property_code_lookup"
-  | "main_menu_choice"
-  | "post_similar_menu_choice"
-  | "post_similar_property_id"
-  | "visit_property_id"
-  | "conversation_message";
 
 const ACTIVE_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const CUSTOMER_RESPONSE_WINDOW_MS = 5 * 60 * 1000;
@@ -152,52 +152,13 @@ function sanitizeBrokerPhone(v: string | null | undefined): string | null {
   return digits.length >= 8 ? digits : null;
 }
 
-function parseQrToken(text: string): string | null {
-  const t = text.trim();
-  // Hash longo após "imovel" (mensagens legadas)
-  const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,100})/i);
-  if (m?.[1]) return m[1];
-  // Hash longo após "Ref:" (mensagens legadas)
-  const mRef = t.match(/Ref:\s*([a-z0-9_-]{16,100})/i);
-  if (mRef?.[1]) return mRef[1];
-  // public_id formato curto: IMV-2026-BD5699 (mensagens novas)
-  const mPub = t.match(/\b([A-Z]{2,5}-\d{4}-[A-Z0-9]{4,})\b/);
-  if (mPub?.[1]) return mPub[1];
-  // Fallback genérico: qualquer sequência 16+ chars
-  const uuidLike = t.match(/[a-z0-9][a-z0-9_-]{15,99}/i);
-  return uuidLike?.[0] ?? null;
-}
-
-function classifyConversationIntent(
-  sessionState: string | null | undefined,
-  text: string,
-  parsedQrToken: string | null,
-): ConversationIntent {
-  if (sessionState === "awaiting_visit_property_id") return "visit_property_id";
-
-  if (sessionState === "awaiting_post_similar_choice") {
-    if (
-      matchChoice1(text) ||
-      matchChoice2(text) ||
-      matchChoice3(text) ||
-      matchChoice4(text) ||
-      matchNo(text)
-    ) {
-      return "post_similar_menu_choice";
-    }
-    return parsedQrToken ? "post_similar_property_id" : "post_similar_menu_choice";
-  }
-
-  if (sessionState === "awaiting_main_choice") {
-    if (matchChoice1(text) || matchChoice2(text) || matchChoice3(text) || matchChoice4(text)) {
-      return "main_menu_choice";
-    }
-    return parsedQrToken ? "property_code_lookup" : "conversation_message";
-  }
-
-  if (parsedQrToken) return sessionState ? "property_code_lookup" : "qr_entry";
-  return "conversation_message";
-}
+const intentMatchers = {
+  matchChoice1,
+  matchChoice2,
+  matchChoice3,
+  matchChoice4,
+  matchNo,
+};
 
 function parseNameFromIntroduction(text: string): string | null {
   const t = text.trim();
@@ -1722,16 +1683,53 @@ Deno.serve(async (req) => {
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const conversationIntent = classifyConversationIntent(
+    const nowMs = Date.now();
+    const sessionExpired = isSessionExpired(
+      session?.updated_at ? String(session.updated_at) : null,
+      nowMs,
+      ACTIVE_SESSION_TIMEOUT_MS,
+    );
+    const effectiveSessionState = getEffectiveSessionState(
       session?.state ? String(session.state) : null,
+      sessionExpired,
+    );
+    let conversationIntent: ConversationIntent = classifyConversationIntent(
+      effectiveSessionState,
       text,
       parsedQrToken,
+      intentMatchers,
     );
-    const qrToken =
+    let qrToken =
       conversationIntent === "visit_property_id" ||
       conversationIntent === "post_similar_property_id"
         ? null
         : parsedQrToken;
+
+    if (parsedQrToken && isQrEntryMessage(text) && session?.origin_property_id && !sessionExpired) {
+      const incomingProperty =
+        (await loadPropertyByQr(supabase, parsedQrToken)) ??
+        (await loadPropertyByPublicId(supabase, parsedQrToken));
+      if (
+        shouldForceQrEntryForCrossProperty({
+          parsedQrToken,
+          text,
+          sessionOriginPropertyId: session.origin_property_id
+            ? String(session.origin_property_id)
+            : null,
+          incomingPropertyId: incomingProperty ? String(incomingProperty.id) : null,
+          sessionExpired,
+        })
+      ) {
+        conversationIntent = "qr_entry";
+        qrToken = parsedQrToken;
+        console.log("[bot] cross_property_qr_entry", {
+          leadPhone,
+          originPropertyId: String(session.origin_property_id),
+          incomingPropertyId: String(incomingProperty?.id),
+          parsedQrToken,
+        });
+      }
+    }
 
     // Para mensagens sem QR: verificar sessão antes de disparar "digitando"
     if (!qrToken) {
@@ -1743,8 +1741,7 @@ Deno.serve(async (req) => {
         await queuePropertyCodePrompt(supabase, leadPhone);
         return json({ ok: true, state: "awaiting_property_code" });
       }
-      const lastUpdate = session.updated_at ? new Date(String(session.updated_at)).getTime() : 0;
-      if (Date.now() - lastUpdate > ACTIVE_SESSION_TIMEOUT_MS) {
+      if (sessionExpired) {
         await queuePropertyCodePrompt(supabase, leadPhone);
         return json({ ok: true, state: "awaiting_property_code" });
       }

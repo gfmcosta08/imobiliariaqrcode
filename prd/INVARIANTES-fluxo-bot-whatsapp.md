@@ -7,6 +7,7 @@ Este documento e a fonte oficial das regras que nao podem ser quebradas em alter
 Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deploy:
 
 - `supabase/functions/conversation-handle/index.ts`
+- `supabase/functions/conversation-handle/routing.ts`
 - `supabase/functions/whatsapp-webhook-inbound/index.ts`
 - `supabase/functions/whatsapp-dispatch/index.ts`
 - `supabase/functions/bot-health-monitor/index.ts`
@@ -19,6 +20,8 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
 - `current_property_id` e o imovel atual usado como contexto do menu e da navegacao.
 - `target_property_id` e temporario e so deve existir enquanto o bot aguarda confirmacao/coleta de nome ou conclusao de escolha.
 - Escolher um imovel semelhante pode atualizar `current_property_id`, mas nao pode sobrescrever `origin_property_id`.
+- Sessao expirada (mais de 30 minutos sem atualizacao) nao pode bloquear um novo QR/codigo valido.
+- Sessao expirada deve ser tratada como sem estado para classificacao da mensagem recebida.
 
 ## Entrada Por QR Ou Codigo
 
@@ -28,6 +31,7 @@ Mudancas nestes pontos exigem PRD aprovado, guardrail e validacao antes de deplo
   - menu principal.
 - Deduplicacao de QR em ate 5 minutos so pode bloquear reenvio quando ja existir pacote visivel ao cliente.
 - Mensagens internas e notificacoes ao corretor nao podem contar como pacote visivel ao cliente.
+- Template de entrada por QR para imovel diferente de `origin_property_id` deve reiniciar o fluxo como novo QR.
 
 ## Menu Principal
 

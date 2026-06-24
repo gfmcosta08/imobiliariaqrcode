@@ -14,8 +14,13 @@ const conversationMessagesPath = path.join(
   repoRoot,
   "supabase/functions/conversation-handle/messages.ts",
 );
+const conversationRoutingPath = path.join(
+  repoRoot,
+  "supabase/functions/conversation-handle/routing.ts",
+);
 const inboundPath = path.join(repoRoot, "supabase/functions/whatsapp-webhook-inbound/index.ts");
 const dispatchPath = path.join(repoRoot, "supabase/functions/whatsapp-dispatch/index.ts");
+const qrResolvePath = path.join(repoRoot, "supabase/functions/qr-resolve/index.ts");
 
 function read(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
@@ -33,6 +38,7 @@ describe("WhatsApp guardrails contracts", () => {
 
   it("fecha o atendimento pela opcao 4 nos menus principal e pos-semelhantes", () => {
     const src = read(conversationHandlePath);
+    const routing = read(conversationRoutingPath);
     const mainChoiceBlock = src.match(
       /if \(session\.state === "awaiting_main_choice"\)[\s\S]*?if \(session\.state === "awaiting_recommendation_choice"\)/,
     );
@@ -42,8 +48,8 @@ describe("WhatsApp guardrails contracts", () => {
     const finishBlock = src.match(
       /async function finishAttendance\([\s\S]*?async function handlePostSimilarPropertyId/,
     );
-    const classifierBlock = src.match(
-      /function classifyConversationIntent\([\s\S]*?function parseNameFromIntroduction/,
+    const classifierBlock = routing.match(
+      /export function classifyConversationIntent\([\s\S]*?export function shouldForceQrEntryForCrossProperty/,
     );
 
     expect(classifierBlock?.[0]).toContain("matchChoice4(text)");
@@ -112,11 +118,15 @@ describe("WhatsApp guardrails contracts", () => {
 
   it("prioriza ID informado no estado pos-semelhantes antes de tratar como novo QR", () => {
     const src = read(conversationHandlePath);
+    const routing = read(conversationRoutingPath);
     const sessionLoadBlock = src.match(
       /const parsedQrToken = parseQrToken\(text\);[\s\S]*?if \(!qrToken\)/,
     );
     expect(sessionLoadBlock?.[0]).toBeTruthy();
-    expect(src).toContain("function classifyConversationIntent");
+    expect(routing).toContain("function classifyConversationIntent");
+    expect(src).toContain("getEffectiveSessionState");
+    expect(src).toContain("isSessionExpired");
+    expect(src).toContain("shouldForceQrEntryForCrossProperty");
     expect(src).toContain('"post_similar_property_id"');
     expect(src).toContain('"visit_property_id"');
     expect(src).toContain('conversationIntent === "visit_property_id"');
@@ -126,6 +136,21 @@ describe("WhatsApp guardrails contracts", () => {
     const visitIdBranchIndex = src.indexOf('if (session.state === "awaiting_visit_property_id")');
     expect(qrBranchIndex).toBeGreaterThan(-1);
     expect(visitIdBranchIndex).toBeGreaterThan(qrBranchIndex);
+  });
+
+  it("nao bloqueia novo QR quando a sessao pos-semelhantes expirou", () => {
+    const src = read(conversationHandlePath);
+    const routing = read(conversationRoutingPath);
+
+    expect(routing).toContain("function getEffectiveSessionState");
+    expect(routing).toContain("function isSessionExpired");
+    expect(src).toContain("const effectiveSessionState = getEffectiveSessionState");
+    expect(src).toContain("classifyConversationIntent(");
+    expect(src).toContain("effectiveSessionState");
+    expect(src).toContain("if (sessionExpired) {");
+    expect(src).not.toMatch(
+      /if \(sessionExpired\)[\s\S]*?queuePropertyCodePrompt[\s\S]*?parsedQrToken/,
+    );
   });
 
   it("mantem normalizacao de ID do imovel para comparacao tolerante", () => {
@@ -348,5 +373,11 @@ describe("WhatsApp guardrails contracts", () => {
     expect(processedIndex).toBeGreaterThan(successGuardIndex);
     expect(src).toContain("conversation-handle succeeded without visible customer response");
     expect(src).toContain('"silent_response_blocked"');
+  });
+
+  it("mantem a marca ImoveisQR no link gerado por qr-resolve", () => {
+    const src = read(qrResolvePath);
+    expect(src).toContain("que vi no ImoveisQR");
+    expect(src).not.toContain("que vi no QRImoveis");
   });
 });
