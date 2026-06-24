@@ -19,7 +19,9 @@ jobs:
   deploy:
     name: Deploy conversation-handle to production
     runs-on: ubuntu-latest
-    environment: Production
+    # O token Supabase vigente esta protegido no environment staging.
+    # O alvo continua travado no project ref documentado de producao abaixo.
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +47,16 @@ jobs:
       - name: Assert production target
         env:
           CONFIRMATION: ${{ inputs.confirmation }}
+          DEPLOY_REF: ${{ github.ref }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ "$DEPLOY_REF" != "refs/heads/main" ]]; then
+            echo "Refusing production deploy outside the main branch."
+            exit 1
+          fi
 
           if [[ "$CONFIRMATION" != "DEPLOY_PRODUCTION_CONVERSATION_HANDLE" ]]; then
             echo "Refusing production deploy without explicit confirmation."
