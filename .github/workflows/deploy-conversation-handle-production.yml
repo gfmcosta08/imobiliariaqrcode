@@ -1,0 +1,90 @@
+name: Deploy conversation-handle Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type DEPLOY_PRODUCTION_CONVERSATION_HANDLE"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-conversation-handle-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy conversation-handle to production
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.32.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: WhatsApp guardrails
+        run: pnpm test:bot-guardrails
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Assert production target
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$CONFIRMATION" != "DEPLOY_PRODUCTION_CONVERSATION_HANDLE" ]]; then
+            echo "Refusing production deploy without explicit confirmation."
+            exit 1
+          fi
+
+          if [[ "$SUPABASE_PROJECT_ID" != "egeteyzfpkbtkwraizwz" ]]; then
+            echo "Refusing deploy outside the documented production project."
+            exit 1
+          fi
+
+      - name: Deploy conversation-handle
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          supabase functions deploy conversation-handle \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --use-api
+
+      - name: Verify production endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data '{}' \
+            "$SUPABASE_URL/functions/v1/conversation-handle")
+
+          test "$status" = "400"
+          node -e '
+            const fs = require("node:fs");
+            const payload = JSON.parse(fs.readFileSync("response.json", "utf8"));
+            if (payload.error !== "missing_input") process.exit(1);
+          '
