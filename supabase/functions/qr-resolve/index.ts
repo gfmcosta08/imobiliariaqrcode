@@ -160,8 +160,12 @@ Deno.serve(async (req) => {
       `Olá! Tenho interesse no imóvel ${String(p.public_id ?? "")} que vi no ImoveisQR`,
     );
     const digits = String(targetPhone).replace(/\D/g, "");
-    const wa = targetPhone ? `https://wa.me/${digits}?text=${leadStartText}` : null;
-    const waDeepLink = targetPhone ? `whatsapp://send?phone=${digits}&text=${leadStartText}` : null;
+    const wa = targetPhone
+      ? `https://wa.me/${digits}?text=${leadStartText}`
+      : null;
+    const waDeepLink = targetPhone
+      ? `whatsapp://send?phone=${digits}&text=${leadStartText}`
+      : null;
 
     if (shouldTrackAccess(req, url)) {
       const ip = getClientIp(req);
