@@ -159,9 +159,9 @@ Deno.serve(async (req) => {
     const leadStartText = encodeURIComponent(
       `Olá! Tenho interesse no imóvel ${String(p.public_id ?? "")} que vi no ImoveisQR`,
     );
-    const wa = targetPhone
-      ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
-      : null;
+    const digits = String(targetPhone).replace(/\D/g, "");
+    const wa = targetPhone ? `https://wa.me/${digits}?text=${leadStartText}` : null;
+    const waDeepLink = targetPhone ? `whatsapp://send?phone=${digits}&text=${leadStartText}` : null;
 
     if (shouldTrackAccess(req, url)) {
       const ip = getClientIp(req);
@@ -189,6 +189,7 @@ Deno.serve(async (req) => {
       broker_id: brokerId,
       broker_whatsapp: broker?.whatsapp_number ?? null,
       whatsapp_link: wa,
+      whatsapp_deeplink: waDeepLink,
       listing: {
         title: p.title ?? null,
         city: p.city ?? null,

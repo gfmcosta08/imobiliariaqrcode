@@ -41,6 +41,7 @@ function toActiveBody(b: Record<string, unknown>): QrResolveActive | null {
             ? brokerRaw.whatsapp_number
             : null,
       whatsapp_link: typeof b.whatsapp_link === "string" ? b.whatsapp_link : null,
+      whatsapp_deeplink: typeof b.whatsapp_deeplink === "string" ? b.whatsapp_deeplink : null,
       listing: {
         title: typeof listing.title === "string" ? listing.title : null,
         city: typeof listing.city === "string" ? listing.city : null,
@@ -74,6 +75,7 @@ function toActiveBody(b: Record<string, unknown>): QrResolveActive | null {
       broker_whatsapp:
         typeof brokerRaw?.whatsapp_number === "string" ? brokerRaw.whatsapp_number : null,
       whatsapp_link: typeof b.whatsapp_link === "string" ? b.whatsapp_link : null,
+      whatsapp_deeplink: typeof b.whatsapp_deeplink === "string" ? b.whatsapp_deeplink : null,
       listing: {
         title: typeof legacyPropertyRaw.title === "string" ? legacyPropertyRaw.title : null,
         city: typeof legacyPropertyRaw.city === "string" ? legacyPropertyRaw.city : null,

@@ -113,8 +113,31 @@ jobs:
           node <<'NODE'
           const fs = require("node:fs");
           const path = require("node:path");
+          const { execSync } = require("node:child_process");
 
           async function main() {
+            const baseRef = process.env.GITHUB_BASE_REF || "main";
+            execSync(`git fetch --no-tags --depth=1 origin ${baseRef}`, {
+              encoding: "utf8",
+              stdio: "ignore",
+            });
+
+            const changedFiles = execSync(`git diff --name-only origin/${baseRef} HEAD`, {
+              encoding: "utf8",
+            })
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter(Boolean);
+
+            const touchesMigrations = changedFiles.some((fileName) =>
+              fileName.startsWith("supabase/migrations/"),
+            );
+
+            if (!touchesMigrations) {
+              console.log("Skipping Supabase migration drift check (no migration files changed).");
+              return;
+            }
+
             const projectRef = process.env.SUPABASE_PROJECT_REF;
             const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 
