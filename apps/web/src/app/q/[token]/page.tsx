@@ -1,3 +1,7 @@
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+
+import { chooseWhatsappRedirect } from "@/lib/public/whatsapp-link";
 import { PublicQrClient } from "./public-qr-client";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -9,7 +13,9 @@ export default async function PublicQrPage(props: PageProps) {
   if (!base) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
-        <p className="text-sm text-red-600">NEXT_PUBLIC_SUPABASE_URL nao configurada no ambiente.</p>
+        <p className="text-sm text-red-600">
+          NEXT_PUBLIC_SUPABASE_URL nao configurada no ambiente.
+        </p>
       </div>
     );
   }
@@ -64,6 +70,21 @@ export default async function PublicQrPage(props: PageProps) {
       tokenPrefix: token.slice(0, 8),
       error: e instanceof Error ? e.message : String(e),
     });
+  }
+
+  const body = initial && typeof initial === "object" ? (initial as Record<string, unknown>) : null;
+  const ok = body?.ok === true;
+  const state = typeof body?.state === "string" ? body.state : null;
+  const whatsappLink = typeof body?.whatsapp_link === "string" ? body.whatsapp_link : null;
+  const whatsappDeepLink =
+    typeof body?.whatsapp_deeplink === "string" ? body.whatsapp_deeplink : null;
+
+  if (!fetchError && ok && state === "active") {
+    const userAgent = (await headers()).get("user-agent");
+    const destination = chooseWhatsappRedirect(whatsappLink, whatsappDeepLink, userAgent);
+    if (destination) {
+      redirect(destination);
+    }
   }
 
   return <PublicQrClient token={token} initial={initial} fetchError={fetchError} />;

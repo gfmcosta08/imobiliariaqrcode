@@ -21,5 +21,6 @@ export type QrResolveActive = {
   broker_id: string;
   broker_whatsapp: string | null;
   whatsapp_link: string | null;
+  whatsapp_deeplink: string | null;
   listing: QrResolveListing;
 };

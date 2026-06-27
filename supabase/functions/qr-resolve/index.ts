@@ -159,8 +159,12 @@ Deno.serve(async (req) => {
     const leadStartText = encodeURIComponent(
       `Oi! Tenho interesse no imovel ${String(p.public_id ?? "")} que vi no QR Code. Me passa as informacoes dele? (Ref: ${row.qr_token})`,
     );
+    const digits = String(targetPhone).replace(/\D/g, "");
     const wa = targetPhone
-      ? `https://wa.me/${String(targetPhone).replace(/\D/g, "")}?text=${leadStartText}`
+      ? `https://wa.me/${digits}?text=${leadStartText}`
+      : null;
+    const waDeepLink = targetPhone
+      ? `whatsapp://send?phone=${digits}&text=${leadStartText}`
       : null;
 
     if (shouldTrackAccess(req, url)) {
@@ -189,6 +193,7 @@ Deno.serve(async (req) => {
       broker_id: brokerId,
       broker_whatsapp: broker?.whatsapp_number ?? null,
       whatsapp_link: wa,
+      whatsapp_deeplink: waDeepLink,
       listing: {
         title: p.title ?? null,
         city: p.city ?? null,
