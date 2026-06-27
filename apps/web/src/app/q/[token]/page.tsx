@@ -1,3 +1,7 @@
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+
+import { chooseWhatsappRedirect } from "@/lib/public/whatsapp-link";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { PublicQrClient } from "./public-qr-client";
 
@@ -179,6 +183,21 @@ export default async function PublicQrPage(props: PageProps) {
       });
       fetchError = null;
       initial = fallback;
+    }
+  }
+
+  const body = initial && typeof initial === "object" ? (initial as Record<string, unknown>) : null;
+  const ok = body?.ok === true;
+  const state = typeof body?.state === "string" ? body.state : null;
+  const whatsappLink = typeof body?.whatsapp_link === "string" ? body.whatsapp_link : null;
+  const whatsappDeepLink =
+    typeof body?.whatsapp_deeplink === "string" ? body.whatsapp_deeplink : null;
+
+  if (!fetchError && ok && state === "active") {
+    const userAgent = (await headers()).get("user-agent");
+    const destination = chooseWhatsappRedirect(whatsappLink, whatsappDeepLink, userAgent);
+    if (destination) {
+      redirect(destination);
     }
   }
 
