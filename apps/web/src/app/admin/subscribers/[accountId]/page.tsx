@@ -22,7 +22,7 @@ export default async function SubscriberDashboardPage(props: PageProps) {
 
   if (!dashboard) notFound();
 
-  return <DashboardView accountId={accountId} dashboard={dashboard} />;
+  return <DashboardView accountId={dashboard.account.account_id} dashboard={dashboard} />;
 }
 
 function DashboardView({
