@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { buildGoogleMapsUrl, hasPropertyLocation } from "@/lib/admin/google-maps";
 import { deviceLabel, type DeviceClass } from "@/lib/admin/parse-user-agent";
-import { loadPropertyMetrics } from "@/lib/admin/subscriber-dashboard";
+import { loadPropertyMetrics, resolveSubscriberAccountId } from "@/lib/admin/subscriber-dashboard";
 import { getAdminContext } from "@/lib/admin-auth";
 
 type PageProps = {
@@ -24,10 +24,11 @@ export default async function PropertyMetricsPage(props: PageProps) {
   if (!admin.ok && admin.status === 403) redirect("/dashboard");
   if (!admin.ok) throw new Error(admin.error);
 
+  const resolvedAccountId = await resolveSubscriberAccountId(admin.supabase, accountId);
   const metrics = await loadPropertyMetrics(admin.supabase, propertyId);
 
   if (!metrics) notFound();
-  if (metrics.property.account_id !== accountId) notFound();
+  if (!resolvedAccountId || metrics.property.account_id !== resolvedAccountId) notFound();
 
   const { property, summary } = metrics;
   const hasLocation = hasPropertyLocation(property.latitude, property.longitude);

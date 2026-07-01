@@ -11,6 +11,37 @@ function shouldUseFallback(error: { message?: string } | null | undefined, fnNam
   );
 }
 
+export async function resolveSubscriberAccountId(
+  supabase: SupabaseClient,
+  subscriberId: string,
+): Promise<string | null> {
+  const { data: accountRow, error: accountError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("id", subscriberId)
+    .maybeSingle();
+
+  if (!accountError && accountRow?.id) return String(accountRow.id);
+
+  const { data: profileRow, error: profileError } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", subscriberId)
+    .maybeSingle();
+
+  if (!profileError && profileRow?.account_id) return String(profileRow.account_id);
+
+  const { data: brokerRow, error: brokerError } = await supabase
+    .from("brokers")
+    .select("account_id")
+    .eq("profile_id", subscriberId)
+    .maybeSingle();
+
+  if (!brokerError && brokerRow?.account_id) return String(brokerRow.account_id);
+
+  return null;
+}
+
 export async function loadFallbackDashboard(
   supabase: SupabaseClient,
   accountId: string,
@@ -94,17 +125,22 @@ export async function loadFallbackDashboard(
 
 export async function loadSubscriberDashboard(
   supabase: SupabaseClient,
-  accountId: string,
+  subscriberId: string,
 ): Promise<SubscriberDashboard | null> {
+  const accountId = await resolveSubscriberAccountId(supabase, subscriberId);
+  if (!accountId) return null;
+
   const { data, error } = await supabase.rpc("admin_get_subscriber_dashboard", {
     p_account_id: accountId,
   });
 
-  if (!error) return data as SubscriberDashboard;
+  if (!error && data) return data as SubscriberDashboard;
 
   if (shouldUseFallback(error, "admin_get_subscriber_dashboard")) {
     return loadFallbackDashboard(supabase, accountId);
   }
+
+  if (!error) return loadFallbackDashboard(supabase, accountId);
 
   throw new Error(error.message);
 }
