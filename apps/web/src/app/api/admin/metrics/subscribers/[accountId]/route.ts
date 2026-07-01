@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getAdminContext } from "@/lib/admin-auth";
-import type { SubscriberDashboard } from "@/lib/admin/types";
-import { createClient } from "@/lib/supabase/server";
+import { loadSubscriberDashboard } from "@/lib/admin/subscriber-dashboard";
 
 type RouteContext = { params: Promise<{ accountId: string }> };
 
@@ -13,20 +12,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   }
 
   const { accountId } = await context.params;
+  const dashboard = await loadSubscriberDashboard(admin.supabase, accountId);
 
-  const userClient = await createClient();
-  const { data, error } = await userClient.rpc("admin_get_subscriber_dashboard", {
-    p_account_id: accountId,
-  });
-
-  if (error) {
-    const status = error.message.includes("forbidden")
-      ? 403
-      : error.message.includes("account_not_found")
-        ? 404
-        : 500;
-    return NextResponse.json({ ok: false, error: error.message }, { status });
+  if (!dashboard) {
+    return NextResponse.json({ ok: false, error: "account_not_found" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, data: data as SubscriberDashboard });
+  return NextResponse.json({ ok: true, data: dashboard });
 }
