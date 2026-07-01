@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { AppHeader } from "@/components/app-header";
-import { deviceLabel, type DeviceClass } from "@/lib/admin/parse-user-agent";
 import { buildGoogleMapsUrl, hasPropertyLocation } from "@/lib/admin/google-maps";
+import { deviceLabel, type DeviceClass } from "@/lib/admin/parse-user-agent";
 import type { PropertyQrMetrics } from "@/lib/admin/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,6 +14,94 @@ type PageProps = {
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR");
+}
+
+function isMissingRpcError(error: { message?: string } | null | undefined, fnName: string) {
+  return Boolean(error?.message?.includes(`function public.${fnName}`));
+}
+
+async function loadFallbackPropertyMetrics(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+): Promise<PropertyQrMetrics | null> {
+  const { data: propertyRow, error: propertyError } = await supabase
+    .from("properties")
+    .select("id, account_id, public_id, title, listing_status, city, state, neighborhood, full_address, latitude, longitude, updated_at")
+    .eq("id", propertyId)
+    .maybeSingle();
+
+  if (propertyError || !propertyRow) return null;
+
+  const { data: qrRows } = await supabase
+    .from("qr_access_events")
+    .select("id, created_at, source, user_agent, ip_hash")
+    .eq("property_id", propertyId);
+
+  const { data: leadRows } = await supabase
+    .from("leads")
+    .select("id, nome_completo, telefone, intent, status, origem, created_at, updated_at")
+    .eq("property_id", propertyId);
+
+  const total_scans = qrRows?.length ?? 0;
+  const unique_visitors = new Set(
+    (qrRows ?? []).map((row) => String((row as { ip_hash?: string | null }).ip_hash ?? "")).filter(Boolean),
+  ).size;
+
+  const summary = {
+    total_scans,
+    unique_visitors,
+    total_leads: leadRows?.length ?? 0,
+    visit_interest_count: leadRows?.filter((lead) => lead.intent === "visit_interest").length ?? 0,
+    qr_entry_count: 0,
+    similar_interest_count: 0,
+    public_qr_interest_count: 0,
+    conversion_scan_to_lead: total_scans > 0 ? Number((((leadRows?.length ?? 0) / total_scans) * 100).toFixed(2)) : 0,
+    conversion_scan_to_visit:
+      total_scans > 0 ? Number((((leadRows?.filter((lead) => lead.intent === "visit_interest").length ?? 0) / total_scans) * 100).toFixed(2)) : 0,
+    first_scan_at: qrRows?.[0]?.created_at ?? null,
+    last_scan_at: qrRows?.[0]?.created_at ?? null,
+  };
+
+  return {
+    property: {
+      property_id: String(propertyRow.id),
+      account_id: String(propertyRow.account_id),
+      public_id: String(propertyRow.public_id ?? ""),
+      title: String(propertyRow.title ?? propertyRow.public_id ?? ""),
+      listing_status: String(propertyRow.listing_status ?? ""),
+      city: propertyRow.city ?? null,
+      state: propertyRow.state ?? null,
+      neighborhood: propertyRow.neighborhood ?? null,
+      full_address: propertyRow.full_address ?? null,
+      latitude: propertyRow.latitude ?? null,
+      longitude: propertyRow.longitude ?? null,
+      qr_token: null,
+    },
+    summary,
+    scans_by_day: [],
+    scans_by_hour: [],
+    device_breakdown: [],
+    recent_scans: (qrRows ?? []).slice(0, 50).map((row) => ({
+      id: String(row.id),
+      created_at: String(row.created_at),
+      source: String(row.source ?? "unknown"),
+      device: "unknown",
+      user_agent: String((row as { user_agent?: string | null }).user_agent ?? ""),
+      has_ip_hash: Boolean((row as { ip_hash?: string | null }).ip_hash),
+    })),
+    leads: (leadRows ?? []).map((lead) => ({
+      id: String(lead.id),
+      nome_completo: String(lead.nome_completo ?? ""),
+      telefone: String(lead.telefone ?? ""),
+      intent: String(lead.intent ?? ""),
+      status: String(lead.status ?? ""),
+      origem: String(lead.origem ?? ""),
+      created_at: String(lead.created_at ?? ""),
+      updated_at: String(lead.updated_at ?? ""),
+    })),
+    interactions: [],
+    location_note: "Fallback local: algumas métricas detalhadas podem estar zeradas enquanto a RPC não estiver disponível.",
+  };
 }
 
 export default async function PropertyMetricsPage(props: PageProps) {
@@ -38,9 +126,19 @@ export default async function PropertyMetricsPage(props: PageProps) {
   });
 
   if (error?.message.includes("property_not_found")) notFound();
-  if (error) throw new Error(error.message);
 
-  const metrics = data as PropertyQrMetrics;
+  const metrics = !error
+    ? (data as PropertyQrMetrics)
+    : isMissingRpcError(error, "admin_get_property_qr_metrics")
+      ? await loadFallbackPropertyMetrics(supabase, propertyId)
+      : null;
+
+  if (error && !isMissingRpcError(error, "admin_get_property_qr_metrics")) {
+    throw new Error(error.message);
+  }
+
+  if (!metrics) notFound();
+
   const { property, summary } = metrics;
   const hasLocation = hasPropertyLocation(property.latitude, property.longitude);
 
