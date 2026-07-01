@@ -9,6 +9,97 @@ type PageProps = {
   params: Promise<{ accountId: string }>;
 };
 
+function isMissingRpcError(error: { message?: string } | null | undefined, fnName: string) {
+  return Boolean(error?.message?.includes(`function public.${fnName}`));
+}
+
+async function loadFallbackDashboard(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+): Promise<SubscriberDashboard | null> {
+  const { data: accountRow, error: accountError } = await supabase
+    .from("accounts")
+    .select("id, created_at")
+    .eq("id", accountId)
+    .maybeSingle();
+
+  if (accountError || !accountRow) return null;
+
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("full_name, email, whatsapp_number")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  const { data: brokerRow } = await supabase
+    .from("brokers")
+    .select("display_name, whatsapp_number")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  const { data: subscriptionRow } = await supabase
+    .from("subscriptions")
+    .select("plan_code, status")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  const { data: properties } = await supabase
+    .from("properties")
+    .select("id, public_id, title, listing_status, city, state, updated_at")
+    .eq("account_id", accountId)
+    .order("updated_at", { ascending: false });
+
+  const propertyIds = (properties ?? []).map((prop) => prop.id).filter(Boolean);
+  const [qrCount, leadCount] = propertyIds.length
+    ? await Promise.all([
+        supabase
+          .from("qr_access_events")
+          .select("id", { count: "exact", head: true })
+          .in("property_id", propertyIds),
+        supabase
+          .from("leads")
+          .select("id", { count: "exact", head: true })
+          .in("property_id", propertyIds),
+      ])
+    : [{ count: 0 }, { count: 0 }];
+
+  const full_name = profileRow?.full_name ?? brokerRow?.display_name ?? "Sem nome";
+  const email = profileRow?.email ?? "";
+  const whatsapp_number = brokerRow?.whatsapp_number ?? profileRow?.whatsapp_number ?? "";
+  const plan_code = subscriptionRow?.plan_code ?? "free";
+  const subscription_status = subscriptionRow?.status ?? "free";
+
+  return {
+    account: {
+      account_id: accountId,
+      full_name,
+      email,
+      whatsapp_number,
+      plan_code,
+      subscription_status,
+      created_at: String(accountRow.created_at ?? ""),
+      total_properties: properties?.length ?? 0,
+      total_qr_reads: Number(qrCount.count ?? 0),
+      total_leads: Number(leadCount.count ?? 0),
+      unique_qr_visitors: 0,
+    },
+    properties: (properties ?? []).map((prop) => ({
+      property_id: String(prop.id),
+      public_id: String(prop.public_id ?? ""),
+      title: String(prop.title ?? prop.public_id ?? ""),
+      listing_status: String(prop.listing_status ?? ""),
+      city: prop.city ?? null,
+      state: prop.state ?? null,
+      qr_token: null,
+      qr_reads: 0,
+      unique_visitors: 0,
+      total_leads: 0,
+      visit_interest_count: 0,
+      updated_at: String(prop.updated_at ?? ""),
+    })),
+  };
+}
+
 export default async function SubscriberDashboardPage(props: PageProps) {
   const { accountId } = await props.params;
   const supabase = await createClient();
@@ -31,11 +122,29 @@ export default async function SubscriberDashboardPage(props: PageProps) {
   });
 
   if (error?.message.includes("account_not_found")) notFound();
-  if (error) {
+
+  const dashboard = !error
+    ? (data as SubscriberDashboard)
+    : isMissingRpcError(error, "admin_get_subscriber_dashboard")
+      ? await loadFallbackDashboard(supabase, accountId)
+      : null;
+
+  if (error && !isMissingRpcError(error, "admin_get_subscriber_dashboard")) {
     throw new Error(error.message);
   }
 
-  const dashboard = data as SubscriberDashboard;
+  if (!dashboard) notFound();
+
+  return <DashboardView accountId={accountId} dashboard={dashboard} />;
+}
+
+function DashboardView({
+  accountId,
+  dashboard,
+}: {
+  accountId: string;
+  dashboard: SubscriberDashboard;
+}) {
   const account = dashboard.account;
 
   return (
