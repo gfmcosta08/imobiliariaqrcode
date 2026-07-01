@@ -65,6 +65,12 @@ function DashboardView({
           <MetricCard label="Leads" value={account.total_leads} />
         </div>
 
+        <p className="mt-3 text-xs leading-relaxed text-gray-500">
+          Visitantes unicos sao visitantes distintos estimados na conta inteira. Na tabela, a coluna
+          Unicos mostra esse mesmo calculo por imovel, entao a soma das linhas pode ser maior quando
+          a mesma pessoa acessa mais de um anuncio.
+        </p>
+
         <section className="mt-12">
           <h2 className="text-lg font-bold text-gray-900">Anúncios vinculados</h2>
           <div className="mt-4 overflow-x-auto border border-gray-200">
