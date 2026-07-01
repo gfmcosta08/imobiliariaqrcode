@@ -48,7 +48,7 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             git fetch origin "${GITHUB_BASE_REF}" --depth=1
             base_ref="origin/${GITHUB_BASE_REF}"
-            diff_range="${base_ref}...HEAD"
+            diff_range="${base_ref}..HEAD"
           else
             diff_range="HEAD^...HEAD"
           fi
