@@ -52,8 +52,14 @@ async function loadFallbackDashboard(
   const propertyIds = (properties ?? []).map((prop) => prop.id).filter(Boolean);
   const [qrCount, leadCount] = propertyIds.length
     ? await Promise.all([
-        supabase.from("qr_access_events").select("id", { count: "exact", head: true }).in("property_id", propertyIds),
-        supabase.from("leads").select("id", { count: "exact", head: true }).in("property_id", propertyIds),
+        supabase
+          .from("qr_access_events")
+          .select("id", { count: "exact", head: true })
+          .in("property_id", propertyIds),
+        supabase
+          .from("leads")
+          .select("id", { count: "exact", head: true })
+          .in("property_id", propertyIds),
       ])
     : [{ count: 0 }, { count: 0 }];
 
@@ -132,7 +138,13 @@ export default async function SubscriberDashboardPage(props: PageProps) {
   return <DashboardView accountId={accountId} dashboard={dashboard} />;
 }
 
-function DashboardView({ accountId, dashboard }: { accountId: string; dashboard: SubscriberDashboard }) {
+function DashboardView({
+  accountId,
+  dashboard,
+}: {
+  accountId: string;
+  dashboard: SubscriberDashboard;
+}) {
   const account = dashboard.account;
 
   return (
