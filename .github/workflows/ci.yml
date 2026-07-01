@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: pnpm/action-setup@v4
         with:
@@ -50,7 +52,7 @@ jobs:
             base_ref="origin/${GITHUB_BASE_REF}"
             diff_range="${base_ref}..HEAD"
           else
-            diff_range="HEAD^...HEAD"
+            diff_range="HEAD^..HEAD"
           fi
 
           files="$(
