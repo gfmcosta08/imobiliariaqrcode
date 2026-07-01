@@ -1,6 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { PropertyQrMetrics, SubscriberDashboard } from "@/lib/admin/types";
+import type { PropertyQrMetrics, SubscriberDashboard, SubscriberRow } from "@/lib/admin/types";
+
+type PropertyMetricCounts = {
+  qrReads: number;
+  uniqueVisitors: number;
+  visitorKeys: Set<string>;
+  totalLeads: number;
+  visitInterestCount: number;
+};
+
+type AccountMetricCounts = {
+  totalProperties: number;
+  totalQrReads: number;
+  uniqueQrVisitors: number;
+  totalLeads: number;
+};
 
 function shouldUseFallback(error: { message?: string } | null | undefined, fnName: string) {
   const message = error?.message ?? "";
@@ -40,6 +55,186 @@ export async function resolveSubscriberAccountId(
   if (!brokerError && brokerRow?.account_id) return String(brokerRow.account_id);
 
   return null;
+}
+
+function emptyPropertyMetrics(): PropertyMetricCounts {
+  return {
+    qrReads: 0,
+    uniqueVisitors: 0,
+    visitorKeys: new Set<string>(),
+    totalLeads: 0,
+    visitInterestCount: 0,
+  };
+}
+
+async function loadPropertyMetricCounts(
+  supabase: SupabaseClient,
+  propertyIds: string[],
+): Promise<Map<string, PropertyMetricCounts>> {
+  const metrics = new Map<string, PropertyMetricCounts>();
+  const ids = propertyIds.filter(Boolean);
+
+  ids.forEach((id) => metrics.set(id, emptyPropertyMetrics()));
+
+  if (ids.length === 0) return metrics;
+
+  const [{ data: qrRows }, { data: leadRows }] = await Promise.all([
+    supabase.from("qr_access_events").select("property_id, ip_hash").in("property_id", ids),
+    supabase.from("leads").select("property_id, intent").in("property_id", ids),
+  ]);
+
+  (qrRows ?? []).forEach((row) => {
+    const propertyId = String(row.property_id ?? "");
+    if (!propertyId) return;
+
+    const current = metrics.get(propertyId) ?? emptyPropertyMetrics();
+    current.qrReads += 1;
+    metrics.set(propertyId, current);
+
+    const visitorKey = String((row as { ip_hash?: string | null }).ip_hash ?? "");
+    if (!visitorKey) return;
+
+    current.visitorKeys.add(visitorKey);
+    current.uniqueVisitors = current.visitorKeys.size;
+  });
+
+  (leadRows ?? []).forEach((row) => {
+    const propertyId = String(row.property_id ?? "");
+    if (!propertyId) return;
+
+    const current = metrics.get(propertyId) ?? emptyPropertyMetrics();
+    current.totalLeads += 1;
+    if (row.intent === "visit_interest") current.visitInterestCount += 1;
+    metrics.set(propertyId, current);
+  });
+
+  return metrics;
+}
+
+async function loadAccountMetricCounts(
+  supabase: SupabaseClient,
+  accountIds: string[],
+): Promise<Map<string, AccountMetricCounts>> {
+  const metrics = new Map<string, AccountMetricCounts>();
+  const ids = Array.from(new Set(accountIds.filter(Boolean)));
+
+  ids.forEach((id) =>
+    metrics.set(id, {
+      totalProperties: 0,
+      totalQrReads: 0,
+      uniqueQrVisitors: 0,
+      totalLeads: 0,
+    }),
+  );
+
+  if (ids.length === 0) return metrics;
+
+  const { data: properties } = await supabase
+    .from("properties")
+    .select("id, account_id")
+    .in("account_id", ids);
+
+  const propertiesByAccount = new Map<string, string[]>();
+
+  (properties ?? []).forEach((property) => {
+    const accountId = String(property.account_id ?? "");
+    const propertyId = String(property.id ?? "");
+    if (!accountId || !propertyId) return;
+
+    const propertyIds = propertiesByAccount.get(accountId) ?? [];
+    propertyIds.push(propertyId);
+    propertiesByAccount.set(accountId, propertyIds);
+  });
+
+  const propertyMetrics = await loadPropertyMetricCounts(
+    supabase,
+    (properties ?? []).map((property) => String(property.id ?? "")).filter(Boolean),
+  );
+
+  propertiesByAccount.forEach((propertyIds, accountId) => {
+    const accountMetrics = metrics.get(accountId) ?? {
+      totalProperties: 0,
+      totalQrReads: 0,
+      uniqueQrVisitors: 0,
+      totalLeads: 0,
+    };
+
+    accountMetrics.totalProperties = propertyIds.length;
+    accountMetrics.totalQrReads = propertyIds.reduce(
+      (total, propertyId) => total + (propertyMetrics.get(propertyId)?.qrReads ?? 0),
+      0,
+    );
+    accountMetrics.uniqueQrVisitors = new Set(
+      propertyIds.flatMap((propertyId) =>
+        Array.from(propertyMetrics.get(propertyId)?.visitorKeys ?? []),
+      ),
+    ).size;
+    accountMetrics.totalLeads = propertyIds.reduce(
+      (total, propertyId) => total + (propertyMetrics.get(propertyId)?.totalLeads ?? 0),
+      0,
+    );
+
+    metrics.set(accountId, accountMetrics);
+  });
+
+  return metrics;
+}
+
+async function normalizeDashboardMetrics(
+  supabase: SupabaseClient,
+  dashboard: SubscriberDashboard,
+): Promise<SubscriberDashboard> {
+  const propertyIds = dashboard.properties.map((property) => property.property_id);
+  const propertyMetrics = await loadPropertyMetricCounts(supabase, propertyIds);
+  const properties = dashboard.properties.map((property) => {
+    const metrics = propertyMetrics.get(property.property_id) ?? emptyPropertyMetrics();
+
+    return {
+      ...property,
+      qr_reads: metrics.qrReads,
+      unique_visitors: metrics.uniqueVisitors,
+      total_leads: metrics.totalLeads,
+      visit_interest_count: metrics.visitInterestCount,
+    };
+  });
+  const accountVisitorKeys = new Set(
+    propertyIds.flatMap((propertyId) =>
+      Array.from(propertyMetrics.get(propertyId)?.visitorKeys ?? []),
+    ),
+  );
+
+  return {
+    account: {
+      ...dashboard.account,
+      total_properties: properties.length,
+      total_qr_reads: properties.reduce((total, property) => total + property.qr_reads, 0),
+      total_leads: properties.reduce((total, property) => total + property.total_leads, 0),
+      unique_qr_visitors: accountVisitorKeys.size,
+    },
+    properties,
+  };
+}
+
+export async function enrichSubscriberRows(
+  supabase: SupabaseClient,
+  rows: SubscriberRow[],
+): Promise<SubscriberRow[]> {
+  const metricsByAccount = await loadAccountMetricCounts(
+    supabase,
+    rows.map((row) => row.account_id),
+  );
+
+  return rows.map((row) => {
+    const metrics = metricsByAccount.get(row.account_id);
+    if (!metrics) return row;
+
+    return {
+      ...row,
+      total_properties: metrics.totalProperties,
+      total_qr_reads: metrics.totalQrReads,
+      total_leads: metrics.totalLeads,
+    };
+  });
 }
 
 export async function loadFallbackDashboard(
@@ -92,7 +287,7 @@ export async function loadFallbackDashboard(
       ])
     : [{ count: 0 }, { count: 0 }];
 
-  return {
+  return normalizeDashboardMetrics(supabase, {
     account: {
       account_id: accountId,
       full_name: profileRow?.full_name ?? brokerRow?.display_name ?? "Sem nome",
@@ -120,7 +315,7 @@ export async function loadFallbackDashboard(
       visit_interest_count: 0,
       updated_at: String(prop.updated_at ?? ""),
     })),
-  };
+  });
 }
 
 export async function loadSubscriberDashboard(
@@ -134,7 +329,7 @@ export async function loadSubscriberDashboard(
     p_account_id: accountId,
   });
 
-  if (!error && data) return data as SubscriberDashboard;
+  if (!error && data) return normalizeDashboardMetrics(supabase, data as SubscriberDashboard);
 
   if (shouldUseFallback(error, "admin_get_subscriber_dashboard")) {
     return loadFallbackDashboard(supabase, accountId);

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getAdminContext } from "@/lib/admin-auth";
+import { enrichSubscriberRows } from "@/lib/admin/subscriber-dashboard";
 import type { SubscriberRow } from "@/lib/admin/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,7 +14,7 @@ type SubscriptionRow = {
 
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
-  return Array.isArray(value) ? value[0] ?? null : value;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
 function asJoinedRecord(value: unknown): Record<string, unknown> {
@@ -46,8 +47,20 @@ async function fallbackSearchSubscribers(
   const rows = (data ?? []) as unknown as SubscriptionRow[];
   const filtered = rows.filter((row) => {
     const accounts = asJoinedRecord(row.accounts);
-    const profile = first(accounts.profiles as { email: string | null; full_name: string | null; whatsapp_number: string | null } | { email: string | null; full_name: string | null; whatsapp_number: string | null }[] | null | undefined);
-    const broker = first(accounts.brokers as { whatsapp_number: string | null; display_name: string | null } | { whatsapp_number: string | null; display_name: string | null }[] | null | undefined);
+    const profile = first(
+      accounts.profiles as
+        | { email: string | null; full_name: string | null; whatsapp_number: string | null }
+        | { email: string | null; full_name: string | null; whatsapp_number: string | null }[]
+        | null
+        | undefined,
+    );
+    const broker = first(
+      accounts.brokers as
+        | { whatsapp_number: string | null; display_name: string | null }
+        | { whatsapp_number: string | null; display_name: string | null }[]
+        | null
+        | undefined,
+    );
     const email = String(profile?.email ?? "").toLowerCase();
     const fullName = String(profile?.full_name ?? broker?.display_name ?? "").toLowerCase();
     const whatsapp = String(broker?.whatsapp_number ?? profile?.whatsapp_number ?? "");
@@ -65,8 +78,20 @@ async function fallbackSearchSubscribers(
   const enriched = await Promise.all(
     filtered.map(async (row) => {
       const accounts = asJoinedRecord(row.accounts);
-      const profile = first(accounts.profiles as { email: string | null; full_name: string | null; whatsapp_number: string | null } | { email: string | null; full_name: string | null; whatsapp_number: string | null }[] | null | undefined);
-      const broker = first(accounts.brokers as { whatsapp_number: string | null; display_name: string | null } | { whatsapp_number: string | null; display_name: string | null }[] | null | undefined);
+      const profile = first(
+        accounts.profiles as
+          | { email: string | null; full_name: string | null; whatsapp_number: string | null }
+          | { email: string | null; full_name: string | null; whatsapp_number: string | null }[]
+          | null
+          | undefined,
+      );
+      const broker = first(
+        accounts.brokers as
+          | { whatsapp_number: string | null; display_name: string | null }
+          | { whatsapp_number: string | null; display_name: string | null }[]
+          | null
+          | undefined,
+      );
       const accountId = row.account_id;
 
       const { count: propertiesCount } = await supabase
@@ -88,7 +113,10 @@ async function fallbackSearchSubscribers(
     }),
   );
 
-  return enriched.sort((a, b) => a.full_name.localeCompare(b.full_name));
+  return enrichSubscriberRows(
+    supabase,
+    enriched.sort((a, b) => a.full_name.localeCompare(b.full_name)),
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -132,5 +160,5 @@ export async function GET(req: NextRequest) {
     total_leads: Number(row.total_leads ?? 0),
   }));
 
-  return NextResponse.json({ ok: true, data: rows });
+  return NextResponse.json({ ok: true, data: await enrichSubscriberRows(admin.supabase, rows) });
 }
