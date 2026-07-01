@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
@@ -41,6 +42,12 @@ export default async function AdminPage() {
           <p className="mt-1 text-sm text-gray-500">
             Gerencie planos, assinaturas, anuncios e convites.
           </p>
+          <Link
+            href="/admin/subscribers"
+            className="mt-4 inline-flex border border-gray-900 bg-gray-900 px-5 py-2 text-sm font-medium text-white"
+          >
+            Métricas de assinantes (QR)
+          </Link>
         </div>
 
         <section>
