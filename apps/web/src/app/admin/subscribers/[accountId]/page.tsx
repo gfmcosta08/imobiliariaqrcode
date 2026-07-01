@@ -123,6 +123,7 @@ export default async function SubscriberDashboardPage(props: PageProps) {
 
   if (error?.message.includes("account_not_found")) notFound();
 
+  // Keep the admin dashboard usable when the RPC is missing in production.
   const dashboard = !error
     ? (data as SubscriberDashboard)
     : isMissingRpcError(error, "admin_get_subscriber_dashboard")
