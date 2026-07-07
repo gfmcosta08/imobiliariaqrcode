@@ -25,9 +25,7 @@ describe("convite claim route", () => {
   });
 
   it("does not require optional invitation lockout columns to load valid invites", () => {
-    expect(source).toContain(
-      '"id, access_code_hash, temp_email, expires_at, status"',
-    );
+    expect(source).toContain('"id, access_code_hash, temp_email, expires_at, status"');
     expect(source).not.toContain("invalid_attempt_count, locked_until");
   });
 
