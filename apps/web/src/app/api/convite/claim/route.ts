@@ -12,8 +12,6 @@ import {
 const INVITE_CLAIM_RATE_LIMIT = 10;
 const INVITE_CLAIM_RATE_WINDOW_SECONDS = 10 * 60;
 const INVITE_CLAIM_RATE_LOCK_SECONDS = 15 * 60;
-const INVITE_INVALID_ATTEMPT_LIMIT = 6;
-const INVITE_INVALID_LOCK_SECONDS = 30 * 60;
 
 export async function POST(request: Request) {
   try {
@@ -53,30 +51,12 @@ export async function POST(request: Request) {
 
     const { data: invitation } = await supabase
       .from("broker_invitations")
-      .select(
-        "id, access_code_hash, temp_email, expires_at, status, invalid_attempt_count, locked_until",
-      )
+      .select("id, access_code_hash, temp_email, expires_at, status")
       .eq("login_code", login_code)
       .maybeSingle();
 
     if (!invitation) {
       return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
-    }
-
-    const lockedUntil = invitation.locked_until ? new Date(String(invitation.locked_until)) : null;
-    if (lockedUntil && !Number.isNaN(lockedUntil.getTime()) && lockedUntil > new Date()) {
-      await supabase.from("audit_logs").insert({
-        account_id: null,
-        actor_profile_id: null,
-        action: "invite_claim_locked",
-        entity_type: "broker_invitations",
-        entity_id: String(invitation.id),
-        metadata: { ip_hash: ipHash, locked_until: lockedUntil.toISOString() },
-      });
-      return NextResponse.json(
-        { ok: false, error: "too_many_attempts", locked_until: lockedUntil.toISOString() },
-        { status: 429 },
-      );
     }
 
     if (invitation.status === "claimed") {
@@ -114,33 +94,14 @@ export async function POST(request: Request) {
 
     const inputHash = await sha256Hex(access_code);
     if (inputHash !== invitation.access_code_hash) {
-      const nextAttempts = Number(invitation.invalid_attempt_count ?? 0) + 1;
-      const shouldLock = nextAttempts >= INVITE_INVALID_ATTEMPT_LIMIT;
-      const lockUntil = shouldLock
-        ? new Date(Date.now() + INVITE_INVALID_LOCK_SECONDS * 1000).toISOString()
-        : null;
-      await supabase
-        .from("broker_invitations")
-        .update({
-          invalid_attempt_count: nextAttempts,
-          last_failed_at: new Date().toISOString(),
-          locked_until: lockUntil,
-        })
-        .eq("id", invitation.id);
       await supabase.from("audit_logs").insert({
         account_id: null,
         actor_profile_id: null,
-        action: shouldLock ? "invite_claim_lockout" : "invite_claim_invalid_attempt",
+        action: "invite_claim_invalid_attempt",
         entity_type: "broker_invitations",
         entity_id: String(invitation.id),
-        metadata: { ip_hash: ipHash, attempt_count: nextAttempts, locked_until: lockUntil },
+        metadata: { ip_hash: ipHash },
       });
-      if (shouldLock) {
-        return NextResponse.json(
-          { ok: false, error: "too_many_attempts", locked_until: lockUntil },
-          { status: 429 },
-        );
-      }
       return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
     }
 
@@ -157,15 +118,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "invalid_credentials" }, { status: 401 });
     }
 
-    await supabase
-      .from("broker_invitations")
-      .update({
-        invalid_attempt_count: 0,
-        last_failed_at: null,
-        locked_until: null,
-        claimed_ip_hash: ipHash,
-      })
-      .eq("id", invitation.id);
     await clearSecurityRateLimit(supabase, rateKey);
     await supabase.from("audit_logs").insert({
       account_id: null,

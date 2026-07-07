@@ -148,11 +148,11 @@ function LoginPageContent() {
 
       // login: aceita e-mail normal ou credenciais numéricas de cortesia
       const loginInput = email.trim();
-      const isInviteCode = /^\d{6,8}$/.test(loginInput);
+      const isInviteCode = /^\d{8}$/.test(loginInput);
 
       if (isInviteCode) {
-        if (!/^\d{6,8}$/.test(password.trim())) {
-          setError("Para convite cortesia, a senha deve ter entre 6 e 8 numeros.");
+        if (!/^\d{8}$/.test(password.trim())) {
+          setError("Para convite cortesia, a senha deve ter 8 numeros.");
           return;
         }
 
@@ -339,12 +339,12 @@ function LoginPageContent() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={mode === "login" ? "seu@email.com ou 123456" : "seu@email.com"}
+                  placeholder={mode === "login" ? "seu@email.com ou 12345678" : "seu@email.com"}
                   className="w-full rounded-none border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                 />
                 {mode === "login" ? (
                   <p className="mt-1 text-xs text-gray-500">
-                    Convite cortesia: use os 6 numeros de login e os 6 numeros de senha do cartao.
+                    Convite cortesia: use os 8 numeros de login e os 8 numeros de senha do cartao.
                   </p>
                 ) : null}
               </div>

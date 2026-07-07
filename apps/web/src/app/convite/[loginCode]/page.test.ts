@@ -13,4 +13,8 @@ describe("ConviteCodePage", () => {
     expect(source).toContain("/convite?login_code=");
     expect(source).toContain("replace(/\\D/g");
   });
+
+  it("preserves the current 8 digit invite login code in redirected links", () => {
+    expect(source).toContain("slice(0, 8)");
+  });
 });

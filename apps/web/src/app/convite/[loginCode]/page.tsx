@@ -6,6 +6,6 @@ type PageProps = {
 
 export default async function ConviteCodePage({ params }: PageProps) {
   const { loginCode } = await params;
-  const safeCode = loginCode.replace(/\D/g, "").slice(0, 6);
+  const safeCode = loginCode.replace(/\D/g, "").slice(0, 8);
   redirect(safeCode ? `/convite?login_code=${safeCode}` : "/convite");
 }
