@@ -15,11 +15,20 @@ describe("convite claim route", () => {
     expect(source).toContain("too_many_attempts");
   });
 
-  it("locks invitations after repeated invalid access codes", () => {
-    expect(source).toContain("invalid_attempt_count");
-    expect(source).toContain("locked_until");
-    expect(source).toContain("INVITE_INVALID_ATTEMPT_LIMIT");
-    expect(source).toContain("invite_claim_lockout");
+  it("uses persistent rate limiting without invitation lockout columns", () => {
+    expect(source).toContain("checkSecurityRateLimit");
+    expect(source).toContain("INVITE_CLAIM_RATE_LIMIT");
+    expect(source).toContain("too_many_attempts");
+    expect(source).not.toContain("INVITE_INVALID_ATTEMPT_LIMIT");
+    expect(source).not.toContain("invalid_attempt_count");
+    expect(source).not.toContain("claimed_ip_hash");
+  });
+
+  it("does not require optional invitation lockout columns to load valid invites", () => {
+    expect(source).toContain(
+      '"id, access_code_hash, temp_email, expires_at, status"',
+    );
+    expect(source).not.toContain("invalid_attempt_count, locked_until");
   });
 
   it("returns a specific error for canceled invites", () => {
