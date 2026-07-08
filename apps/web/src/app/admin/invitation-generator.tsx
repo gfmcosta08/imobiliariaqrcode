@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
+
+import { buildConvitePrintTitle } from "./convite-print";
 
 type InvitationResult = {
   login_code: string;
@@ -59,8 +60,9 @@ export function InvitationGenerator() {
     const printArea = printAreaRef.current;
     if (!result || !printArea) return;
 
-    const printablePublicId = result.public_id?.trim() || "sem ID";
-    const printTitle = `Convite Cortesia - ${printablePublicId}`;
+    const printTitle = buildConvitePrintTitle(result.public_id);
+    const previousTitle = document.title;
+    document.title = printTitle;
 
     const iframe = document.createElement("iframe");
     iframe.style.border = "0";
@@ -71,13 +73,13 @@ export function InvitationGenerator() {
     iframe.style.width = "0";
     document.body.appendChild(iframe);
 
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
+    const printWindow = iframe.contentWindow;
+    const doc = printWindow?.document;
+    if (!doc || !printWindow) {
+      document.title = previousTitle;
       iframe.remove();
       return;
     }
-
-    const appUrl = window.location.origin;
 
     doc.write(`<!doctype html>
       <html>
@@ -118,11 +120,26 @@ export function InvitationGenerator() {
         <body>${printArea.outerHTML}</body>
       </html>`);
     doc.close();
+    doc.title = printTitle;
+
+    let cleanedUp = false;
+    let fallbackTimeoutId: number | undefined;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (fallbackTimeoutId !== undefined) {
+        window.clearTimeout(fallbackTimeoutId);
+      }
+      document.title = previousTitle;
+      iframe.remove();
+    };
+
+    printWindow.addEventListener("afterprint", cleanup, { once: true });
 
     window.setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      window.setTimeout(() => iframe.remove(), 1000);
+      printWindow.focus();
+      printWindow.print();
+      fallbackTimeoutId = window.setTimeout(cleanup, 120_000);
     }, 500);
   }
 

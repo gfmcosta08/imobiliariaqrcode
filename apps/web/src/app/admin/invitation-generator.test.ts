@@ -12,7 +12,7 @@ describe("InvitationGenerator — impressao em pagina unica", () => {
   it("usa abordagem iframe para imprimir, nao window.print()", () => {
     expect(source).not.toContain("window.print()");
     expect(source).toContain('document.createElement("iframe")');
-    expect(source).toContain("iframe.contentWindow?.print()");
+    expect(source).toContain("printWindow.print()");
   });
 
   it("cria iframe invisivel fixo com dimensoes zero", () => {
@@ -48,11 +48,18 @@ describe("InvitationGenerator — impressao em pagina unica", () => {
 
   it("usa public_id do primeiro imovel no titulo do PDF e na area impressa", () => {
     expect(source).toContain("public_id: string | null");
-    expect(source).toContain("printablePublicId");
-    expect(source).toContain("Convite Cortesia - ${printablePublicId}");
+    expect(source).toContain("buildConvitePrintTitle");
     expect(source).toContain('data-testid="admin-invite-public-id-print"');
     expect(source).toContain("ID do imovel");
     expect(source).toContain("result.public_id");
+  });
+
+  it("ajusta document.title da pagina antes de imprimir para nomear o PDF", () => {
+    expect(source).toContain("const previousTitle = document.title");
+    expect(source).toContain("document.title = printTitle");
+    expect(source).toContain("document.title = previousTitle");
+    expect(source).toContain('addEventListener("afterprint", cleanup');
+    expect(source).toContain("doc.title = printTitle");
   });
 
   it("nao usa titulo fixo generico no iframe de impressao", () => {
