@@ -1,5 +1,6 @@
 ﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildLeadStartText } from "./lead-text.ts";
 
 type ResolveBody = { qr_token?: string };
 
@@ -157,7 +158,7 @@ Deno.serve(async (req) => {
     const targetPhone = botPhone ?? broker?.whatsapp_number ?? null;
 
     const leadStartText = encodeURIComponent(
-      `Olá! Tenho interesse no imóvel ${String(p.public_id ?? "")} que vi no ImoveisQR`,
+      buildLeadStartText(String(p.public_id ?? ""), String(row.qr_token)),
     );
     const digits = String(targetPhone).replace(/\D/g, "");
     const wa = targetPhone
