@@ -21,6 +21,7 @@ const conversationRoutingPath = path.join(
 const inboundPath = path.join(repoRoot, "supabase/functions/whatsapp-webhook-inbound/index.ts");
 const dispatchPath = path.join(repoRoot, "supabase/functions/whatsapp-dispatch/index.ts");
 const qrResolvePath = path.join(repoRoot, "supabase/functions/qr-resolve/index.ts");
+const qrLeadTextPath = path.join(repoRoot, "supabase/functions/qr-resolve/lead-text.ts");
 
 function read(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
@@ -377,7 +378,9 @@ describe("WhatsApp guardrails contracts", () => {
 
   it("mantem a marca ImoveisQR no link gerado por qr-resolve", () => {
     const src = read(qrResolvePath);
-    expect(src).toContain("que vi no ImoveisQR");
-    expect(src).not.toContain("que vi no QRImoveis");
+    const leadText = read(qrLeadTextPath);
+    expect(src).toContain("buildLeadStartText");
+    expect(leadText).toContain("que vi no ImoveisQR");
+    expect(leadText).not.toContain("que vi no QRImoveis");
   });
 });

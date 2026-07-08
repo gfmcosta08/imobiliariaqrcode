@@ -1,11 +1,20 @@
 export function parseQrToken(text: string): string | null {
   const t = text.trim();
-  const m = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,100})/i);
-  if (m?.[1]) return m[1];
+  if (!t) return null;
+
+  // Formato mais comum do QR: "(Ref: <qr_token>)"
   const mRef = t.match(/Ref:\s*([a-z0-9_-]{16,100})/i);
   if (mRef?.[1]) return mRef[1];
-  const mPub = t.match(/\b([A-Z]{2,5}-\d{4}-[A-Z0-9]{4,})\b/);
-  if (mPub?.[1]) return mPub[1];
+
+  // Alguns fluxos podem enviar: "imovel <qr_token>"
+  const mImovel = t.match(/(?:imovel|imóvel)\s+([a-z0-9_-]{16,100})/i);
+  if (mImovel?.[1]) return mImovel[1];
+
+  // public_id exibido ao usuário: "IMV-2026-567596"
+  const mPublicId = t.match(/\b([A-Z]{2,5}-\d{4}-[A-Z0-9]{4,})\b/i);
+  if (mPublicId?.[1]) return mPublicId[1];
+
+  // Fallback genérico para tokens longos.
   const uuidLike = t.match(/[a-z0-9][a-z0-9_-]{15,99}/i);
   return uuidLike?.[0] ?? null;
 }
@@ -25,7 +34,9 @@ export function isQrEntryMessage(text: string): boolean {
   const normalized = text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
+    .replace(/\p{Diacritic}/gu, "")
+    .trim();
+
   return /\btenho interesse\b/.test(normalized) && /\bvi no\b/.test(normalized);
 }
 
