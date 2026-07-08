@@ -7,7 +7,7 @@ describe("bot QR contract - parsing", () => {
   it("parseQrToken extrai qr_token via Ref", () => {
     const qrToken =
       "d3ecad275c05413098d27f128707824d20b3289ece47a2ae5ebdb3a748890a";
-    const text = `Oi! Tenho interesse no imovel IMV-2026-6BDCDC que vi no QR Code. (Ref: ${qrToken})`;
+    const text = `Olá! Tenho interesse no imóvel IMV-2026-6BDCDC que vi no ImoveisQR (Ref: ${qrToken})`;
 
     expect(parseQrToken(text)).toBe(qrToken);
   });
