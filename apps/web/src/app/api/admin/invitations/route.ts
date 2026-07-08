@@ -272,6 +272,7 @@ export async function POST(req: Request) {
 
   const propertyIds: string[] = [];
   let firstPropertyId: string | null = null;
+  let firstPublicId: string | null = null;
   let firstQrToken: string | null = null;
 
   for (let index = 0; index < propertyCount; index++) {
@@ -290,7 +291,7 @@ export async function POST(req: Request) {
         city: "A preencher",
         state: "A preencher",
       })
-      .select("id")
+      .select("id, public_id")
       .single();
 
     if (propError || !property) {
@@ -302,7 +303,10 @@ export async function POST(req: Request) {
     }
 
     propertyIds.push(property.id as string);
-    if (index === 0) firstPropertyId = property.id as string;
+    if (index === 0) {
+      firstPropertyId = property.id as string;
+      firstPublicId = property.public_id ? String(property.public_id) : null;
+    }
   }
 
   for (let i = 0; i < 5 && firstPropertyId; i++) {
@@ -353,6 +357,7 @@ export async function POST(req: Request) {
     access_code: accessCode,
     qr_url: qrUrl,
     property_id: firstPropertyId,
+    public_id: firstPublicId,
     property_count: propertyCount,
   });
 }
