@@ -46,6 +46,19 @@ describe("InvitationGenerator — impressao em pagina unica", () => {
     expect(source).toContain("/convite");
   });
 
+  it("usa public_id do primeiro imovel no titulo do PDF e na area impressa", () => {
+    expect(source).toContain("public_id: string | null");
+    expect(source).toContain("printablePublicId");
+    expect(source).toContain("Convite Cortesia - ${printablePublicId}");
+    expect(source).toContain('data-testid="admin-invite-public-id-print"');
+    expect(source).toContain("ID do imovel");
+    expect(source).toContain("result.public_id");
+  });
+
+  it("nao usa titulo fixo generico no iframe de impressao", () => {
+    expect(source).not.toContain("<title>Convite Cortesia - ImoveisQR</title>");
+  });
+
   it("botoes de acao usam classe convite-screen-only (ocultos na impressao)", () => {
     expect(source).toContain("convite-screen-only");
   });
@@ -63,6 +76,7 @@ describe("InvitationGenerator — impressao em pagina unica", () => {
     expect(source).toContain('data-testid="admin-invite-property-count"');
     expect(source).toContain('data-testid="admin-invite-expiration-days"');
     expect(source).toContain('data-testid="admin-invite-print-area"');
+    expect(source).toContain('data-testid="admin-invite-public-id-print"');
   });
 });
 

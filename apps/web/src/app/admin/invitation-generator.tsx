@@ -8,6 +8,7 @@ type InvitationResult = {
   access_code: string;
   qr_url: string;
   property_id: string;
+  public_id: string | null;
   property_count: number;
 };
 
@@ -56,7 +57,10 @@ export function InvitationGenerator() {
 
   function handlePrint() {
     const printArea = printAreaRef.current;
-    if (!printArea) return;
+    if (!result || !printArea) return;
+
+    const printablePublicId = result.public_id?.trim() || "sem ID";
+    const printTitle = `Convite Cortesia - ${printablePublicId}`;
 
     const iframe = document.createElement("iframe");
     iframe.style.border = "0";
@@ -78,7 +82,7 @@ export function InvitationGenerator() {
     doc.write(`<!doctype html>
       <html>
         <head>
-          <title>Convite Cortesia - ImoveisQR</title>
+          <title>${printTitle}</title>
           <style>
             @page { size: A4 portrait; margin: 0; }
             * { box-sizing: border-box; }
@@ -233,6 +237,19 @@ export function InvitationGenerator() {
                     {result.access_code}
                   </span>
                 </div>
+                {result.public_id ? (
+                  <div>
+                    <span className="block text-xs uppercase tracking-wider text-gray-500">
+                      ID do imovel
+                    </span>
+                    <span
+                      className="font-mono text-xl font-bold tracking-wider text-gray-900"
+                      data-testid="admin-invite-public-id-print"
+                    >
+                      {result.public_id}
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               <p className="mt-5 text-sm font-medium text-gray-700">Acesse: {appUrl}/convite</p>

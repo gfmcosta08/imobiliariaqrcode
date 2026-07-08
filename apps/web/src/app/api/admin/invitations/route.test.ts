@@ -26,4 +26,10 @@ describe("admin invitations route", () => {
     expect(source).toContain("max_active_properties_override: propertyCount");
     expect(source).toContain('.eq("status", "free")');
   });
+
+  it("returns public_id of the first property created in POST", () => {
+    expect(source).toContain('.select("id, public_id")');
+    expect(source).toContain("firstPublicId");
+    expect(source).toContain("public_id: firstPublicId");
+  });
 });
