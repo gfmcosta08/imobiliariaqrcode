@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck
         run: pnpm --filter web run typecheck
 
+      - name: Architecture boundaries
+        run: pnpm architecture:check
+
       - name: Build
         run: pnpm --filter web run build
 

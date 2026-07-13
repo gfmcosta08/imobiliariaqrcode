@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 
-import { ChatWidgetGate } from "@/components/chat";
+import { ChatWidgetGate } from "@/features/chat/client";
 import "./globals.css";
 
 const geistSans = Geist({

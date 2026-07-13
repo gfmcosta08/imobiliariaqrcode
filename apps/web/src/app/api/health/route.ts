@@ -2,7 +2,7 @@ import { probeExtratorConnectivity } from "@imobiliariaqrcode/property-importer"
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-import { getPropertyExtractorBaseUrl } from "@/lib/property-import/enabled";
+import { getPropertyExtractorBaseUrl } from "@/features/properties/server";
 
 /**
  * `GET /api/health` — processo vivo.
