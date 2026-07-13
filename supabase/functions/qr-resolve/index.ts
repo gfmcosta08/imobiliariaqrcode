@@ -161,12 +161,8 @@ Deno.serve(async (req) => {
       buildLeadStartText(String(p.public_id ?? ""), String(row.qr_token)),
     );
     const digits = String(targetPhone).replace(/\D/g, "");
-    const wa = targetPhone
-      ? `https://wa.me/${digits}?text=${leadStartText}`
-      : null;
-    const waDeepLink = targetPhone
-      ? `whatsapp://send?phone=${digits}&text=${leadStartText}`
-      : null;
+    const wa = targetPhone ? `https://wa.me/${digits}?text=${leadStartText}` : null;
+    const waDeepLink = targetPhone ? `whatsapp://send?phone=${digits}&text=${leadStartText}` : null;
 
     if (shouldTrackAccess(req, url)) {
       const ip = getClientIp(req);

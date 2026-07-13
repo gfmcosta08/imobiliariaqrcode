@@ -23,26 +23,28 @@ Deno.test("resolvePropertyByQrOrPublicId - retorna por qr_token quando disponive
   }
 });
 
-Deno.test("resolvePropertyByQrOrPublicId - faz fallback por public_id quando qr_token falha", async () => {
-  const calls = { qr: 0, publicId: 0 };
+Deno.test(
+  "resolvePropertyByQrOrPublicId - faz fallback por public_id quando qr_token falha",
+  async () => {
+    const calls = { qr: 0, publicId: 0 };
 
-  const result = await resolvePropertyByQrOrPublicId(
-    "IMV-2026-567596",
-    async () => {
-      calls.qr += 1;
-      return null;
-    },
-    async () => {
-      calls.publicId += 1;
-      return { id: "P_PUBLIC" };
-    },
-  );
+    const result = await resolvePropertyByQrOrPublicId(
+      "IMV-2026-567596",
+      async () => {
+        calls.qr += 1;
+        return null;
+      },
+      async () => {
+        calls.publicId += 1;
+        return { id: "P_PUBLIC" };
+      },
+    );
 
-  if (result?.id !== "P_PUBLIC") {
-    throw new Error(`esperado P_PUBLIC, obtido ${String(result?.id)}`);
-  }
-  if (calls.qr !== 1 || calls.publicId !== 1) {
-    throw new Error(`chamadas inesperadas: ${JSON.stringify(calls)}`);
-  }
-});
-
+    if (result?.id !== "P_PUBLIC") {
+      throw new Error(`esperado P_PUBLIC, obtido ${String(result?.id)}`);
+    }
+    if (calls.qr !== 1 || calls.publicId !== 1) {
+      throw new Error(`chamadas inesperadas: ${JSON.stringify(calls)}`);
+    }
+  },
+);

@@ -14,4 +14,3 @@ export async function resolvePropertyByQrOrPublicId<TProperty>(
   if (byQrToken) return byQrToken;
   return loadByPublicId(tokenOrPublicId);
 }
-
