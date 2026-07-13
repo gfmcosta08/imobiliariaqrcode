@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { buildLeadStartText } from "../../../../../supabase/functions/qr-resolve/lead-text.ts";
-import { isQrEntryMessage, parseQrToken } from "../../../../../supabase/functions/conversation-handle/routing.ts";
+import {
+  isQrEntryMessage,
+  parseQrToken,
+} from "../../../../../supabase/functions/conversation-handle/routing.ts";
 
 describe("bot QR contract - parsing", () => {
   it("parseQrToken extrai qr_token via Ref", () => {
-    const qrToken =
-      "d3ecad275c05413098d27f128707824d20b3289ece47a2ae5ebdb3a748890a";
+    const qrToken = "d3ecad275c05413098d27f128707824d20b3289ece47a2ae5ebdb3a748890a";
     const text = `Olá! Tenho interesse no imóvel IMV-2026-6BDCDC que vi no ImoveisQR (Ref: ${qrToken})`;
 
     expect(parseQrToken(text)).toBe(qrToken);
@@ -26,14 +28,12 @@ describe("bot QR contract - parsing", () => {
 });
 
 describe("qr-resolve contract - leadStartText", () => {
-  it("buildLeadStartText inclui public_id e Ref", () => {
+  it("buildLeadStartText mantem texto canonico de producao com public_id", () => {
     const publicId = "IMV-2026-567596";
-    const qrToken =
-      "d3ecad275c05413098d27f128707824d20b3289ece47a2ae5ebdb3a748890a";
+    const qrToken = "d3ecad275c05413098d27f128707824d20b3289ece47a2ae5ebdb3a748890a";
 
     const text = buildLeadStartText(publicId, qrToken);
-    expect(text).toContain(publicId);
-    expect(text).toContain(`Ref: ${qrToken}`);
+    expect(text).toBe(`Olá! Tenho interesse no imóvel ${publicId} que vi no ImoveisQR`);
+    expect(text).not.toContain("Ref:");
   });
 });
-

@@ -7,15 +7,13 @@ function assertEquals<T>(actual: T, expected: T): void {
   }
 }
 
-Deno.test("buildLeadStartText inclui public_id e Ref e parseQrToken retorna qr_token", () => {
+Deno.test("buildLeadStartText mantem texto canonico de producao", () => {
   const publicId = "IMV-2026-567596";
   const qrToken = "d3ecad275c05413098d27f128707824d20a0b3289ece47a2ae5ebdb3a748890a";
 
   const text = buildLeadStartText(publicId, qrToken);
   if (!text.includes(publicId)) throw new Error("public_id ausente no texto");
-  if (!text.includes(`(Ref: ${qrToken})`)) throw new Error("Ref ausente/alterado no texto");
-
-  assertEquals(parseQrToken(text), qrToken);
+  if (text.includes("Ref:")) throw new Error("texto canonico nao deve incluir Ref no prefill");
 });
 
 Deno.test("parseQrToken consegue extrair public_id quando QR vem sem Ref", () => {
@@ -24,4 +22,3 @@ Deno.test("parseQrToken consegue extrair public_id quando QR vem sem Ref", () =>
 
   assertEquals(parseQrToken(withoutRefText), publicId);
 });
-
