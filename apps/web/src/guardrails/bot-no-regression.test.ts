@@ -39,13 +39,13 @@ describe("bot no-regression contract", () => {
   });
 
   it("QR page still builds WhatsApp link with property public id", () => {
-    const qrPage = readRepo("apps/web/src/app/q/[token]/page.tsx");
+    const qrPage = readRepo("apps/web/src/features/public-listings/pages/PublicQrPage.tsx");
     expect(qrPage).toContain("wa.me");
     expect(qrPage).toContain("public_id");
   });
 
   it("public lead route still calls upsert_lead_from_qr_event", () => {
-    const leadRoute = readRepo("apps/web/src/app/api/public/lead/route.ts");
+    const leadRoute = readRepo("apps/web/src/features/public-listings/server/lead-route.ts");
     expect(leadRoute).toContain("upsert_lead_from_qr_event");
   });
 });

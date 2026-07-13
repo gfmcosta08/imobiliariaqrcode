@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { isPropertyImportEnabled } from "@/lib/property-import/enabled";
+import { isPropertyImportEnabled } from "@/features/properties/server";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../../..");
@@ -38,7 +38,7 @@ describe("Property import staging guardrails", () => {
 
   it("rotas de import existem e citam feature_disabled", () => {
     const importRoute = read(
-      path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
+      path.join(repoRoot, "apps/web/src/features/properties/server/import-route.ts"),
     );
     expect(importRoute).toContain("isPropertyImportEnabled");
     expect(importRoute).toContain("feature_disabled");
@@ -47,7 +47,7 @@ describe("Property import staging guardrails", () => {
 
   it("autentica antes de exigir PROPERTY_EXTRACTOR_URL", () => {
     const importRoute = read(
-      path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
+      path.join(repoRoot, "apps/web/src/features/properties/server/import-route.ts"),
     );
     const authIndex = importRoute.indexOf("auth.getUser()");
     const extractorCheckIndex = importRoute.indexOf("if (!getPropertyExtractorBaseUrl())");
@@ -59,7 +59,7 @@ describe("Property import staging guardrails", () => {
 
   it("missing_url retorna detail granular para diagnóstico", () => {
     const importRoute = read(
-      path.join(repoRoot, "apps/web/src/app/api/properties/import/route.ts"),
+      path.join(repoRoot, "apps/web/src/features/properties/server/import-route.ts"),
     );
     expect(importRoute).toContain('error: "missing_url"');
     expect(importRoute).toContain("detail:");
@@ -68,7 +68,9 @@ describe("Property import staging guardrails", () => {
   });
 
   it("run-job trata erro de extrator por item sem derrubar o job inteiro", () => {
-    const runJob = read(path.join(repoRoot, "apps/web/src/lib/property-import/run-job.ts"));
+    const runJob = read(
+      path.join(repoRoot, "apps/web/src/features/properties/lib/property-import/run-job.ts"),
+    );
     expect(runJob).toContain("normalizeExtratorFetchError");
     expect(runJob).toContain("item_extract_failed");
     expect(runJob).toContain("extrator_unreachable");
