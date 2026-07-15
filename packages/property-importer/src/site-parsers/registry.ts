@@ -105,7 +105,7 @@ export const SITE_IMPORT_REGISTRY: SiteImportDefinition[] = [
     hostnames: imobiliariasonharParser.hostnames,
     tier: "verified",
     parser: imobiliariasonharParser,
-    allowGenericFallback: false,
+    allowGenericFallback: true,
     goldenFixtures: [
       {
         listingUrl:
