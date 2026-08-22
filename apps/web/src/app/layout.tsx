@@ -25,6 +25,8 @@ export const metadata: Metadata = {
   description: "Plataforma imobiliária com QR Code, leads automáticos e WhatsApp.",
 };
 
+const maintenanceMode = process.env.MAINTENANCE_MODE === "true";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +38,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} antialiased`}
       >
         {children}
-        <ChatWidgetGate />
+        {!maintenanceMode && <ChatWidgetGate />}
       </body>
     </html>
   );

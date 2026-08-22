@@ -60,3 +60,6 @@ output/
 QA_STAGING_REPORT.md
 QA_REPORT_STAGING_*.md
 RELATORIO_COBERTURA_IMPORTACAO_*.md
+.env*
+!.env.example
+!apps/web/.env.example
